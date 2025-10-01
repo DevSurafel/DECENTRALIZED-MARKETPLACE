@@ -14,7 +14,409 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bids: {
+        Row: {
+          bid_amount_eth: number
+          created_at: string | null
+          estimated_duration_weeks: number | null
+          freelancer_id: string
+          id: string
+          ipfs_hash: string | null
+          job_id: string
+          proposal_text: string
+          status: Database["public"]["Enums"]["bid_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          bid_amount_eth: number
+          created_at?: string | null
+          estimated_duration_weeks?: number | null
+          freelancer_id: string
+          id?: string
+          ipfs_hash?: string | null
+          job_id: string
+          proposal_text: string
+          status?: Database["public"]["Enums"]["bid_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          bid_amount_eth?: number
+          created_at?: string | null
+          estimated_duration_weeks?: number | null
+          freelancer_id?: string
+          id?: string
+          ipfs_hash?: string | null
+          job_id?: string
+          proposal_text?: string
+          status?: Database["public"]["Enums"]["bid_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bids_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bids_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          job_id: string | null
+          last_message_at: string | null
+          participant_1_id: string
+          participant_2_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          last_message_at?: string | null
+          participant_1_id: string
+          participant_2_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          last_message_at?: string | null
+          participant_1_id?: string
+          participant_2_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_participant_1_id_fkey"
+            columns: ["participant_1_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_participant_2_id_fkey"
+            columns: ["participant_2_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_milestones: {
+        Row: {
+          amount_eth: number
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          ipfs_hash: string | null
+          is_completed: boolean | null
+          is_paid: boolean | null
+          job_id: string
+          order_index: number
+          paid_at: string | null
+          title: string
+        }
+        Insert: {
+          amount_eth: number
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ipfs_hash?: string | null
+          is_completed?: boolean | null
+          is_paid?: boolean | null
+          job_id: string
+          order_index: number
+          paid_at?: string | null
+          title: string
+        }
+        Update: {
+          amount_eth?: number
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ipfs_hash?: string | null
+          is_completed?: boolean | null
+          is_paid?: boolean | null
+          job_id?: string
+          order_index?: number
+          paid_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_milestones_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          accepted_bid_id: string | null
+          budget_eth: number
+          budget_usd: number | null
+          client_id: string
+          completed_at: string | null
+          contract_address: string | null
+          created_at: string | null
+          deadline: string | null
+          description: string
+          duration_weeks: number | null
+          escrow_address: string | null
+          freelancer_id: string | null
+          id: string
+          ipfs_hash: string | null
+          skills_required: string[]
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_status"] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          accepted_bid_id?: string | null
+          budget_eth: number
+          budget_usd?: number | null
+          client_id: string
+          completed_at?: string | null
+          contract_address?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          description: string
+          duration_weeks?: number | null
+          escrow_address?: string | null
+          freelancer_id?: string | null
+          id?: string
+          ipfs_hash?: string | null
+          skills_required: string[]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          accepted_bid_id?: string | null
+          budget_eth?: number
+          budget_usd?: number | null
+          client_id?: string
+          completed_at?: string | null
+          contract_address?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          description?: string
+          duration_weeks?: number | null
+          escrow_address?: string | null
+          freelancer_id?: string | null
+          id?: string
+          ipfs_hash?: string | null
+          skills_required?: string[]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          sender_id: string
+          telegram_message_id: string | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          sender_id: string
+          telegram_message_id?: string | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          sender_id?: string
+          telegram_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          average_rating: number | null
+          bio: string | null
+          completed_jobs: number | null
+          created_at: string | null
+          display_name: string | null
+          hourly_rate: number | null
+          id: string
+          location: string | null
+          portfolio_items: Json | null
+          skills: string[] | null
+          success_rate: number | null
+          telegram_chat_id: string | null
+          telegram_username: string | null
+          total_earnings: number | null
+          updated_at: string | null
+          user_type: Database["public"]["Enums"]["user_type"] | null
+          wallet_address: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          average_rating?: number | null
+          bio?: string | null
+          completed_jobs?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          hourly_rate?: number | null
+          id: string
+          location?: string | null
+          portfolio_items?: Json | null
+          skills?: string[] | null
+          success_rate?: number | null
+          telegram_chat_id?: string | null
+          telegram_username?: string | null
+          total_earnings?: number | null
+          updated_at?: string | null
+          user_type?: Database["public"]["Enums"]["user_type"] | null
+          wallet_address: string
+        }
+        Update: {
+          avatar_url?: string | null
+          average_rating?: number | null
+          bio?: string | null
+          completed_jobs?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          hourly_rate?: number | null
+          id?: string
+          location?: string | null
+          portfolio_items?: Json | null
+          skills?: string[] | null
+          success_rate?: number | null
+          telegram_chat_id?: string | null
+          telegram_username?: string | null
+          total_earnings?: number | null
+          updated_at?: string | null
+          user_type?: Database["public"]["Enums"]["user_type"] | null
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          is_verified: boolean | null
+          job_id: string
+          rating: number
+          reviewee_id: string
+          reviewer_id: string
+          transaction_hash: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          is_verified?: boolean | null
+          job_id: string
+          rating: number
+          reviewee_id: string
+          reviewer_id: string
+          transaction_hash?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          is_verified?: boolean | null
+          job_id?: string
+          rating?: number
+          reviewee_id?: string
+          reviewer_id?: string
+          transaction_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewee_id_fkey"
+            columns: ["reviewee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +425,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      bid_status: "pending" | "accepted" | "rejected" | "withdrawn"
+      job_status:
+        | "open"
+        | "in_progress"
+        | "under_review"
+        | "completed"
+        | "disputed"
+        | "cancelled"
+      priority_level: "low" | "medium" | "high"
+      user_type: "freelancer" | "client" | "both"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +561,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      bid_status: ["pending", "accepted", "rejected", "withdrawn"],
+      job_status: [
+        "open",
+        "in_progress",
+        "under_review",
+        "completed",
+        "disputed",
+        "cancelled",
+      ],
+      priority_level: ["low", "medium", "high"],
+      user_type: ["freelancer", "client", "both"],
+    },
   },
 } as const
