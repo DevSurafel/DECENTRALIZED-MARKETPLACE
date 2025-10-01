@@ -1,16 +1,13 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Wallet, Menu, X } from "lucide-react";
+import { Wallet, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [walletConnected, setWalletConnected] = useState(false);
-
-  const connectWallet = async () => {
-    // Placeholder for MetaMask/WalletConnect integration
-    setWalletConnected(true);
-  };
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b">
@@ -40,14 +37,26 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <Button 
-              onClick={connectWallet}
-              variant={walletConnected ? "outline" : "default"}
-              className="gap-2"
-            >
-              <Wallet className="w-4 h-4" />
-              {walletConnected ? "0x1234...5678" : "Connect Wallet"}
-            </Button>
+            {user ? (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  {user.email}
+                </span>
+                <Button 
+                  onClick={signOut}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => navigate("/auth")} className="gap-2">
+                <Wallet className="w-4 h-4" />
+                Login / Sign Up
+              </Button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -90,14 +99,27 @@ const Navbar = () => {
             >
               Chat
             </Link>
-            <Button 
-              onClick={connectWallet}
-              variant={walletConnected ? "outline" : "default"}
-              className="w-full gap-2"
-            >
-              <Wallet className="w-4 h-4" />
-              {walletConnected ? "0x1234...5678" : "Connect Wallet"}
-            </Button>
+            {user ? (
+              <Button 
+                onClick={signOut}
+                variant="outline"
+                className="w-full gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
+            ) : (
+              <Button 
+                onClick={() => {
+                  navigate("/auth");
+                  setIsMenuOpen(false);
+                }}
+                className="w-full gap-2"
+              >
+                <Wallet className="w-4 h-4" />
+                Login / Sign Up
+              </Button>
+            )}
           </div>
         )}
       </div>

@@ -32,15 +32,15 @@ const Home = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/marketplace">
+            <Link to="/auth">
               <Button size="lg" className="gap-2 shadow-glow">
-                Browse Jobs
+                Get Started
                 <Zap className="w-4 h-4" />
               </Button>
             </Link>
-            <Link to="/dashboard">
+            <Link to="/marketplace">
               <Button size="lg" variant="outline" className="gap-2">
-                Start Freelancing
+                Browse Jobs
                 <Globe className="w-4 h-4" />
               </Button>
             </Link>
