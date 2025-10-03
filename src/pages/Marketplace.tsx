@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 
 const Marketplace = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
 
   const jobs = [
@@ -230,10 +232,17 @@ const Marketplace = () => {
                   </div>
                   
                   <div className="flex gap-3">
-                    <Button variant="outline" className="hover:scale-105 transition-smooth border-primary/20">
+                    <Button 
+                      variant="outline" 
+                      className="hover:scale-105 transition-smooth border-primary/20"
+                      onClick={() => navigate(`/jobs/${job.id}`)}
+                    >
                       View Details
                     </Button>
-                    <Button className="shadow-glow hover:scale-105 transition-smooth">
+                    <Button 
+                      className="shadow-glow hover:scale-105 transition-smooth"
+                      onClick={() => navigate(`/jobs/${job.id}`)}
+                    >
                       Submit Proposal
                     </Button>
                   </div>
