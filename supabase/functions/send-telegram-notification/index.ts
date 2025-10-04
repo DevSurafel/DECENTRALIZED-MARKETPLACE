@@ -38,7 +38,7 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { recipient_id, message, sender_name, conversation_id } = await req.json();
+    const { recipient_id, message, sender_name, sender_id, conversation_id } = await req.json();
 
     if (!recipient_id || !message) {
       throw new Error("recipient_id and message are required");
@@ -62,15 +62,30 @@ serve(async (req) => {
       );
     }
 
+    // Get sender's profile for username
+    let senderUsername = "user";
+    if (sender_id) {
+      const { data: senderProfile } = await supabase
+        .from("profiles")
+        .select("telegram_username, display_name")
+        .eq("id", sender_id)
+        .single();
+      
+      if (senderProfile) {
+        senderUsername = senderProfile.telegram_username || senderProfile.display_name || "user";
+      }
+    }
+
     // Send notification via Telegram and update last notified conversation
     if (TELEGRAM_BOT_TOKEN) {
       const notificationText = sender_name 
-        ? `💬 New message from ${sender_name}:\n\n${message}\n\n💡 Reply to this message to respond directly!`
-        : `💬 New message:\n\n${message}\n\n💡 Reply to this message to respond directly!`;
+        ? `💬 New message from ${sender_name}:\n\n${message}`
+        : `💬 New message:\n\n${message}`;
 
       await sendTelegramMessage(
         parseInt(profile.telegram_chat_id),
-        notificationText
+        notificationText,
+        senderUsername
       );
 
       // Store conversation ID for reply context
@@ -99,17 +114,33 @@ serve(async (req) => {
   }
 });
 
-async function sendTelegramMessage(chatId: number, text: string) {
+async function sendTelegramMessage(chatId: number, text: string, senderUsername?: string) {
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+  
+  const messageBody: any = {
+    chat_id: chatId,
+    text: text,
+    parse_mode: "HTML",
+  };
+
+  // Add inline reply button if sender username is provided
+  if (senderUsername) {
+    messageBody.reply_markup = {
+      inline_keyboard: [
+        [
+          {
+            text: "💬 Reply",
+            switch_inline_query_current_chat: `@${senderUsername} `,
+          },
+        ],
+      ],
+    };
+  }
   
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: text,
-      parse_mode: "HTML",
-    }),
+    body: JSON.stringify(messageBody),
   });
 
   return await response.json();
