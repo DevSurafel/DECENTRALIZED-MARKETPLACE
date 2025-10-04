@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Send, Search, MoreVertical, Phone, Video, Check, CheckCheck } from "lucide-react";
 import { useMessages } from "@/hooks/useMessages";
 import { useAuth } from "@/hooks/useAuth";
@@ -173,6 +173,9 @@ const Chat = () => {
                     <div className="flex items-start gap-3">
                       <div className="relative">
                         <Avatar>
+                          {other.avatar_url ? (
+                            <AvatarImage src={other.avatar_url} alt={other.display_name || 'User avatar'} />
+                          ) : null}
                           <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                             {other.display_name?.substring(0, 2).toUpperCase() || 'U'}
                           </AvatarFallback>
@@ -219,6 +222,9 @@ const Chat = () => {
                         if (other?.id) navigate(`/profile/${other.id}`);
                       }}
                     >
+                      {getOtherParticipant(selectedConv)?.avatar_url ? (
+                        <AvatarImage src={getOtherParticipant(selectedConv)?.avatar_url} alt={getOtherParticipant(selectedConv)?.display_name || 'User avatar'} />
+                      ) : null}
                       <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                         {getOtherParticipant(selectedConv)?.display_name?.substring(0, 2).toUpperCase() || 'U'}
                       </AvatarFallback>

@@ -38,6 +38,7 @@ interface Profile {
   total_earnings: number;
   portfolio_items: any;
   avatar_url: string | null;
+  telegram_chat_id: string | null;
 }
 
 // Sample portfolio items for demo
@@ -257,6 +258,23 @@ const Profile = () => {
     }
   };
 
+  const handleConnectBot = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('telegram-connect', { method: 'GET' as any });
+      if ((error as any)) throw error;
+      const link = (data as any)?.link;
+      if (link) {
+        window.open(link, '_blank');
+        toast({ title: 'Open Telegram', description: 'Tap Start to link your bot.' });
+      } else {
+        toast({ title: 'Error', description: 'Could not generate bot link', variant: 'destructive' });
+      }
+    } catch (e) {
+      console.error('connect-bot error:', e);
+      toast({ title: 'Error', description: 'Failed to connect bot', variant: 'destructive' });
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen">
@@ -363,6 +381,15 @@ const Profile = () => {
                     </label>
                   )}
                 </div>
+                {isOwnProfile && (
+                  <div className="mt-2 flex flex-col gap-2 w-full">
+                    {profile.telegram_chat_id ? (
+                      <div className="text-sm text-green-600">Telegram bot connected</div>
+                    ) : (
+                      <Button variant="secondary" onClick={handleConnectBot} className="w-full">Connect Bot</Button>
+                    )}
+                  </div>
+                )}
                 {isOwnProfile && (
                   <Dialog open={editProfileDialog} onOpenChange={setEditProfileDialog}>
                     <DialogTrigger asChild>

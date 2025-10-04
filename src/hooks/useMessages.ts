@@ -17,7 +17,7 @@ export const useMessages = () => {
           *,
           participant1:profiles!conversations_participant_1_id_fkey(id, display_name, avatar_url),
           participant2:profiles!conversations_participant_2_id_fkey(id, display_name, avatar_url),
-          messages(content, created_at, is_read)
+          messages(id, content, created_at, is_read, sender_id)
         `)
         .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
         .order('last_message_at', { ascending: false });

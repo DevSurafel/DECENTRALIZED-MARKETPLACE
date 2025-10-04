@@ -51,21 +51,55 @@ serve(async (req) => {
 
       // Handle /start command to link account
       if (text?.startsWith('/start')) {
-        // Find user by telegram username
+        // Support deep-link payload: /start <user_id>
+        const parts = text.split(' ');
+        const payloadUserId = parts.length > 1 ? parts[1] : undefined;
+
+        if (payloadUserId) {
+          // Link by supplied user id from deep link
+          const { data: profileById, error: byIdErr } = await supabase
+            .from('profiles')
+            .select('id, display_name, telegram_chat_id, telegram_username')
+            .eq('id', payloadUserId)
+            .maybeSingle();
+
+          if (byIdErr) {
+            console.error('Error fetching profile by id:', byIdErr);
+            await sendTelegramMessage(chat.id, '❌ Database error. Please try again later.');
+          } else if (!profileById) {
+            await sendTelegramMessage(chat.id, '⚠️ Account not found for this link. Please open your Profile in the app and try again.');
+          } else {
+            await supabase
+              .from('profiles')
+              .update({ telegram_chat_id: chat.id.toString(), telegram_username: profileById.telegram_username || username })
+              .eq('id', profileById.id);
+
+            await sendTelegramMessage(
+              chat.id,
+              '✅ You are authorized!\n\nYour Telegram account is now linked to DeFiLance. You will receive notifications for new messages and updates.'
+            );
+          }
+
+          return new Response(JSON.stringify({ ok: true }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Fallback: Find user by telegram username
         const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("id, display_name, telegram_chat_id, telegram_username")
-          .eq("telegram_username", username)
+          .from('profiles')
+          .select('id, display_name, telegram_chat_id, telegram_username')
+          .eq('telegram_username', username)
           .maybeSingle();
 
         if (profileError) {
-          console.error("Error fetching profile:", profileError);
+          console.error('Error fetching profile:', profileError);
           await sendTelegramMessage(
             chat.id,
-            "❌ Database error. Please try again later."
+            '❌ Database error. Please try again later.'
           );
           return new Response(JSON.stringify({ ok: true }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
@@ -73,38 +107,36 @@ serve(async (req) => {
           // User not found, send instructions
           await sendTelegramMessage(
             chat.id,
-            "👋 Welcome to DeFiLance Bot!\n\n" +
-            "To link your account:\n" +
-            "1. Sign up on DeFiLance platform\n" +
-            "2. Go to your Profile page\n" +
-            "3. Click 'Edit Profile'\n" +
-            "4. Add your Telegram username: @" + username + "\n" +
-            "5. Come back here and send /start again\n\n" +
-            "You'll then receive real-time notifications for messages and jobs!"
+            '👋 Welcome to DeFiLance Bot!\n\n' +
+            'To link your account:\n' +
+            '1. Sign in on DeFiLance\n' +
+            "2. Go to your Profile > Connect Bot\n" +
+            '3. Tap the button to open Telegram and press Start\n\n' +
+            'Alternatively, update your Telegram username in your profile and send /start again.'
           );
           return new Response(JSON.stringify({ ok: true }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
         // Update chat_id and confirm authorization
         await supabase
-          .from("profiles")
+          .from('profiles')
           .update({ telegram_chat_id: chat.id.toString() })
-          .eq("id", profile.id);
+          .eq('id', profile.id);
         
         await sendTelegramMessage(
           chat.id,
-          "✅ You are authorized!\n\n" +
-          "Your Telegram account is now linked to DeFiLance.\n" +
-          "You will receive notifications for:\n" +
-          "• New messages\n" +
-          "• Job updates\n" +
-          "• Bid responses\n\n" +
-          "Stay connected and never miss an opportunity! 🚀"
+          '✅ You are authorized!\n\n' +
+          'Your Telegram account is now linked to DeFiLance.\n' +
+          'You will receive notifications for:\n' +
+          '• New messages\n' +
+          '• Job updates\n' +
+          '• Bid responses\n\n' +
+          'Stay connected and never miss an opportunity! 🚀'
         );
         return new Response(JSON.stringify({ ok: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
