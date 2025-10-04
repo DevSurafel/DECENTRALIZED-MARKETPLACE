@@ -49,39 +49,45 @@ serve(async (req) => {
       const { chat, from, text, message_id } = update.message;
       const username = from.username || '';
 
-      // Find user by telegram username or chat_id
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, display_name, telegram_chat_id, telegram_username")
-        .or(`telegram_chat_id.eq.${chat.id},telegram_username.eq.${username}`)
-        .maybeSingle();
+      // Handle /start command to link account
+      if (text?.startsWith('/start')) {
+        // Find user by telegram username
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("id, display_name, telegram_chat_id, telegram_username")
+          .eq("telegram_username", username)
+          .maybeSingle();
 
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-        return new Response(JSON.stringify({ error: "Database error" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+          await sendTelegramMessage(
+            chat.id,
+            "❌ Database error. Please try again later."
+          );
+          return new Response(JSON.stringify({ ok: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
-      if (!profile) {
-        // User not found, send instructions
-        await sendTelegramMessage(
-          chat.id,
-          "👋 Welcome to DeFiLance Bot!\n\n" +
-          "To link your account:\n" +
-          "1. Sign up on DeFiLance platform\n" +
-          "2. Add your Telegram username (@" + username + ") during registration or in your profile\n" +
-          "3. Come back here and send /start\n\n" +
-          "You'll then receive real-time notifications for messages and jobs!"
-        );
-        return new Response(JSON.stringify({ ok: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+        if (!profile) {
+          // User not found, send instructions
+          await sendTelegramMessage(
+            chat.id,
+            "👋 Welcome to DeFiLance Bot!\n\n" +
+            "To link your account:\n" +
+            "1. Sign up on DeFiLance platform\n" +
+            "2. Go to your Profile page\n" +
+            "3. Click 'Edit Profile'\n" +
+            "4. Add your Telegram username: @" + username + "\n" +
+            "5. Come back here and send /start again\n\n" +
+            "You'll then receive real-time notifications for messages and jobs!"
+          );
+          return new Response(JSON.stringify({ ok: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
-      // Update chat_id if not set or different
-      if (!profile.telegram_chat_id || profile.telegram_chat_id !== chat.id.toString()) {
+        // Update chat_id and confirm authorization
         await supabase
           .from("profiles")
           .update({ telegram_chat_id: chat.id.toString() })
@@ -89,7 +95,37 @@ serve(async (req) => {
         
         await sendTelegramMessage(
           chat.id,
-          "✅ You are authorized!\n\nNow you will receive notifications from the site DeFiLance directly in this chat"
+          "✅ You are authorized!\n\n" +
+          "Your Telegram account is now linked to DeFiLance.\n" +
+          "You will receive notifications for:\n" +
+          "• New messages\n" +
+          "• Job updates\n" +
+          "• Bid responses\n\n" +
+          "Stay connected and never miss an opportunity! 🚀"
+        );
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // For regular messages, find user by telegram chat_id
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, display_name, telegram_chat_id, telegram_username")
+        .eq("telegram_chat_id", chat.id.toString())
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!profile) {
+        await sendTelegramMessage(
+          chat.id,
+          "⚠️ Your account is not linked. Please send /start to link your Telegram account."
         );
         return new Response(JSON.stringify({ ok: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

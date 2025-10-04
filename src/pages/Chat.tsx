@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Search, MoreVertical, Phone, Video } from "lucide-react";
+import { Send, Search, MoreVertical, Phone, Video, Check, CheckCheck } from "lucide-react";
 import { useMessages } from "@/hooks/useMessages";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,12 +50,17 @@ const Chat = () => {
 
   const markMessagesAsRead = async (conversationId: string) => {
     if (!user) return;
-    await supabase
+    const { error } = await supabase
       .from('messages')
       .update({ is_read: true })
       .eq('conversation_id', conversationId)
       .neq('sender_id', user.id)
       .eq('is_read', false);
+    
+    if (!error) {
+      // Reload conversations to update unread indicators
+      loadConversations();
+    }
   };
 
   useEffect(() => {
@@ -248,9 +253,18 @@ const Chat = () => {
                           </p>
                         )}
                         <p className="leading-relaxed">{msg.content}</p>
-                        <span className="text-xs opacity-70 mt-2 block">
-                          {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </span>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs opacity-70">
+                            {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                          {isOwn && (
+                            msg.is_read ? (
+                              <CheckCheck className="w-3 h-3 opacity-70" />
+                            ) : (
+                              <Check className="w-3 h-3 opacity-70" />
+                            )
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

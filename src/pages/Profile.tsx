@@ -21,6 +21,8 @@ import {
   Edit,
   Loader2,
   Plus,
+  Camera,
+  Upload,
 } from "lucide-react";
 
 interface Profile {
@@ -35,6 +37,7 @@ interface Profile {
   average_rating: number;
   total_earnings: number;
   portfolio_items: any;
+  avatar_url: string | null;
 }
 
 // Sample portfolio items for demo
@@ -87,6 +90,7 @@ const Profile = () => {
     hourly_rate: "",
     telegram_username: ""
   });
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user && isOwnProfile) {
@@ -204,6 +208,55 @@ const Profile = () => {
     }
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !event.target.files || event.target.files.length === 0) return;
+    
+    const file = event.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    setUploading(true);
+
+    try {
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Success",
+        description: "Profile picture updated successfully",
+      });
+      
+      fetchProfile();
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload profile picture",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen">
@@ -279,11 +332,37 @@ const Profile = () => {
           <Card className="p-8 glass-card shadow-card mb-8">
             <div className="flex flex-col lg:flex-row gap-8">
               <div className="flex flex-col items-center lg:items-start">
-                <Avatar className="w-32 h-32 mb-4 border-4 border-primary shadow-glow">
-                  <AvatarFallback className="text-4xl bg-gradient-primary">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative mb-4">
+                  <Avatar className="w-32 h-32 border-4 border-primary shadow-glow">
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} alt={displayName} className="object-cover" />
+                    ) : (
+                      <AvatarFallback className="text-4xl bg-gradient-primary">
+                        {initials}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  {isOwnProfile && (
+                    <label 
+                      htmlFor="avatar-upload" 
+                      className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center cursor-pointer shadow-lg transition-all hover-scale"
+                    >
+                      {uploading ? (
+                        <Loader2 className="w-5 h-5 animate-spin text-primary-foreground" />
+                      ) : (
+                        <Camera className="w-5 h-5 text-primary-foreground" />
+                      )}
+                      <input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                    </label>
+                  )}
+                </div>
                 {isOwnProfile && (
                   <Dialog open={editProfileDialog} onOpenChange={setEditProfileDialog}>
                     <DialogTrigger asChild>
