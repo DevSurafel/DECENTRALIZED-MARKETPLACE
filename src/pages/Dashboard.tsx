@@ -4,45 +4,48 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Briefcase, Clock, TrendingUp, Users, MessageSquare, CheckCircle, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { JobPostDialog } from "@/components/JobPostDialog";
+import { useJobs } from "@/hooks/useJobs";
+import { useBids } from "@/hooks/useBids";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     activeJobs: 0,
     totalEarnings: 0,
     pendingBids: 0,
     completedJobs: 0
   });
-  const [loading, setLoading] = useState(true);
+  const [activeJobs, setActiveJobs] = useState<any[]>([]);
+  const { getUserJobs } = useJobs();
+  const { getUserBids } = useBids();
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   const fetchDashboardData = async () => {
     try {
-      // TODO: Replace with MongoDB edge function call
-      // const { data, error } = await supabase.functions.invoke('mongodb-jobs', {
-      //   body: { action: 'getStats', userId: user.id }
-      // });
+      const jobs = await getUserJobs();
+      const bids = await getUserBids();
       
-      // Mock data for now
+      const active = jobs.filter((j: any) => j.status === 'in_progress' || j.status === 'funded');
+      const completed = jobs.filter((j: any) => j.status === 'completed');
+      const pending = bids.filter((b: any) => b.status === 'pending');
+      
+      setActiveJobs(active.slice(0, 3));
       setStats({
-        activeJobs: 5,
-        totalEarnings: 24500,
-        pendingBids: 8,
-        completedJobs: 23
+        activeJobs: active.length,
+        totalEarnings: completed.reduce((sum: number, j: any) => sum + parseFloat(j.budget_eth || 0), 0),
+        pendingBids: pending.length,
+        completedJobs: completed.length
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -127,48 +130,41 @@ const Dashboard = () => {
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Active Projects</h2>
-              <Button size="sm" className="shadow-glow">
-                <Briefcase className="h-4 w-4 mr-2" />
-                New Project
-              </Button>
+              <JobPostDialog 
+                trigger={
+                  <Button size="sm" className="shadow-glow">
+                    <Briefcase className="h-4 w-4 mr-2" />
+                    New Project
+                  </Button>
+                }
+                onSuccess={fetchDashboardData}
+              />
             </div>
             <div className="grid gap-4">
-              {[
-                { title: "DeFi Dashboard Development", client: "Alice Johnson", budget: 5.5, deadline: "2 weeks", progress: 65, status: "In Progress" },
-                { title: "Smart Contract Audit", client: "Bob Smith", budget: 8.2, deadline: "1 week", progress: 40, status: "In Progress" },
-                { title: "NFT Marketplace UI", client: "Carol White", budget: 4.0, deadline: "3 weeks", progress: 85, status: "Review" }
-              ].map((job, idx) => (
+              {activeJobs.length === 0 ? (
+                <Card className="p-6 text-center">
+                  <p className="text-muted-foreground">No active projects. Start by posting a job!</p>
+                </Card>
+              ) : activeJobs.map((job, idx) => (
                 <Card key={idx} className="p-6 hover:shadow-glow transition-all duration-300 bg-card/50 backdrop-blur group">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">{job.title}</h3>
-                        <Badge variant={job.status === "Review" ? "secondary" : "default"} className="text-xs">
+                        <Badge variant="default" className="text-xs">
                           {job.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-3">Client: {job.client}</p>
+                      <p className="text-sm text-muted-foreground mb-3">{job.description.substring(0, 100)}...</p>
                       <div className="flex flex-wrap gap-4 text-sm">
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <DollarSign className="h-4 w-4" />
-                          {job.budget} ETH
+                          {job.budget_eth} ETH
                         </span>
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <Clock className="h-4 w-4" />
-                          {job.deadline}
+                          {job.duration_weeks ? `${job.duration_weeks} weeks` : 'Flexible'}
                         </span>
-                      </div>
-                      <div className="mt-3">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-muted-foreground">Progress</span>
-                          <span className="font-medium">{job.progress}%</span>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
-                            style={{ width: `${job.progress}%` }}
-                          />
-                        </div>
                       </div>
                     </div>
                     <Button variant="outline" size="sm" className="hover-scale">

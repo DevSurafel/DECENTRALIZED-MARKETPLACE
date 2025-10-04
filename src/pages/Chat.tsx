@@ -3,127 +3,79 @@ import Navbar from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Search, MoreVertical, Phone, Video } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { useMessages } from "@/hooks/useMessages";
+import { useAuth } from "@/hooks/useAuth";
 
 const Chat = () => {
+  const { user } = useAuth();
   const [currentMessage, setCurrentMessage] = useState("");
-  const [selectedConversation, setSelectedConversation] = useState("1");
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { getConversations, getMessages, sendMessage: sendMsg, subscribeToMessages } = useMessages();
+
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      loadMessages();
+      const unsubscribe = subscribeToMessages(selectedConversation, (newMessage) => {
+        setMessages(prev => [...prev, newMessage]);
+        scrollToBottom();
+      });
+      return unsubscribe;
+    }
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [selectedConversation]);
-
-  const handleSendMessage = async () => {
-    if (!currentMessage.trim()) return;
-    
-    try {
-      // TODO: Call MongoDB edge function to send message
-      // const { data, error } = await supabase.functions.invoke('mongodb-messages', {
-      //   body: { 
-      //     action: 'send', 
-      //     data: { 
-      //       conversationId: selectedConversation, 
-      //       senderId: user.id,
-      //       content: currentMessage 
-      //     } 
-      //   }
-      // });
-      
-      console.log('Sending message:', currentMessage);
-      setCurrentMessage("");
-      toast({
-        title: "Message sent",
-        description: "Your message has been delivered"
-      });
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive"
-      });
+  const loadConversations = async () => {
+    const data = await getConversations();
+    setConversations(data);
+    if (data.length > 0 && !selectedConversation) {
+      setSelectedConversation(data[0].id);
     }
   };
 
-  const conversations = [
-    {
-      id: "1",
-      name: "Alice Johnson",
-      lastMessage: "Sounds good! Let's finalize the contract.",
-      time: "2m ago",
-      unread: 2,
-      avatar: "AJ",
-      online: true
-    },
-    {
-      id: "2",
-      name: "Bob Smith",
-      lastMessage: "Can we schedule a call tomorrow?",
-      time: "1h ago",
-      unread: 0,
-      avatar: "BS",
-      online: false
-    },
-    {
-      id: "3",
-      name: "Carol White",
-      lastMessage: "The mockups look great!",
-      time: "3h ago",
-      unread: 1,
-      avatar: "CW",
-      online: true
-    },
-  ];
+  const loadMessages = async () => {
+    if (selectedConversation) {
+      const data = await getMessages(selectedConversation);
+      setMessages(data);
+    }
+  };
 
-  const messages = [
-    {
-      id: "1",
-      sender: "Alice Johnson",
-      content: "Hi! I reviewed your proposal for the DeFi dashboard project.",
-      time: "10:30 AM",
-      isOwn: false,
-    },
-    {
-      id: "2",
-      sender: "You",
-      content: "Great! I'm excited to work on this. When can we start?",
-      time: "10:32 AM",
-      isOwn: true,
-    },
-    {
-      id: "3",
-      sender: "Alice Johnson",
-      content: "We can start next Monday. I'll send over the contract details.",
-      time: "10:35 AM",
-      isOwn: false,
-    },
-    {
-      id: "4",
-      sender: "You",
-      content: "Perfect! I'll prepare the initial mockups by then.",
-      time: "10:37 AM",
-      isOwn: true,
-    },
-    {
-      id: "5",
-      sender: "Alice Johnson",
-      content: "Sounds good! Let's finalize the contract.",
-      time: "10:40 AM",
-      isOwn: false,
-    },
-  ];
+  const handleSendMessage = async () => {
+    if (!currentMessage.trim() || !selectedConversation) return;
+    
+    const result = await sendMsg(selectedConversation, currentMessage);
+    if (result) {
+      setCurrentMessage("");
+      setMessages(prev => [...prev, result]);
+    }
+  };
 
-  const selectedConv = conversations.find(c => c.id === selectedConversation);
+  const selectedConv = selectedConversation 
+    ? conversations.find(c => c.id === selectedConversation)
+    : null;
+
+  const getOtherParticipant = (conv: any) => {
+    if (!user) return null;
+    return conv.participant1?.id === user.id ? conv.participant2 : conv.participant1;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -152,128 +104,134 @@ const Chat = () => {
               </div>
             </div>
             <div className="overflow-y-auto max-h-[calc(100vh-250px)]">
-              {conversations.map((conv) => (
-                <div
-                  key={conv.id}
-                  onClick={() => setSelectedConversation(conv.id)}
-                  className={`p-4 border-b cursor-pointer transition-all hover:bg-accent/50 ${
-                    selectedConversation === conv.id ? "bg-accent/30 border-l-4 border-l-primary" : ""
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="relative">
+              {conversations.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  No conversations yet
+                </div>
+              ) : conversations.map((conv) => {
+                const other = getOtherParticipant(conv);
+                if (!other) return null;
+                const lastMsg = conv.messages?.[0];
+                return (
+                  <div
+                    key={conv.id}
+                    onClick={() => setSelectedConversation(conv.id)}
+                    className={`p-4 border-b cursor-pointer transition-all hover:bg-accent/50 ${
+                      selectedConversation === conv.id ? "bg-accent/30 border-l-4 border-l-primary" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
                       <Avatar>
                         <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                          {conv.avatar}
+                          {other.display_name?.substring(0, 2).toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
-                      {conv.online && (
-                        <div className="absolute bottom-0 right-0 h-3 w-3 bg-success rounded-full border-2 border-card" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-semibold truncate">{conv.name}</h3>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">{conv.time}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-1">
+                          <h3 className="font-semibold truncate">{other.display_name || 'Unknown User'}</h3>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                            {lastMsg ? new Date(lastMsg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {lastMsg?.content || 'No messages yet'}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
                     </div>
-                    {conv.unread > 0 && (
-                      <Badge className="bg-primary text-primary-foreground shrink-0">
-                        {conv.unread}
-                      </Badge>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
           
           {/* Chat Window */}
-          <Card className="lg:col-span-2 p-0 flex flex-col h-[calc(100vh-200px)] bg-card/50 backdrop-blur overflow-hidden">
-            {/* Chat Header */}
-            <div className="p-4 border-b bg-card/80 backdrop-blur">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                      {selectedConv?.avatar}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h2 className="text-xl font-semibold">{selectedConv?.name}</h2>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      {selectedConv?.online ? (
-                        <>
-                          <span className="h-2 w-2 bg-success rounded-full" />
-                          Online
-                        </>
-                      ) : (
-                        "Offline"
-                      )}
-                    </p>
+          {!selectedConv ? (
+            <Card className="lg:col-span-2 p-8 flex items-center justify-center h-[calc(100vh-200px)] bg-card/50 backdrop-blur">
+              <p className="text-muted-foreground">Select a conversation to start messaging</p>
+            </Card>
+          ) : (
+            <Card className="lg:col-span-2 p-0 flex flex-col h-[calc(100vh-200px)] bg-card/50 backdrop-blur overflow-hidden">
+              {/* Chat Header */}
+              <div className="p-4 border-b bg-card/80 backdrop-blur">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                        {getOtherParticipant(selectedConv)?.display_name?.substring(0, 2).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h2 className="text-xl font-semibold">
+                        {getOtherParticipant(selectedConv)?.display_name || 'Unknown User'}
+                      </h2>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="hover:bg-accent">
+                      <Phone className="h-5 w-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="hover:bg-accent">
+                      <Video className="h-5 w-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="hover:bg-accent">
+                      <MoreVertical className="h-5 w-5" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="hover:bg-accent">
-                    <Phone className="h-5 w-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="hover:bg-accent">
-                    <Video className="h-5 w-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="hover:bg-accent">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </div>
               </div>
-            </div>
-            
-            {/* Messages */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-muted/20">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.isOwn ? "justify-end" : "justify-start"} animate-fade-in`}
-                >
-                  <div
-                    className={`max-w-[70%] p-4 rounded-2xl shadow-sm ${
-                      msg.isOwn
-                        ? "bg-gradient-to-br from-primary to-accent text-primary-foreground rounded-br-sm"
-                        : "bg-card rounded-bl-sm"
-                    }`}
+              
+              {/* Messages */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-muted/20">
+                {messages.map((msg) => {
+                  const isOwn = user && msg.sender_id === user.id;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex ${isOwn ? "justify-end" : "justify-start"} animate-fade-in`}
+                    >
+                      <div
+                        className={`max-w-[70%] p-4 rounded-2xl shadow-sm ${
+                          isOwn
+                            ? "bg-gradient-to-br from-primary to-accent text-primary-foreground rounded-br-sm"
+                            : "bg-card rounded-bl-sm"
+                        }`}
+                      >
+                        {!isOwn && msg.sender && (
+                          <p className="text-xs font-semibold mb-1 opacity-70">{msg.sender.display_name}</p>
+                        )}
+                        <p className="leading-relaxed">{msg.content}</p>
+                        <span className="text-xs opacity-70 mt-2 block">
+                          {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
+              </div>
+              
+              {/* Message Input */}
+              <div className="p-4 border-t bg-card/80 backdrop-blur">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type a message..."
+                    value={currentMessage}
+                    onChange={(e) => setCurrentMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                    className="flex-1 bg-background"
+                  />
+                  <Button 
+                    size="icon" 
+                    onClick={handleSendMessage}
+                    className="shadow-glow hover-scale"
+                    disabled={!currentMessage.trim()}
                   >
-                    {!msg.isOwn && (
-                      <p className="text-xs font-semibold mb-1 opacity-70">{msg.sender}</p>
-                    )}
-                    <p className="leading-relaxed">{msg.content}</p>
-                    <span className="text-xs opacity-70 mt-2 block">{msg.time}</span>
-                  </div>
+                    <Send className="h-4 w-4" />
+                  </Button>
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-            
-            {/* Message Input */}
-            <div className="p-4 border-t bg-card/80 backdrop-blur">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Type a message..."
-                  value={currentMessage}
-                  onChange={(e) => setCurrentMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                  className="flex-1 bg-background"
-                />
-                <Button 
-                  size="icon" 
-                  onClick={handleSendMessage}
-                  className="shadow-glow hover-scale"
-                  disabled={!currentMessage.trim()}
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
               </div>
-            </div>
-          </Card>
+            </Card>
+          )}
         </div>
       </main>
     </div>
