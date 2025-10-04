@@ -102,7 +102,8 @@ export const useMessages = () => {
             body: {
               recipient_id: recipientId,
               message: content,
-              sender_name: senderProfile?.display_name || 'Someone'
+              sender_name: senderProfile?.display_name || 'Someone',
+              conversation_id: conversationId
             }
           });
         } catch (telegramError) {

@@ -166,25 +166,36 @@ serve(async (req) => {
 
       console.log("Message from linked user:", profile.id, "Message:", text);
 
-      // Get user's most recent conversation
-      const { data: conversations, error: convError } = await supabase
-        .from("conversations")
-        .select("id")
-        .or(`participant_1_id.eq.${profile.id},participant_2_id.eq.${profile.id}`)
-        .order("last_message_at", { ascending: false })
-        .limit(1);
+      // Get the conversation that was last notified or most recent one
+      const { data: userProfile, error: profileFetchError } = await supabase
+        .from("profiles")
+        .select("last_notified_conversation_id")
+        .eq("id", profile.id)
+        .single();
 
-      if (convError || !conversations || conversations.length === 0) {
-        await sendTelegramMessage(
-          chat.id,
-          "No active conversations found. Please start a conversation on the platform first."
-        );
-        return new Response(JSON.stringify({ ok: true }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      let conversationId = userProfile?.last_notified_conversation_id;
+
+      // If no last notified conversation, get most recent one
+      if (!conversationId) {
+        const { data: conversations, error: convError } = await supabase
+          .from("conversations")
+          .select("id")
+          .or(`participant_1_id.eq.${profile.id},participant_2_id.eq.${profile.id}`)
+          .order("last_message_at", { ascending: false })
+          .limit(1);
+
+        if (convError || !conversations || conversations.length === 0) {
+          await sendTelegramMessage(
+            chat.id,
+            "⚠️ No active conversations found. Please start a conversation on the platform first."
+          );
+          return new Response(JSON.stringify({ ok: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        conversationId = conversations[0].id;
       }
-
-      const conversationId = conversations[0].id;
 
       // Save message to database
       const { error: messageError } = await supabase

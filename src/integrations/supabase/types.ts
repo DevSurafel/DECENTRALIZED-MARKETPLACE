@@ -440,6 +440,7 @@ export type Database = {
           hourly_rate: number | null
           id: string
           is_banned: boolean | null
+          last_notified_conversation_id: string | null
           location: string | null
           portfolio_items: Json | null
           reputation_score: number | null
@@ -466,6 +467,7 @@ export type Database = {
           hourly_rate?: number | null
           id: string
           is_banned?: boolean | null
+          last_notified_conversation_id?: string | null
           location?: string | null
           portfolio_items?: Json | null
           reputation_score?: number | null
@@ -492,6 +494,7 @@ export type Database = {
           hourly_rate?: number | null
           id?: string
           is_banned?: boolean | null
+          last_notified_conversation_id?: string | null
           location?: string | null
           portfolio_items?: Json | null
           reputation_score?: number | null
@@ -506,7 +509,15 @@ export type Database = {
           user_type?: Database["public"]["Enums"]["user_type"] | null
           wallet_address?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_last_notified_conversation_id_fkey"
+            columns: ["last_notified_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reviews: {
         Row: {

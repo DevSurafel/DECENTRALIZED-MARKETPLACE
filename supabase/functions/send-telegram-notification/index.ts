@@ -38,7 +38,7 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { recipient_id, message, sender_name } = await req.json();
+    const { recipient_id, message, sender_name, conversation_id } = await req.json();
 
     if (!recipient_id || !message) {
       throw new Error("recipient_id and message are required");
@@ -62,16 +62,24 @@ serve(async (req) => {
       );
     }
 
-    // Send notification via Telegram
+    // Send notification via Telegram and update last notified conversation
     if (TELEGRAM_BOT_TOKEN) {
       const notificationText = sender_name 
-        ? `💬 New message from ${sender_name}:\n\n${message}`
-        : `💬 New message:\n\n${message}`;
+        ? `💬 New message from ${sender_name}:\n\n${message}\n\n💡 Reply to this message to respond directly!`
+        : `💬 New message:\n\n${message}\n\n💡 Reply to this message to respond directly!`;
 
       await sendTelegramMessage(
         parseInt(profile.telegram_chat_id),
         notificationText
       );
+
+      // Store conversation ID for reply context
+      if (conversation_id) {
+        await supabase
+          .from("profiles")
+          .update({ last_notified_conversation_id: conversation_id })
+          .eq("id", recipient_id);
+      }
     }
 
     return new Response(

@@ -23,6 +23,7 @@ import {
   Plus,
   Camera,
   Upload,
+  MessageSquare,
 } from "lucide-react";
 
 interface Profile {
@@ -384,9 +385,15 @@ const Profile = () => {
                 {isOwnProfile && (
                   <div className="mt-2 flex flex-col gap-2 w-full">
                     {profile.telegram_chat_id ? (
-                      <div className="text-sm text-green-600">Telegram bot connected</div>
+                      <Button variant="outline" size="sm" disabled className="w-full bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400">
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Verified
+                      </Button>
                     ) : (
-                      <Button variant="secondary" onClick={handleConnectBot} className="w-full">Connect Bot</Button>
+                      <Button variant="secondary" onClick={handleConnectBot} className="w-full">
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Connect Bot
+                      </Button>
                     )}
                   </div>
                 )}
