@@ -256,7 +256,7 @@ const Chat = () => {
               </div>
               
               {/* Messages */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-muted/20">
+              <div className="flex-1 p-6 overflow-y-auto space-y-3 bg-gradient-to-b from-muted/10 to-muted/30">
                 {messages.map((msg) => {
                   const isOwn = user && msg.sender_id === user.id;
                   return (
@@ -265,30 +265,22 @@ const Chat = () => {
                       className={`flex ${isOwn ? "justify-end" : "justify-start"} animate-fade-in`}
                     >
                       <div
-                        className={`max-w-[70%] p-4 rounded-2xl shadow-sm transition-all ${
+                        className={`max-w-[75%] px-5 py-3 rounded-3xl shadow-md transition-all hover:shadow-lg ${
                           isOwn
-                            ? "bg-gradient-to-br from-primary to-accent text-primary-foreground rounded-br-sm"
-                            : "bg-card border-2 border-primary/20 rounded-bl-sm hover:border-primary/40"
+                            ? "bg-gradient-to-br from-primary via-primary to-accent text-primary-foreground rounded-br-md"
+                            : "bg-card/90 backdrop-blur-sm border border-primary/10 rounded-bl-md hover:border-primary/30"
                         }`}
                       >
-                        {!isOwn && msg.sender && (
-                          <p 
-                            className="text-xs font-semibold mb-1 opacity-70 cursor-pointer hover:opacity-100"
-                            onClick={() => msg.sender_id && navigate(`/profile/${msg.sender_id}`)}
-                          >
-                            {msg.sender.display_name}
-                          </p>
-                        )}
-                        <p className="leading-relaxed">{msg.content}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-xs opacity-70">
+                        <p className="text-[15px] leading-relaxed break-words">{msg.content}</p>
+                        <div className="flex items-center justify-end gap-2 mt-2">
+                          <span className={`text-[11px] font-medium ${isOwn ? 'opacity-80' : 'text-muted-foreground'}`}>
                             {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </span>
                           {isOwn && (
                             msg.is_read ? (
-                              <CheckCheck className="w-3 h-3 opacity-70" />
+                              <CheckCheck className="w-3.5 h-3.5 opacity-80" />
                             ) : (
-                              <Check className="w-3 h-3 opacity-70" />
+                              <Check className="w-3.5 h-3.5 opacity-80" />
                             )
                           )}
                         </div>

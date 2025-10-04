@@ -11,6 +11,58 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+const handleReviewClick = async () => {
+  const authResponse = await supabase.auth.getUser();
+  const currentUser = authResponse.data.user;
+  if (!currentUser) return;
+  
+  const jobsQuery = await supabase
+    .from('jobs')
+    .select('id, client_id, freelancer_id')
+    .eq('status', 'completed')
+    .or(`freelancer_id.eq.${currentUser.id},client_id.eq.${currentUser.id}`)
+    .order('updated_at', { ascending: false })
+    .limit(1);
+  
+  const jobs = jobsQuery.data || [];
+  
+  if (jobs.length === 0) {
+    toast({
+      title: "No completed jobs",
+      description: "You don't have any completed jobs yet"
+    });
+    return;
+  }
+  
+  const job = jobs[0];
+  const isClient = job.client_id === currentUser.id;
+  
+  // Check reviews separately
+  const userReviewQuery = await supabase.from('reviews').select('id').match({
+    job_id: job.id,
+    reviewer_id: currentUser.id,
+    review_type: 'user'
+  });
+  
+  const platformReviewQuery = await supabase.from('reviews').select('id').match({
+    job_id: job.id,
+    reviewer_id: currentUser.id,
+    review_type: 'platform'
+  });
+  
+  const hasUserReview = (userReviewQuery.data?.length ?? 0) > 0;
+  const hasPlatformReview = (platformReviewQuery.data?.length ?? 0) > 0;
+  
+  if (hasUserReview && hasPlatformReview) {
+    toast({
+      title: isClient ? "Project Completed" : "Payment Received",
+      description: "You've already left reviews for this job. Thank you!"
+    });
+  } else {
+    window.location.href = `/jobs/${job.id}`;
+  }
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState({
@@ -256,30 +308,10 @@ const Dashboard = () => {
                 </div>
               </Card>
 
-              {/* Completed jobs for freelancers: jump to latest to leave a review */}
+              {/* Completed jobs for both clients and freelancers */}
               <Card 
                 className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
-                onClick={async () => {
-                  const { data: { user } } = await supabase.auth.getUser();
-                  if (!user) return;
-                  
-                  const { data: jobs } = await supabase
-                    .from('jobs')
-                    .select('id')
-                    .eq('freelancer_id', user.id)
-                    .eq('status', 'completed')
-                    .order('updated_at', { ascending: false })
-                    .limit(1);
-                  
-                  if (jobs?.[0]) {
-                    window.location.href = `/jobs/${jobs[0].id}`;
-                  } else {
-                    toast({
-                      title: "No completed jobs",
-                      description: "You don't have any completed jobs to review yet"
-                    });
-                  }
-                }}
+                onClick={handleReviewClick}
               >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
