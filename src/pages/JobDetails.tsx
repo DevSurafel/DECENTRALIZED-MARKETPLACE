@@ -505,28 +505,44 @@ const JobDetails = () => {
             )}
 
             {/* Client View - Completed */}
-            {getUserRole() === 'client' && job.status === 'completed' && (
-              <Card className="p-6">
+            {getUserRole() === 'client' && job.status === 'completed' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
+              <Card className="p-6 bg-primary/5 border-primary/20">
                 <div className="text-center mb-6">
                   <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
                   <h2 className="text-2xl font-bold mb-2">Project Completed!</h2>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground mb-4">
                     Funds have been released to the freelancer
                   </p>
+                  <p className="text-sm text-muted-foreground">
+                    Please leave your reviews below
+                  </p>
                 </div>
-                {!hasLeftUserReview && (
-                  <RatingDialog
-                    jobId={id!}
-                    revieweeId={job.freelancer_id}
-                    revieweeName={job.freelancer?.display_name || 'Freelancer'}
-                    trigger={
-                      <Button className="w-full shadow-glow" size="lg">
-                        Leave Review
-                      </Button>
-                    }
-                    onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
-                  />
-                )}
+                <div className="space-y-3">
+                  {!hasLeftUserReview && (
+                    <RatingDialog
+                      jobId={id!}
+                      revieweeId={job.freelancer_id}
+                      revieweeName={job.freelancer?.display_name || 'Freelancer'}
+                      trigger={
+                        <Button className="w-full shadow-glow" size="lg">
+                          Rate Freelancer
+                        </Button>
+                      }
+                      onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
+                    />
+                  )}
+                  {!hasLeftPlatformReview && (
+                    <PlatformReviewDialog
+                      jobId={id!}
+                      trigger={
+                        <Button variant="outline" className="w-full" size="lg">
+                          Review Platform
+                        </Button>
+                      }
+                      onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
+                    />
+                  )}
+                </div>
               </Card>
             )}
 
@@ -582,28 +598,44 @@ const JobDetails = () => {
             )}
 
             {/* Freelancer View - Completed */}
-            {getUserRole() === 'freelancer' && job.status === 'completed' && (
-              <Card className="p-6">
+            {getUserRole() === 'freelancer' && job.status === 'completed' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
+              <Card className="p-6 bg-primary/5 border-primary/20">
                 <div className="text-center mb-6">
                   <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
                   <h2 className="text-2xl font-bold mb-2">Payment Received!</h2>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground mb-4">
                     You've received {job.budget_eth} ETH
                   </p>
+                  <p className="text-sm text-muted-foreground">
+                    Please leave your reviews below
+                  </p>
                 </div>
-                {!hasLeftUserReview && (
-                  <RatingDialog
-                    jobId={id!}
-                    revieweeId={job.client_id}
-                    revieweeName={job.client?.display_name || 'Client'}
-                    trigger={
-                      <Button className="w-full shadow-glow" size="lg">
-                        Rate Client
-                      </Button>
-                    }
-                    onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
-                  />
-                )}
+                <div className="space-y-3">
+                  {!hasLeftUserReview && (
+                    <RatingDialog
+                      jobId={id!}
+                      revieweeId={job.client_id}
+                      revieweeName={job.client?.display_name || 'Client'}
+                      trigger={
+                        <Button className="w-full shadow-glow" size="lg">
+                          Rate Client
+                        </Button>
+                      }
+                      onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
+                    />
+                  )}
+                  {!hasLeftPlatformReview && (
+                    <PlatformReviewDialog
+                      jobId={id!}
+                      trigger={
+                        <Button variant="outline" className="w-full" size="lg">
+                          Review Platform
+                        </Button>
+                      }
+                      onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
+                    />
+                  )}
+                </div>
               </Card>
             )}
 

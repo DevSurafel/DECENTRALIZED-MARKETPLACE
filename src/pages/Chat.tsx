@@ -265,10 +265,10 @@ const Chat = () => {
                       className={`flex ${isOwn ? "justify-end" : "justify-start"} animate-fade-in`}
                     >
                       <div
-                        className={`max-w-[70%] p-4 rounded-2xl shadow-sm ${
+                        className={`max-w-[70%] p-4 rounded-2xl shadow-sm transition-all ${
                           isOwn
                             ? "bg-gradient-to-br from-primary to-accent text-primary-foreground rounded-br-sm"
-                            : "bg-card rounded-bl-sm"
+                            : "bg-card border-2 border-primary/20 rounded-bl-sm hover:border-primary/40"
                         }`}
                       >
                         {!isOwn && msg.sender && (
