@@ -18,10 +18,10 @@ const AdminAuth = () => {
 
   useEffect(() => {
     // Check if user is already logged in and has admin role
-    if (user) {
+    if (user && !loading) {
       checkAdminRole();
     }
-  }, [user]);
+  }, [user, loading]);
 
   const checkAdminRole = async () => {
     try {
@@ -122,6 +122,8 @@ const AdminAuth = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
+              disabled={loading}
             />
           </div>
 
@@ -134,6 +136,8 @@ const AdminAuth = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
+              disabled={loading}
             />
           </div>
 

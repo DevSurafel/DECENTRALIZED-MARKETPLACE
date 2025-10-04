@@ -202,9 +202,6 @@ const PlatformReviews = () => {
                           >
                             {review.reviewer.display_name || 'Anonymous'}
                           </span>
-                          <Badge variant="secondary" className="text-xs">
-                            {review.reviewer.user_type}
-                          </Badge>
                           <span className="text-sm text-muted-foreground">·</span>
                           <span className="text-sm text-muted-foreground">
                             {getTimeAgo(review.created_at)}

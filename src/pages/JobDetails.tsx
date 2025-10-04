@@ -747,6 +747,23 @@ const JobDetails = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Review Button for Freelancer after job completion */}
+        {job?.status === 'completed' && getUserRole() === 'freelancer' && (
+          <Card className="p-6 mt-6 bg-primary/5 border-primary/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Job Completed!</h3>
+                <p className="text-muted-foreground">
+                  Please leave a review for the client and the platform
+                </p>
+              </div>
+              <Button onClick={() => setShowReviewDialog(true)}>
+                Leave Reviews
+              </Button>
+            </div>
+          </Card>
+        )}
       </main>
     </div>
   );
