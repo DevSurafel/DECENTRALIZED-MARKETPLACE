@@ -610,6 +610,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_completed_jobs: {
+        Args: { amount: number; freelancer_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "arbitrator" | "user"
@@ -623,6 +627,8 @@ export type Database = {
         | "cancelled"
         | "revision_requested"
         | "refunded"
+        | "funded"
+        | "submitted"
       priority_level: "low" | "medium" | "high"
       user_type: "freelancer" | "client" | "both"
     }
@@ -763,6 +769,8 @@ export const Constants = {
         "cancelled",
         "revision_requested",
         "refunded",
+        "funded",
+        "submitted",
       ],
       priority_level: ["low", "medium", "high"],
       user_type: ["freelancer", "client", "both"],

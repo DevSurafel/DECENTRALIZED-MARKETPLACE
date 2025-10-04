@@ -113,7 +113,7 @@ const JobDetails = () => {
       const { error } = await supabase
         .from('jobs')
         .update({
-          status: 'funded',
+          status: 'in_progress',
           escrow_address: '0x' + Math.random().toString(16).substring(2, 42),
         })
         .eq('id', id);
@@ -143,7 +143,7 @@ const JobDetails = () => {
       const { error } = await supabase
         .from('jobs')
         .update({
-          status: 'submitted',
+          status: 'under_review',
           ipfs_hash: ipfsHash,
           git_commit_hash: gitHash,
           review_deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days
@@ -183,12 +183,14 @@ const JobDetails = () => {
       if (jobError) throw jobError;
 
       // Update freelancer stats
-      const { error: profileError } = await supabase.rpc('increment_completed_jobs', {
-        freelancer_id: job.freelancer_id,
-        amount: job.budget_eth,
-      });
-
-      if (profileError) console.error('Error updating profile:', profileError);
+      try {
+        await supabase.rpc('increment_completed_jobs', {
+          freelancer_id: job.freelancer_id,
+          amount: job.budget_eth,
+        } as any);
+      } catch (profileError) {
+        console.error('Error updating profile:', profileError);
+      }
 
       toast({
         title: "Work Approved",
@@ -291,7 +293,7 @@ const JobDetails = () => {
             )}
 
             {/* Client View - Review Work */}
-            {getUserRole() === 'client' && job.status === 'submitted' && (
+            {getUserRole() === 'client' && job.status === 'under_review' && (
               <ReviewPanel
                 job={job}
                 onApprove={handleApproveWork}
@@ -325,7 +327,7 @@ const JobDetails = () => {
             )}
 
             {/* Freelancer View - Submit Work */}
-            {getUserRole() === 'freelancer' && (job.status === 'funded' || job.status === 'revision_requested') && (
+            {getUserRole() === 'freelancer' && (job.status === 'in_progress' || job.status === 'revision_requested') && job.escrow_address && (
               <WorkSubmissionPanel
                 jobId={id!}
                 onSubmit={handleSubmitWork}
@@ -333,7 +335,7 @@ const JobDetails = () => {
             )}
 
             {/* Freelancer View - Waiting for Review */}
-            {getUserRole() === 'freelancer' && job.status === 'submitted' && (
+            {getUserRole() === 'freelancer' && job.status === 'under_review' && (
               <Card className="p-6">
                 <div className="text-center">
                   <Clock className="h-16 w-16 text-primary mx-auto mb-4" />
