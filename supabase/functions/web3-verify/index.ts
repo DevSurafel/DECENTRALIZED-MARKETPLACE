@@ -67,10 +67,11 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error verifying signature:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ 
         valid: false,
-        error: error.message 
+        error: errorMessage 
       }),
       {
         status: 400,
