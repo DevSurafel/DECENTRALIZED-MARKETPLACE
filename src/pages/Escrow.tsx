@@ -42,7 +42,7 @@ const Escrow = () => {
           client:profiles!jobs_client_id_fkey(display_name, wallet_address),
           freelancer:profiles!jobs_freelancer_id_fkey(display_name, wallet_address),
           milestones:job_milestones(*),
-          dispute:disputes(*)
+          dispute:disputes!disputes_job_id_fkey(*)
         `)
         .or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`)
         .in('status', ['in_progress', 'under_review', 'completed', 'disputed', 'cancelled', 'refunded']);

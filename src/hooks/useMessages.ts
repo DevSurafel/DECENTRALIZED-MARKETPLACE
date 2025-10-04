@@ -126,7 +126,24 @@ export const useMessages = () => {
   const createConversation = async (participantId: string, jobId?: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to start a conversation",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      // Prevent users from creating conversations with themselves
+      if (user.id === participantId) {
+        toast({
+          title: "Invalid action",
+          description: "You cannot start a conversation with yourself",
+          variant: "destructive"
+        });
+        return null;
+      }
 
       // Check if conversation already exists
       const { data: existing } = await supabase
