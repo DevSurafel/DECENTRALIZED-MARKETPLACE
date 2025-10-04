@@ -16,29 +16,90 @@ import {
   TrendingUp,
   Briefcase,
   Sparkles,
-  Star
+  Star,
+  MessageSquare
 } from "lucide-react";
 
 const Marketplace = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [jobs, setJobs] = useState<any[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All Jobs");
+  const [jobCounts, setJobCounts] = useState({
+    all: 0,
+    smartContracts: 0,
+    frontend: 0,
+    design: 0
+  });
   const { getJobs, loading } = useJobs();
 
   useEffect(() => {
     loadJobs();
   }, []);
 
+  useEffect(() => {
+    filterJobs();
+  }, [searchQuery, selectedCategory, jobs]);
+
   const loadJobs = async () => {
     const data = await getJobs({ status: 'open' });
     setJobs(data || []);
+    
+    // Calculate real counts
+    const counts = {
+      all: data?.length || 0,
+      smartContracts: data?.filter((j: any) => 
+        j.skills_required?.some((s: string) => s.toLowerCase().includes('solidity') || s.toLowerCase().includes('smart contract'))
+      ).length || 0,
+      frontend: data?.filter((j: any) => 
+        j.skills_required?.some((s: string) => s.toLowerCase().includes('react') || s.toLowerCase().includes('frontend') || s.toLowerCase().includes('vue'))
+      ).length || 0,
+      design: data?.filter((j: any) => 
+        j.skills_required?.some((s: string) => s.toLowerCase().includes('design') || s.toLowerCase().includes('ui') || s.toLowerCase().includes('ux'))
+      ).length || 0
+    };
+    setJobCounts(counts);
+  };
+
+  const filterJobs = () => {
+    let filtered = jobs;
+    
+    // Filter by category
+    if (selectedCategory !== "All Jobs") {
+      if (selectedCategory === "Smart Contracts") {
+        filtered = filtered.filter((j: any) => 
+          j.skills_required?.some((s: string) => s.toLowerCase().includes('solidity') || s.toLowerCase().includes('smart contract'))
+        );
+      } else if (selectedCategory === "Frontend") {
+        filtered = filtered.filter((j: any) => 
+          j.skills_required?.some((s: string) => s.toLowerCase().includes('react') || s.toLowerCase().includes('frontend') || s.toLowerCase().includes('vue'))
+        );
+      } else if (selectedCategory === "Design") {
+        filtered = filtered.filter((j: any) => 
+          j.skills_required?.some((s: string) => s.toLowerCase().includes('design') || s.toLowerCase().includes('ui') || s.toLowerCase().includes('ux'))
+        );
+      }
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((j: any) => 
+        j.title?.toLowerCase().includes(query) ||
+        j.description?.toLowerCase().includes(query) ||
+        j.skills_required?.some((s: string) => s.toLowerCase().includes(query))
+      );
+    }
+    
+    setFilteredJobs(filtered);
   };
 
   const categories = [
-    { name: "All Jobs", count: 127, icon: Briefcase },
-    { name: "Smart Contracts", count: 34, icon: Sparkles },
-    { name: "Frontend", count: 56, icon: TrendingUp },
-    { name: "Design", count: 23, icon: Star },
+    { name: "All Jobs", count: jobCounts.all, icon: Briefcase },
+    { name: "Smart Contracts", count: jobCounts.smartContracts, icon: Sparkles },
+    { name: "Frontend", count: jobCounts.frontend, icon: TrendingUp },
+    { name: "Design", count: jobCounts.design, icon: Star },
   ];
 
   return (
@@ -57,7 +118,7 @@ const Marketplace = () => {
           <div className="mb-10 animate-fade-in">
             <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full glass-card border border-primary/20">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">127 Active Projects</span>
+              <span className="text-sm font-medium">{jobCounts.all} Active Projects</span>
             </div>
             <h1 className="text-5xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Job Marketplace
@@ -71,10 +132,14 @@ const Marketplace = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {categories.map((category, index) => {
               const Icon = category.icon;
+              const isSelected = selectedCategory === category.name;
               return (
                 <Card 
                   key={index}
-                  className="p-4 glass-card border-primary/10 hover:border-primary/30 shadow-card hover:shadow-glow transition-smooth cursor-pointer group"
+                  className={`p-4 glass-card shadow-card hover:shadow-glow transition-smooth cursor-pointer group ${
+                    isSelected ? 'border-primary/50 bg-primary/5' : 'border-primary/10 hover:border-primary/30'
+                  }`}
+                  onClick={() => setSelectedCategory(category.name)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center group-hover:scale-110 transition-smooth">
@@ -114,11 +179,15 @@ const Marketplace = () => {
               <Card className="p-8 text-center">
                 <p className="text-muted-foreground">Loading jobs...</p>
               </Card>
-            ) : jobs.length === 0 ? (
+            ) : filteredJobs.length === 0 ? (
               <Card className="p-8 text-center">
-                <p className="text-muted-foreground">No jobs available. Be the first to post!</p>
+                <p className="text-muted-foreground">
+                  {searchQuery || selectedCategory !== "All Jobs" 
+                    ? "No jobs match your filters" 
+                    : "No jobs available. Be the first to post!"}
+                </p>
               </Card>
-            ) : jobs.map((job, index) => (
+            ) : filteredJobs.map((job, index) => (
               <Card 
                 key={job.id} 
                 className="relative overflow-hidden p-7 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] group animate-fade-in"
@@ -184,6 +253,14 @@ const Marketplace = () => {
                   </div>
                   
                   <div className="flex gap-3">
+                    <Button 
+                      variant="outline" 
+                      className="hover:scale-105 transition-smooth border-primary/20 gap-2"
+                      onClick={() => navigate('/chat')}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Chat
+                    </Button>
                     <Button 
                       variant="outline" 
                       className="hover:scale-105 transition-smooth border-primary/20"

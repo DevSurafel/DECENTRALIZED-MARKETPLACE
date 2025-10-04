@@ -3,10 +3,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 import {
   MapPin,
   Star,
@@ -15,6 +20,7 @@ import {
   ExternalLink,
   Edit,
   Loader2,
+  Plus,
 } from "lucide-react";
 
 interface Profile {
@@ -61,6 +67,15 @@ const Profile = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [portfolioDialog, setPortfolioDialog] = useState(false);
+  const [newPortfolio, setNewPortfolio] = useState({
+    title: "",
+    description: "",
+    image: "",
+    tags: "",
+    url: ""
+  });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -83,10 +98,52 @@ const Profile = () => {
 
       if (error) throw error;
       setProfile(data);
+      
+      // Fetch reviews
+      const { data: reviewsData } = await supabase
+        .from("reviews")
+        .select(`
+          *,
+          reviewer:profiles!reviews_reviewer_id_fkey(display_name, wallet_address)
+        `)
+        .eq("reviewee_id", user?.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      
+      setReviews(reviewsData || []);
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addPortfolioItem = async () => {
+    if (!profile || !newPortfolio.title) return;
+    
+    const portfolioItems = profile.portfolio_items || [];
+    const tags = newPortfolio.tags.split(',').map(t => t.trim()).filter(t => t);
+    
+    const newItem = {
+      title: newPortfolio.title,
+      description: newPortfolio.description,
+      image: newPortfolio.image || "🎨",
+      tags,
+      url: newPortfolio.url
+    };
+    
+    const { error } = await supabase
+      .from("profiles")
+      .update({ portfolio_items: [...portfolioItems, newItem] })
+      .eq("id", user?.id);
+    
+    if (error) {
+      toast({ title: "Error", description: "Failed to add portfolio item", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Portfolio item added" });
+      setProfile({ ...profile, portfolio_items: [...portfolioItems, newItem] });
+      setPortfolioDialog(false);
+      setNewPortfolio({ title: "", description: "", image: "", tags: "", url: "" });
     }
   };
 
@@ -243,7 +300,65 @@ const Profile = () => {
 
           {/* Portfolio */}
           <div>
-            <h2 className="text-2xl font-bold mb-6">Portfolio</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Portfolio</h2>
+              <Dialog open={portfolioDialog} onOpenChange={setPortfolioDialog}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Add Portfolio Item
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add Portfolio Item</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Title</Label>
+                      <Input 
+                        value={newPortfolio.title}
+                        onChange={(e) => setNewPortfolio({...newPortfolio, title: e.target.value})}
+                        placeholder="Project name"
+                      />
+                    </div>
+                    <div>
+                      <Label>Description</Label>
+                      <Textarea 
+                        value={newPortfolio.description}
+                        onChange={(e) => setNewPortfolio({...newPortfolio, description: e.target.value})}
+                        placeholder="Brief description"
+                      />
+                    </div>
+                    <div>
+                      <Label>Emoji Icon</Label>
+                      <Input 
+                        value={newPortfolio.image}
+                        onChange={(e) => setNewPortfolio({...newPortfolio, image: e.target.value})}
+                        placeholder="🎨 (emoji)"
+                      />
+                    </div>
+                    <div>
+                      <Label>Tags (comma-separated)</Label>
+                      <Input 
+                        value={newPortfolio.tags}
+                        onChange={(e) => setNewPortfolio({...newPortfolio, tags: e.target.value})}
+                        placeholder="React, Web3, DeFi"
+                      />
+                    </div>
+                    <div>
+                      <Label>Project URL</Label>
+                      <Input 
+                        value={newPortfolio.url}
+                        onChange={(e) => setNewPortfolio({...newPortfolio, url: e.target.value})}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <Button onClick={addPortfolioItem} className="w-full">Add Item</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             {profile.portfolio_items && profile.portfolio_items.length > 0 ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {profile.portfolio_items.map((item: any, index: number) => (
@@ -261,10 +376,16 @@ const Profile = () => {
                           </Badge>
                         ))}
                       </div>
-                      <Button variant="outline" className="w-full gap-2">
-                        View Project
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
+                      {item.url && (
+                        <Button 
+                          variant="outline" 
+                          className="w-full gap-2"
+                          onClick={() => window.open(item.url, '_blank')}
+                        >
+                          View Project
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 ))}
@@ -272,69 +393,49 @@ const Profile = () => {
             ) : (
               <Card className="p-8 glass-card shadow-card text-center">
                 <p className="text-muted-foreground">No portfolio items yet. Add your work to showcase your skills!</p>
-                <Button className="mt-4">Add Portfolio Item</Button>
               </Card>
             )}
           </div>
-
-          {/* Mock Portfolio for Demo */}
-          {(!profile.portfolio_items || profile.portfolio_items.length === 0) && (
-            <div className="mt-8">
-              <h3 className="text-xl font-bold mb-4 text-muted-foreground">Sample Portfolio (Add your own)</h3>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {portfolioItems.map((item) => (
-                <Card key={item.id} className="overflow-hidden glass-card shadow-card hover:shadow-glow transition-smooth">
-                  <div className="h-48 gradient-hero flex items-center justify-center text-6xl">
-                    {item.image}
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                    <p className="text-muted-foreground mb-4">{item.description}</p>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {item.tags.map((tag) => (
-                        <Badge key={tag} variant="outline">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                    <Button variant="outline" className="w-full gap-2">
-                      View Project
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </Card>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Reviews Section */}
           <div className="mt-12">
             <h2 className="text-2xl font-bold mb-6">Recent Reviews</h2>
             <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className="p-6 glass-card shadow-card">
+              {reviews.length > 0 ? reviews.map((review) => (
+                <Card key={review.id} className="p-6 glass-card shadow-card">
                   <div className="flex items-start gap-4">
                     <Avatar>
-                      <AvatarFallback>CL</AvatarFallback>
+                      <AvatarFallback>
+                        {review.reviewer?.display_name?.substring(0, 2).toUpperCase() || 'CL'}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="font-bold">Client {i}</span>
+                        <span className="font-bold">
+                          {review.reviewer?.display_name || review.reviewer?.wallet_address?.slice(0, 8) + '...'}
+                        </span>
                         <span className="text-muted-foreground">•</span>
                         <div className="flex items-center gap-1">
                           {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-4 h-4 fill-warning text-warning" />
+                            <Star 
+                              key={i} 
+                              className={`w-4 h-4 ${i < review.rating ? 'fill-warning text-warning' : 'text-muted-foreground'}`} 
+                            />
                           ))}
                         </div>
                       </div>
-                      <p className="text-muted-foreground">
-                        Excellent work! Delivered the DeFi dashboard ahead of schedule with clean code and great communication throughout the project.
+                      <p className="text-muted-foreground">{review.comment || "No comment provided"}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {new Date(review.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                 </Card>
-              ))}
+              )) : (
+                <Card className="p-8 glass-card shadow-card text-center">
+                  <p className="text-muted-foreground">No reviews yet</p>
+                </Card>
+              )}
             </div>
           </div>
         </div>

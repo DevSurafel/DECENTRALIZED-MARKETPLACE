@@ -180,38 +180,47 @@ const Dashboard = () => {
           <div>
             <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
             <div className="space-y-4">
-              <Card className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur">
+              <Card 
+                className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
+                onClick={() => window.location.href = '/chat'}
+              >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                     <MessageSquare className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="font-medium">Messages</p>
-                    <p className="text-sm text-muted-foreground">3 unread</p>
+                    <p className="text-sm text-muted-foreground">View conversations</p>
                   </div>
                 </div>
               </Card>
               
-              <Card className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur">
+              <Card 
+                className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
+                onClick={() => window.location.href = '/marketplace'}
+              >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
                     <AlertCircle className="h-5 w-5 text-accent" />
                   </div>
                   <div>
                     <p className="font-medium">Pending Reviews</p>
-                    <p className="text-sm text-muted-foreground">2 waiting</p>
+                    <p className="text-sm text-muted-foreground">Check jobs</p>
                   </div>
                 </div>
               </Card>
               
-              <Card className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur">
+              <Card 
+                className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
+                onClick={() => window.location.href = '/marketplace'}
+              >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center group-hover:bg-success/20 transition-colors">
                     <Users className="h-5 w-5 text-success" />
                   </div>
                   <div>
                     <p className="font-medium">New Bids</p>
-                    <p className="text-sm text-muted-foreground">5 received</p>
+                    <p className="text-sm text-muted-foreground">View proposals</p>
                   </div>
                 </div>
               </Card>
@@ -223,11 +232,15 @@ const Dashboard = () => {
               <Card className="p-4 bg-card/50 backdrop-blur">
                 <div className="space-y-3">
                   {[
-                    { icon: CheckCircle, text: "Milestone completed", time: "2h ago", color: "text-success" },
-                    { icon: MessageSquare, text: "New message from Alice", time: "4h ago", color: "text-primary" },
-                    { icon: DollarSign, text: "Payment received: 3.2 ETH", time: "1d ago", color: "text-accent" },
+                    { icon: CheckCircle, text: "Milestone completed", time: "2h ago", color: "text-success", path: "/marketplace" },
+                    { icon: MessageSquare, text: "New message", time: "4h ago", color: "text-primary", path: "/chat" },
+                    { icon: DollarSign, text: "Payment received", time: "1d ago", color: "text-accent", path: "/escrow" },
                   ].map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                    <div 
+                      key={idx} 
+                      className="flex items-start gap-3 pb-3 border-b last:border-0 cursor-pointer hover:bg-accent/5 -mx-2 px-2 py-1 rounded transition-colors"
+                      onClick={() => window.location.href = item.path}
+                    >
                       <item.icon className={`h-4 w-4 mt-1 ${item.color}`} />
                       <div className="flex-1">
                         <p className="text-sm font-medium">{item.text}</p>
