@@ -38,7 +38,7 @@ export const useBids = () => {
       // Get job details to notify client
       const { data: jobData } = await supabase
         .from('jobs')
-        .select('client_id, title, jobs:jobs!inner(client:profiles!jobs_client_id_fkey(display_name, telegram_username))')
+        .select('client_id, title')
         .eq('id', bidData.job_id)
         .single();
 

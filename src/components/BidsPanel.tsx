@@ -78,17 +78,25 @@ export function BidsPanel({ jobId, onBidAccepted }: BidsPanelProps) {
       // Get job details for notification
       const { data: jobData } = await supabase
         .from('jobs')
-        .select('title, client:profiles!jobs_client_id_fkey(display_name)')
+        .select('title, client_id')
         .eq('id', jobId)
+        .single();
+
+      // Get client's display name
+      const { data: clientProfile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', jobData?.client_id)
         .single();
 
       // Notify freelancer via Telegram
       try {
+        const { data: { user } } = await supabase.auth.getUser();
         await supabase.functions.invoke('send-telegram-notification', {
           body: {
             recipient_id: selectedBid.freelancer_id,
-            message: `${jobData?.client?.display_name || 'The client'} has accepted your proposal for "${jobData?.title}". Please wait for the client to fund the escrow with their wallet.`,
-            sender_id: (await supabase.auth.getUser()).data.user?.id,
+            message: `${clientProfile?.display_name || 'The client'} has accepted your proposal for "${jobData?.title}". Please wait for the client to fund the escrow with their wallet.`,
+            sender_id: user?.id,
           }
         });
       } catch (notifError) {

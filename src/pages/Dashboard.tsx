@@ -33,7 +33,11 @@ const Dashboard = () => {
       const jobs = await getUserJobs();
       const bids = await getUserBids();
       
-      const active = jobs.filter((j: any) => j.status === 'in_progress' || j.status === 'funded');
+      const active = jobs.filter((j: any) => 
+        j.status === 'in_progress' || 
+        j.status === 'under_review' || 
+        j.status === 'revision_requested'
+      );
       const completed = jobs.filter((j: any) => j.status === 'completed');
       const pending = bids.filter((b: any) => b.status === 'pending');
       
@@ -167,7 +171,12 @@ const Dashboard = () => {
                         </span>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="hover-scale">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="hover-scale"
+                      onClick={() => window.location.href = `/job/${job.id}`}
+                    >
                       View Details
                     </Button>
                   </div>

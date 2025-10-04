@@ -94,6 +94,7 @@ export const useJobs = () => {
         .select(`
           *,
           client:profiles!jobs_client_id_fkey(display_name, wallet_address, avatar_url),
+          freelancer:profiles!jobs_freelancer_id_fkey(display_name, wallet_address, avatar_url),
           bids(count)
         `)
         .eq('id', id)
