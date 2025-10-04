@@ -4,7 +4,7 @@ import { toast } from '@/hooks/use-toast';
 // This hook provides Web3 escrow contract interactions
 // Replace CONTRACT_ADDRESS and ABI with your deployed contract details
 
-const ESCROW_CONTRACT_ADDRESS = process.env.VITE_ESCROW_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+const ESCROW_CONTRACT_ADDRESS = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
 
 const ESCROW_ABI = [
   'function fundJob(uint256 jobId, address freelancer, address token, uint256 amount) external',
