@@ -17,10 +17,10 @@ const Navbar = () => {
       // Subscribe to new messages
       const channel = supabase
         .channel('unread-messages')
-        .on(
+.on(
           'postgres_changes',
           {
-            event: 'INSERT',
+            event: '*',
             schema: 'public',
             table: 'messages'
           },

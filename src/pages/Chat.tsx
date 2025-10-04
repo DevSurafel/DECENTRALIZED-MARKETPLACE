@@ -39,12 +39,33 @@ const Chat = () => {
     if (selectedConversation) {
       loadMessages();
       markMessagesAsRead(selectedConversation);
-      const unsubscribe = subscribeToMessages(selectedConversation, (newMessage) => {
+      const unsubscribeInsert = subscribeToMessages(selectedConversation, (newMessage) => {
         setMessages(prev => [...prev, newMessage]);
         scrollToBottom();
         markMessagesAsRead(selectedConversation);
       });
-      return unsubscribe;
+
+      const updateChannel = supabase
+        .channel(`messages-read-${selectedConversation}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${selectedConversation}`,
+          },
+          (payload) => {
+            const updated: any = (payload as any).new;
+            setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, is_read: updated.is_read } : m));
+          }
+        )
+        .subscribe();
+
+      return () => {
+        unsubscribeInsert?.();
+        supabase.removeChannel(updateChannel);
+      };
     }
   }, [selectedConversation]);
 
