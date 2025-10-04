@@ -19,7 +19,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+// TODO: Replace with your actual Telegram bot token
+// Get it from @BotFather on Telegram
+// Example: const TELEGRAM_BOT_TOKEN = "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz";
+const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "YOUR_TELEGRAM_BOT_TOKEN_HERE";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -65,28 +68,56 @@ serve(async (req) => {
         });
       }
 
-      // TODO: Implement message routing
-      // 1. Parse the message to determine if it's a reply to a specific conversation
-      // 2. Save message to the messages table
-      // 3. Notify the recipient via real-time subscription
-      
       console.log("Message from linked user:", profile.id, "Message:", text);
 
-      // Example: Save message to database
-      // const { error: messageError } = await supabase
-      //   .from("messages")
-      //   .insert({
-      //     conversation_id: "[conversation_id]",
-      //     sender_id: profile.id,
-      //     content: text,
-      //     telegram_message_id: message_id.toString(),
-      //   });
+      // Get user's most recent conversation
+      const { data: conversations, error: convError } = await supabase
+        .from("conversations")
+        .select("id")
+        .or(`participant_1_id.eq.${profile.id},participant_2_id.eq.${profile.id}`)
+        .order("last_message_at", { ascending: false })
+        .limit(1);
 
-      // Send acknowledgment
-      await sendTelegramMessage(
-        chat.id,
-        "Message received! This feature is coming soon. 🚀"
-      );
+      if (convError || !conversations || conversations.length === 0) {
+        await sendTelegramMessage(
+          chat.id,
+          "No active conversations found. Please start a conversation on the platform first."
+        );
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const conversationId = conversations[0].id;
+
+      // Save message to database
+      const { error: messageError } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: conversationId,
+          sender_id: profile.id,
+          content: text,
+          telegram_message_id: message_id.toString(),
+        });
+
+      if (messageError) {
+        console.error("Error saving message:", messageError);
+        await sendTelegramMessage(
+          chat.id,
+          "Failed to send message. Please try again."
+        );
+      } else {
+        // Update conversation last message time
+        await supabase
+          .from("conversations")
+          .update({ last_message_at: new Date().toISOString() })
+          .eq("id", conversationId);
+
+        await sendTelegramMessage(
+          chat.id,
+          "✅ Message sent successfully!"
+        );
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {

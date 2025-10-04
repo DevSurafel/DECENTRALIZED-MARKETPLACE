@@ -69,12 +69,21 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<any[]>([]);
   const [portfolioDialog, setPortfolioDialog] = useState(false);
+  const [editProfileDialog, setEditProfileDialog] = useState(false);
   const [newPortfolio, setNewPortfolio] = useState({
     title: "",
     description: "",
     image: "",
     tags: "",
     url: ""
+  });
+  const [editForm, setEditForm] = useState({
+    display_name: "",
+    bio: "",
+    location: "",
+    skills: "",
+    hourly_rate: "",
+    telegram_username: ""
   });
 
   useEffect(() => {
@@ -98,6 +107,16 @@ const Profile = () => {
 
       if (error) throw error;
       setProfile(data);
+      
+      // Initialize edit form
+      setEditForm({
+        display_name: data.display_name || "",
+        bio: data.bio || "",
+        location: data.location || "",
+        skills: data.skills?.join(", ") || "",
+        hourly_rate: data.hourly_rate?.toString() || "",
+        telegram_username: data.telegram_username || ""
+      });
       
       // Fetch reviews
       const { data: reviewsData } = await supabase
@@ -144,6 +163,32 @@ const Profile = () => {
       setProfile({ ...profile, portfolio_items: [...portfolioItems, newItem] });
       setPortfolioDialog(false);
       setNewPortfolio({ title: "", description: "", image: "", tags: "", url: "" });
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!user) return;
+    
+    const skills = editForm.skills.split(',').map(s => s.trim()).filter(s => s);
+    
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        display_name: editForm.display_name,
+        bio: editForm.bio,
+        location: editForm.location,
+        skills,
+        hourly_rate: editForm.hourly_rate ? parseFloat(editForm.hourly_rate) : null,
+        telegram_username: editForm.telegram_username
+      })
+      .eq("id", user.id);
+    
+    if (error) {
+      toast({ title: "Error", description: "Failed to update profile", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Profile updated successfully" });
+      fetchProfile();
+      setEditProfileDialog(false);
     }
   };
 
@@ -223,10 +268,72 @@ const Profile = () => {
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <Button variant="outline" className="gap-2">
-                  <Edit className="w-4 h-4" />
-                  Edit Profile
-                </Button>
+                <Dialog open={editProfileDialog} onOpenChange={setEditProfileDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <Edit className="w-4 h-4" />
+                      Edit Profile
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit Profile</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Display Name</Label>
+                        <Input 
+                          value={editForm.display_name}
+                          onChange={(e) => setEditForm({...editForm, display_name: e.target.value})}
+                          placeholder="Your name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Bio</Label>
+                        <Textarea 
+                          value={editForm.bio}
+                          onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
+                          placeholder="Tell us about yourself"
+                        />
+                      </div>
+                      <div>
+                        <Label>Location</Label>
+                        <Input 
+                          value={editForm.location}
+                          onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                          placeholder="City, Country"
+                        />
+                      </div>
+                      <div>
+                        <Label>Skills (comma-separated)</Label>
+                        <Input 
+                          value={editForm.skills}
+                          onChange={(e) => setEditForm({...editForm, skills: e.target.value})}
+                          placeholder="React, Solidity, Web3"
+                        />
+                      </div>
+                      <div>
+                        <Label>Hourly Rate (ETH)</Label>
+                        <Input 
+                          type="number"
+                          step="0.01"
+                          value={editForm.hourly_rate}
+                          onChange={(e) => setEditForm({...editForm, hourly_rate: e.target.value})}
+                          placeholder="0.05"
+                        />
+                      </div>
+                      <div>
+                        <Label>Telegram Username</Label>
+                        <Input 
+                          value={editForm.telegram_username}
+                          onChange={(e) => setEditForm({...editForm, telegram_username: e.target.value})}
+                          placeholder="@username"
+                        />
+                      </div>
+                      <Button onClick={saveProfile} className="w-full">Save Changes</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               <div className="flex-1">

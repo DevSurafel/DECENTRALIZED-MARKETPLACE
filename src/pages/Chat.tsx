@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 const Chat = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [currentMessage, setCurrentMessage] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,6 +25,13 @@ const Chat = () => {
       loadConversations();
     }
   }, [user]);
+
+  useEffect(() => {
+    const conversationId = searchParams.get('conversation');
+    if (conversationId) {
+      setSelectedConversation(conversationId);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (selectedConversation) {

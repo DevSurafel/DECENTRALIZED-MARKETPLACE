@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
 import { JobPostDialog } from "@/components/JobPostDialog";
 import { useJobs } from "@/hooks/useJobs";
+import { useAuth } from "@/hooks/useAuth";
+import { useMessages } from "@/hooks/useMessages";
+import { toast } from "@/hooks/use-toast";
 import {
   Search,
   Filter,
@@ -21,11 +24,14 @@ import {
 } from "lucide-react";
 
 const Marketplace = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const { createConversation } = useMessages();
   const [searchQuery, setSearchQuery] = useState("");
   const [jobs, setJobs] = useState<any[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("All Jobs");
+  const [showJobDialog, setShowJobDialog] = useState(false);
   const [jobCounts, setJobCounts] = useState({
     all: 0,
     smartContracts: 0,
@@ -93,6 +99,34 @@ const Marketplace = () => {
     }
     
     setFilteredJobs(filtered);
+  };
+
+  const handlePostJob = () => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    setShowJobDialog(true);
+  };
+
+  const handleChatWithClient = async (clientId: string, jobId: string) => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    try {
+      const conversationId = await createConversation(clientId, jobId);
+      if (conversationId) {
+        navigate(`/chat?conversation=${conversationId}`);
+      }
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start conversation",
+        variant: "destructive"
+      });
+    }
   };
 
   const categories = [
@@ -252,11 +286,11 @@ const Marketplace = () => {
                     </div>
                   </div>
                   
-                  <div className="flex gap-3">
+                   <div className="flex gap-3">
                     <Button 
                       variant="outline" 
                       className="hover:scale-105 transition-smooth border-primary/20 gap-2"
-                      onClick={() => navigate('/chat')}
+                      onClick={() => handleChatWithClient(job.client_id, job.id)}
                     >
                       <MessageSquare className="w-4 h-4" />
                       Chat

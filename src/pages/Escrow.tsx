@@ -31,24 +31,50 @@ const Escrow = () => {
 
   const fetchEscrows = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('mongodb-payments', {
-        body: { action: 'getHistory' }
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch jobs where user is either client or freelancer
+      const { data: jobs, error } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          client:profiles!jobs_client_id_fkey(display_name, wallet_address),
+          freelancer:profiles!jobs_freelancer_id_fkey(display_name, wallet_address),
+          milestones:job_milestones(*),
+          dispute:disputes(*)
+        `)
+        .or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`)
+        .in('status', ['in_progress', 'under_review', 'completed', 'disputed', 'cancelled', 'refunded']);
 
       if (error) throw error;
 
-      if (data?.success) {
-        // Separate active vs completed
-        const active = data.payments.filter((p: any) => 
-          ['funded', 'submitted', 'disputed'].includes(p.status)
-        );
-        const history = data.payments.filter((p: any) => 
-          ['completed', 'refunded'].includes(p.status)
-        );
-        
-        setActiveEscrows(active);
-        setHistoryEscrows(history);
-      }
+      // Transform to escrow format
+      const escrowData = (jobs || []).map(job => ({
+        _id: job.id,
+        jobId: job.id,
+        jobTitle: job.title,
+        amount: job.budget_eth,
+        status: job.status === 'in_progress' ? 'funded' : 
+                job.status === 'under_review' ? 'submitted' :
+                job.status === 'disputed' ? 'disputed' :
+                job.status === 'completed' ? 'completed' : 'refunded',
+        transactionHash: job.contract_address || 'N/A',
+        createdAt: job.created_at,
+        submissionDeadline: job.deadline,
+        milestones: job.milestones,
+        dispute: job.dispute?.[0]
+      }));
+
+      const active = escrowData.filter(e => 
+        ['funded', 'submitted', 'disputed'].includes(e.status)
+      );
+      const history = escrowData.filter(e => 
+        ['completed', 'refunded'].includes(e.status)
+      );
+      
+      setActiveEscrows(active);
+      setHistoryEscrows(history);
     } catch (error) {
       console.error('Error fetching escrows:', error);
       toast({

@@ -57,22 +57,15 @@ export const useMessages = () => {
   const sendMessage = async (conversationId: string, content: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to send messages",
-          variant: "destructive"
-        });
-        return null;
-      }
+      if (!user) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase
-        .from('messages')
-        .insert([{
+      const { data: message, error } = await supabase
+        .from("messages")
+        .insert({
           conversation_id: conversationId,
           sender_id: user.id,
-          content
-        }])
+          content,
+        })
         .select()
         .single();
 
@@ -80,17 +73,51 @@ export const useMessages = () => {
 
       // Update conversation's last_message_at
       await supabase
-        .from('conversations')
+        .from("conversations")
         .update({ last_message_at: new Date().toISOString() })
-        .eq('id', conversationId);
+        .eq("id", conversationId);
 
-      return data;
+      // Get conversation details to find recipient
+      const { data: conv } = await supabase
+        .from("conversations")
+        .select("participant_1_id, participant_2_id")
+        .eq("id", conversationId)
+        .single();
+
+      if (conv) {
+        const recipientId = conv.participant_1_id === user.id 
+          ? conv.participant_2_id 
+          : conv.participant_1_id;
+
+        // Get sender profile
+        const { data: senderProfile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", user.id)
+          .single();
+
+        // Send Telegram notification
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: recipientId,
+              message: content,
+              sender_name: senderProfile?.display_name || 'Someone'
+            }
+          });
+        } catch (telegramError) {
+          console.error("Failed to send Telegram notification:", telegramError);
+          // Don't fail the message send if Telegram fails
+        }
+      }
+
+      return message;
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       toast({
         title: "Error",
         description: "Failed to send message",
-        variant: "destructive"
+        variant: "destructive",
       });
       return null;
     }
