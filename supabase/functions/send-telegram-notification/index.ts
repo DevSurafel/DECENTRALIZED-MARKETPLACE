@@ -38,7 +38,7 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { recipient_id, message, sender_name, sender_id, conversation_id } = await req.json();
+    const { recipient_id, message, sender_name, sender_id, conversation_id, url, button_text } = await req.json();
 
     if (!recipient_id || !message) {
       throw new Error("recipient_id and message are required");
@@ -85,7 +85,9 @@ serve(async (req) => {
       await sendTelegramMessage(
         parseInt(profile.telegram_chat_id),
         notificationText,
-        senderUsername
+        senderUsername,
+        url,
+        button_text
       );
 
       // Store conversation ID for reply context
@@ -114,8 +116,14 @@ serve(async (req) => {
   }
 });
 
-async function sendTelegramMessage(chatId: number, text: string, senderUsername?: string) {
-  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+async function sendTelegramMessage(
+  chatId: number,
+  text: string,
+  senderUsername?: string,
+  detailsUrl?: string,
+  buttonText?: string
+) {
+  const apiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
   
   const messageBody: any = {
     chat_id: chatId,
@@ -123,21 +131,29 @@ async function sendTelegramMessage(chatId: number, text: string, senderUsername?
     parse_mode: "HTML",
   };
 
-  // Add inline reply button if sender username is provided
+  // Add inline reply button and/or View Details button
+  const inline_keyboard: any[] = [];
+  if (detailsUrl) {
+    inline_keyboard.push([
+      {
+        text: senderUsername ? `🔎 ${buttonText || 'View Details'}` : (buttonText || 'View Details'),
+        url: detailsUrl,
+      },
+    ]);
+  }
   if (senderUsername) {
-    messageBody.reply_markup = {
-      inline_keyboard: [
-        [
-          {
-            text: "💬 Reply",
-            switch_inline_query_current_chat: `@${senderUsername} `,
-          },
-        ],
-      ],
-    };
+    inline_keyboard.push([
+      {
+        text: "💬 Reply",
+        switch_inline_query_current_chat: `@${senderUsername} `,
+      },
+    ]);
+  }
+  if (inline_keyboard.length > 0) {
+    messageBody.reply_markup = { inline_keyboard };
   }
   
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(messageBody),

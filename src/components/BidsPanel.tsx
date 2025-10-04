@@ -97,6 +97,8 @@ export function BidsPanel({ jobId, onBidAccepted }: BidsPanelProps) {
             recipient_id: selectedBid.freelancer_id,
             message: `${clientProfile?.display_name || 'The client'} has accepted your proposal for "${jobData?.title}". Please wait for the client to fund the escrow with their wallet.`,
             sender_id: user?.id,
+            url: `${window.location.origin}/jobs/${jobId}`,
+            button_text: 'View Details'
           }
         });
       } catch (notifError) {

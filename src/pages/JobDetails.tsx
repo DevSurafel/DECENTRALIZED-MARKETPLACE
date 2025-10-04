@@ -87,6 +87,8 @@ const JobDetails = () => {
             recipient_id: job.freelancer_id,
             message: `🔄 The client has requested revisions for "${job.title}". Please check the platform for details.`,
             sender_id: user?.id,
+            url: `${window.location.origin}/jobs/${id}`,
+            button_text: 'View Details'
           }
         });
       } catch (notifError) {
@@ -144,6 +146,8 @@ const JobDetails = () => {
               recipient_id: job.freelancer_id,
               message: `🔒 Job "${job.title}" funded with ${job.budget_eth} ETH. You can start work!`,
               sender_id: user?.id,
+              url: `${window.location.origin}/jobs/${id}`,
+              button_text: 'View Details'
             }
           });
         } catch (notifError) {
@@ -197,6 +201,8 @@ const JobDetails = () => {
               recipient_id: job.client_id,
               message: `📦 ${freelancerProfile?.display_name || 'The freelancer'} submitted work for "${job.title}". Review now.`,
               sender_id: user?.id,
+              url: `${window.location.origin}/jobs/${id}`,
+              button_text: 'View Details'
             }
           });
         } catch (notifError) {
@@ -252,6 +258,8 @@ const JobDetails = () => {
               recipient_id: job.freelancer_id,
               message: `🎉 You received ${job.budget_eth} ETH for "${job.title}". Congrats!`,
               sender_id: user?.id,
+              url: `${window.location.origin}/jobs/${id}`,
+              button_text: 'View Details'
             }
           });
         } catch (notifError) {
@@ -397,7 +405,13 @@ const JobDetails = () => {
             {getUserRole() === 'freelancer' && (job.status === 'in_progress' || job.status === 'revision_requested') && job.escrow_address && (
               <WorkSubmissionPanel
                 jobId={id!}
-                onSubmit={handleSubmitWork}
+                onSubmit={async (ipfs, git, notes) => {
+                  if (job.status === 'revision_requested') {
+                    await handleSubmitRevision(ipfs, git);
+                  } else {
+                    await handleSubmitWork(ipfs, git, notes);
+                  }
+                }}
               />
             )}
 

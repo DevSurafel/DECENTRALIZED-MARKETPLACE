@@ -175,7 +175,7 @@ const Dashboard = () => {
                       variant="outline" 
                       size="sm" 
                       className="hover-scale"
-                      onClick={() => window.location.href = `/job/${job.id}`}
+                      onClick={() => window.location.href = `/jobs/${job.id}`}
                     >
                       View Details
                     </Button>

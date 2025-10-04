@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Upload, FileText, GitBranch, Send } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WorkSubmissionPanelProps {
   jobId: string;
@@ -17,6 +18,8 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
   const [gitHash, setGitHash] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleSubmit = async () => {
     if (!ipfsHash || !gitHash) {
@@ -34,8 +37,33 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
       setIpfsHash("");
       setGitHash("");
       setNotes("");
+      setSelectedFile(null);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast({ title: "No file selected", description: "Please choose a .zip bundle to upload." });
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      const { data, error } = await supabase.functions.invoke("ipfs-upload", { body: formData } as any);
+      if (error) throw error;
+      const ipfs = (data as any)?.ipfsHash;
+      if (ipfs) {
+        setIpfsHash(ipfs);
+        toast({ title: "Uploaded to IPFS", description: `Hash: ${ipfs}` });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Upload failed", description: "Could not upload to IPFS", variant: "destructive" });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -47,6 +75,25 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
       </p>
 
       <div className="space-y-4">
+        <div>
+          <Label htmlFor="bundle" className="flex items-center gap-2 mb-2">
+            <Upload className="h-4 w-4" />
+            Upload Bundle (.zip)
+          </Label>
+          <Input
+            id="bundle"
+            type="file"
+            accept=".zip"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+          />
+          <Button onClick={handleUpload} disabled={!selectedFile || uploading} variant="secondary" className="mt-2">
+            {uploading ? "Uploading..." : "Upload to IPFS"}
+          </Button>
+          <p className="text-xs text-muted-foreground mt-1">
+            Upload a zip with code + README + build instructions. The IPFS hash will auto-fill below.
+          </p>
+        </div>
+
         <div>
           <Label htmlFor="ipfs" className="flex items-center gap-2 mb-2">
             <FileText className="h-4 w-4" />
@@ -60,7 +107,7 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
             className="font-mono"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Upload your files to IPFS and paste the hash here
+            Or paste an existing IPFS hash if you uploaded elsewhere
           </p>
         </div>
 
@@ -111,7 +158,7 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
           <li>• Ensure all files are properly uploaded to IPFS</li>
           <li>• Include clear instructions in your repository README</li>
           <li>• Test your deliverables before submission</li>
-          <li>• Client has {5} days to review your work</li>
+          <li>• Client has 7 days to review your work</li>
         </ul>
       </div>
     </Card>
