@@ -47,6 +47,8 @@ const JobDetails = () => {
   const [proposal, setProposal] = useState("");
   const [estimatedDuration, setEstimatedDuration] = useState("");
   const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [hasLeftUserReview, setHasLeftUserReview] = useState(false);
+  const [hasLeftPlatformReview, setHasLeftPlatformReview] = useState(false);
   const { getJobById, loading } = useJobs();
   const { createBid, loading: submitting } = useBids();
   const { requestRevision, submitRevision } = useRevisions();
@@ -58,9 +60,34 @@ const JobDetails = () => {
     }
   }, [id]);
 
+  const fetchReviewFlags = async () => {
+    if (!id || !user?.id) return;
+    try {
+      const [{ data: userReview }, { data: platformReview }] = await Promise.all([
+        supabase
+          .from('reviews')
+          .select('id')
+          .eq('job_id', id)
+          .eq('reviewer_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('platform_reviews')
+          .select('id')
+          .eq('job_id', id)
+          .eq('reviewer_id', user.id)
+          .maybeSingle(),
+      ]);
+      setHasLeftUserReview(!!userReview);
+      setHasLeftPlatformReview(!!platformReview);
+    } catch (e) {
+      console.error('Error checking review flags', e);
+    }
+  };
+
   const loadJob = async () => {
     const data = await getJobById(id!);
     setJob(data);
+    await fetchReviewFlags();
   };
 
   // Real-time subscription for job updates
@@ -487,17 +514,19 @@ const JobDetails = () => {
                     Funds have been released to the freelancer
                   </p>
                 </div>
-                <RatingDialog
-                  jobId={id!}
-                  revieweeId={job.freelancer_id}
-                  revieweeName={job.freelancer?.display_name || 'Freelancer'}
-                  trigger={
-                    <Button className="w-full shadow-glow" size="lg">
-                      Leave Review
-                    </Button>
-                  }
-                  onSuccess={loadJob}
-                />
+                {!hasLeftUserReview && (
+                  <RatingDialog
+                    jobId={id!}
+                    revieweeId={job.freelancer_id}
+                    revieweeName={job.freelancer?.display_name || 'Freelancer'}
+                    trigger={
+                      <Button className="w-full shadow-glow" size="lg">
+                        Leave Review
+                      </Button>
+                    }
+                    onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
+                  />
+                )}
               </Card>
             )}
 
@@ -562,17 +591,19 @@ const JobDetails = () => {
                     You've received {job.budget_eth} ETH
                   </p>
                 </div>
-                <RatingDialog
-                  jobId={id!}
-                  revieweeId={job.client_id}
-                  revieweeName={job.client?.display_name || 'Client'}
-                  trigger={
-                    <Button className="w-full shadow-glow" size="lg">
-                      Rate Client
-                    </Button>
-                  }
-                  onSuccess={loadJob}
-                />
+                {!hasLeftUserReview && (
+                  <RatingDialog
+                    jobId={id!}
+                    revieweeId={job.client_id}
+                    revieweeName={job.client?.display_name || 'Client'}
+                    trigger={
+                      <Button className="w-full shadow-glow" size="lg">
+                        Rate Client
+                      </Button>
+                    }
+                    onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
+                  />
+                )}
               </Card>
             )}
 
@@ -726,6 +757,7 @@ const JobDetails = () => {
                     revieweeId={job.client_id}
                     revieweeName={job.client?.display_name || 'Client'}
                     trigger={<Button variant="outline" className="w-full">Rate Client</Button>}
+                    onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
                   />
                 </div>
               )}
@@ -736,6 +768,7 @@ const JobDetails = () => {
                 <PlatformReviewDialog
                   jobId={id!}
                   trigger={<Button variant="outline" className="w-full">Rate DeFiLance</Button>}
+                  onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
                 />
               </div>
             </div>
@@ -749,7 +782,7 @@ const JobDetails = () => {
         </AlertDialog>
 
         {/* Review Button for Freelancer after job completion */}
-        {job?.status === 'completed' && getUserRole() === 'freelancer' && (
+        {job?.status === 'completed' && getUserRole() === 'freelancer' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
           <Card className="p-6 mt-6 bg-primary/5 border-primary/20">
             <div className="flex items-center justify-between">
               <div>

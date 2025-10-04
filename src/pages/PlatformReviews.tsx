@@ -23,25 +23,11 @@ interface PlatformReview {
   };
 }
 
-interface UserReview {
-  id: string;
-  rating: number;
-  comment: string | null;
-  created_at: string;
-  reviewer: {
-    id: string;
-    display_name: string | null;
-    avatar_url: string | null;
-  };
-  job: {
-    title: string;
-  };
-}
 
 const PlatformReviews = () => {
   const navigate = useNavigate();
 const [reviews, setReviews] = useState<PlatformReview[]>([]);
-const [userReviews, setUserReviews] = useState<UserReview[]>([]);
+
 const [loading, setLoading] = useState(true);
 const [stats, setStats] = useState({
   average: 0,

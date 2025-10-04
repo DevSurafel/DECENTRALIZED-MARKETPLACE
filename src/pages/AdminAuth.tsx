@@ -25,16 +25,15 @@ const AdminAuth = () => {
 
   const checkAdminRole = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user?.id)
-        .eq('role', 'admin')
-        .maybeSingle();
+      if (!user?.id) return;
+      const { data: hasAdmin, error } = await supabase.rpc('has_role', {
+        _user_id: user.id,
+        _role: 'admin' as any
+      });
 
       if (error) throw error;
 
-      if (data) {
+      if (hasAdmin) {
         navigate('/arbitrator');
       } else {
         // Not an admin; keep the form visible so they can switch accounts
@@ -61,16 +60,14 @@ const AdminAuth = () => {
       if (error) throw error;
 
       // Check if user has admin role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
+      const { data: hasAdmin, error: roleError } = await supabase.rpc('has_role', {
+        _user_id: data.user.id,
+        _role: 'admin' as any
+      });
 
       if (roleError) throw roleError;
 
-      if (!roleData) {
+      if (!hasAdmin) {
         await supabase.auth.signOut();
         toast({
           title: "Access Denied",
