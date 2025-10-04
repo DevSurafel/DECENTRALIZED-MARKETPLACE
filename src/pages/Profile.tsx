@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import {
   MapPin,
@@ -65,11 +65,13 @@ const portfolioItems = [
 const Profile = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { id: profileId } = useParams<{ id: string }>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<any[]>([]);
   const [portfolioDialog, setPortfolioDialog] = useState(false);
   const [editProfileDialog, setEditProfileDialog] = useState(false);
+  const isOwnProfile = !profileId || profileId === user?.id;
   const [newPortfolio, setNewPortfolio] = useState({
     title: "",
     description: "",
@@ -87,36 +89,41 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && isOwnProfile) {
       navigate("/auth");
       return;
     }
 
-    if (user) {
+    if (user || profileId) {
       fetchProfile();
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, profileId]);
 
   const fetchProfile = async () => {
     try {
+      const targetUserId = profileId || user?.id;
+      if (!targetUserId) return;
+
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user?.id)
+        .eq("id", targetUserId)
         .single();
 
       if (error) throw error;
       setProfile(data);
       
-      // Initialize edit form
-      setEditForm({
-        display_name: data.display_name || "",
-        bio: data.bio || "",
-        location: data.location || "",
-        skills: data.skills?.join(", ") || "",
-        hourly_rate: data.hourly_rate?.toString() || "",
-        telegram_username: data.telegram_username || ""
-      });
+      // Initialize edit form only for own profile
+      if (isOwnProfile) {
+        setEditForm({
+          display_name: data.display_name || "",
+          bio: data.bio || "",
+          location: data.location || "",
+          skills: data.skills?.join(", ") || "",
+          hourly_rate: data.hourly_rate?.toString() || "",
+          telegram_username: data.telegram_username || ""
+        });
+      }
       
       // Fetch reviews
       const { data: reviewsData } = await supabase
@@ -125,13 +132,18 @@ const Profile = () => {
           *,
           reviewer:profiles!reviews_reviewer_id_fkey(display_name, wallet_address)
         `)
-        .eq("reviewee_id", user?.id)
+        .eq("reviewee_id", targetUserId)
         .order("created_at", { ascending: false })
         .limit(5);
       
       setReviews(reviewsData || []);
     } catch (error) {
       console.error("Error fetching profile:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load profile",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -253,8 +265,12 @@ const Profile = () => {
                 <span className="text-2xl">👋</span>
               </div>
               <div>
-                <h1 className="text-3xl font-bold mb-1">Welcome back, {displayName}!</h1>
-                <p className="text-foreground/80">Here's your profile overview</p>
+                <h1 className="text-3xl font-bold mb-1">
+                  {isOwnProfile ? `Welcome back, ${displayName}!` : `${displayName}'s Profile`}
+                </h1>
+                <p className="text-foreground/80">
+                  {isOwnProfile ? "Here's your profile overview" : "View freelancer profile and reviews"}
+                </p>
               </div>
             </div>
           </Card>
@@ -268,72 +284,74 @@ const Profile = () => {
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <Dialog open={editProfileDialog} onOpenChange={setEditProfileDialog}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="gap-2">
-                      <Edit className="w-4 h-4" />
-                      Edit Profile
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit Profile</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Display Name</Label>
-                        <Input 
-                          value={editForm.display_name}
-                          onChange={(e) => setEditForm({...editForm, display_name: e.target.value})}
-                          placeholder="Your name"
-                        />
+                {isOwnProfile && (
+                  <Dialog open={editProfileDialog} onOpenChange={setEditProfileDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="gap-2">
+                        <Edit className="w-4 h-4" />
+                        Edit Profile
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Edit Profile</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Display Name</Label>
+                          <Input 
+                            value={editForm.display_name}
+                            onChange={(e) => setEditForm({...editForm, display_name: e.target.value})}
+                            placeholder="Your name"
+                          />
+                        </div>
+                        <div>
+                          <Label>Bio</Label>
+                          <Textarea 
+                            value={editForm.bio}
+                            onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
+                            placeholder="Tell us about yourself"
+                          />
+                        </div>
+                        <div>
+                          <Label>Location</Label>
+                          <Input 
+                            value={editForm.location}
+                            onChange={(e) => setEditForm({...editForm, location: e.target.value})}
+                            placeholder="City, Country"
+                          />
+                        </div>
+                        <div>
+                          <Label>Skills (comma-separated)</Label>
+                          <Input 
+                            value={editForm.skills}
+                            onChange={(e) => setEditForm({...editForm, skills: e.target.value})}
+                            placeholder="React, Solidity, Web3"
+                          />
+                        </div>
+                        <div>
+                          <Label>Hourly Rate (ETH)</Label>
+                          <Input 
+                            type="number"
+                            step="0.01"
+                            value={editForm.hourly_rate}
+                            onChange={(e) => setEditForm({...editForm, hourly_rate: e.target.value})}
+                            placeholder="0.05"
+                          />
+                        </div>
+                        <div>
+                          <Label>Telegram Username</Label>
+                          <Input 
+                            value={editForm.telegram_username}
+                            onChange={(e) => setEditForm({...editForm, telegram_username: e.target.value})}
+                            placeholder="@username"
+                          />
+                        </div>
+                        <Button onClick={saveProfile} className="w-full">Save Changes</Button>
                       </div>
-                      <div>
-                        <Label>Bio</Label>
-                        <Textarea 
-                          value={editForm.bio}
-                          onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
-                          placeholder="Tell us about yourself"
-                        />
-                      </div>
-                      <div>
-                        <Label>Location</Label>
-                        <Input 
-                          value={editForm.location}
-                          onChange={(e) => setEditForm({...editForm, location: e.target.value})}
-                          placeholder="City, Country"
-                        />
-                      </div>
-                      <div>
-                        <Label>Skills (comma-separated)</Label>
-                        <Input 
-                          value={editForm.skills}
-                          onChange={(e) => setEditForm({...editForm, skills: e.target.value})}
-                          placeholder="React, Solidity, Web3"
-                        />
-                      </div>
-                      <div>
-                        <Label>Hourly Rate (ETH)</Label>
-                        <Input 
-                          type="number"
-                          step="0.01"
-                          value={editForm.hourly_rate}
-                          onChange={(e) => setEditForm({...editForm, hourly_rate: e.target.value})}
-                          placeholder="0.05"
-                        />
-                      </div>
-                      <div>
-                        <Label>Telegram Username</Label>
-                        <Input 
-                          value={editForm.telegram_username}
-                          onChange={(e) => setEditForm({...editForm, telegram_username: e.target.value})}
-                          placeholder="@username"
-                        />
-                      </div>
-                      <Button onClick={saveProfile} className="w-full">Save Changes</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
 
               <div className="flex-1">

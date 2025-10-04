@@ -89,11 +89,8 @@ serve(async (req) => {
         
         await sendTelegramMessage(
           chat.id,
-          `✅ Account linked successfully!\n\nHi ${profile.display_name}! You'll now receive:\n` +
-          "• New message notifications\n" +
-          "• Job updates\n" +
-          "• Bid notifications\n\n" +
-          "Reply to any message here to sync with the platform!"
+          "✅ You are authorized!\n\n" +
+          "Now you will receive notifications from the site DeFiLance directly in this chat."
         );
         return new Response(JSON.stringify({ ok: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
