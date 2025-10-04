@@ -6,53 +6,78 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title DeFiLance Escrow Contract
- * @notice Secure escrow system for freelance jobs with dispute resolution
- * @dev Handles job funding, approval, disputes, and automatic deadline enforcement
+ * @title DeFiLance Escrow Contract with Dispute Protection
+ * @notice Secure escrow system with revisions, stakes, deposits, and evidence-based disputes
+ * @dev Handles full job lifecycle with client/freelancer protections
  */
 contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
     
-    enum JobStatus { 
-        CREATED,      // Job posted but not funded
-        FUNDED,       // Client has locked funds
-        SUBMITTED,    // Freelancer submitted work
-        COMPLETED,    // Job approved and paid
-        DISPUTED,     // Dispute raised
-        REFUNDED      // Refunded to client
+    // Job status enumeration
+    enum JobStatus {
+        CREATED,              // Job created but not funded
+        FUNDED,               // Escrow funded, work can begin
+        IN_PROGRESS,          // Freelancer accepted, work in progress
+        SUBMITTED,            // Work submitted by freelancer
+        REVISION_REQUESTED,   // Client requested revision
+        COMPLETED,            // Work approved, payment released
+        DISPUTED,             // Dispute raised
+        REFUNDED              // Funds returned to client
     }
     
+    // Job structure with all protection mechanisms
     struct Job {
         address client;
         address freelancer;
-        address token;           // ERC20 token address (USDC, DAI, etc.)
+        address token;                  // ERC20 token address (e.g., USDC)
         uint256 amount;
-        uint256 platformFee;     // Fee in basis points (e.g., 200 = 2%)
-        uint256 submissionDeadline;
-        uint256 approvalDeadline;
-        string ipfsHash;         // IPFS hash of job details/submission
+        uint256 platformFee;            // Fee in basis points
+        uint256 freelancerStake;        // Freelancer's stake (slashed if fraud)
+        uint256 arbitrationDeposit;     // Client's deposit when raising dispute
+        uint256 submissionDeadline;     // When work must be submitted
+        uint256 reviewDeadline;         // When client must review (7 days)
+        uint256 approvalDeadline;       // Final deadline for auto-release
+        string ipfsHash;                // IPFS hash of submitted work
+        string gitCommitHash;           // Git commit hash for verification
+        uint256 currentRevisionNumber;
+        uint256 allowedRevisions;       // Max revisions allowed
+        bool autoReleaseEnabled;
         JobStatus status;
         bool exists;
     }
     
+    // Revision tracking
+    struct Revision {
+        string ipfsHash;
+        string gitCommitHash;
+        uint256 timestamp;
+        string notes;
+    }
+    
     // State variables
     mapping(uint256 => Job) public jobs;
+    mapping(uint256 => Revision[]) public revisions;
     mapping(address => bool) public arbitrators;
+    mapping(address => uint256) public reputationStrikes;
+    
     address public platformWallet;
-    uint256 public defaultPlatformFee = 200; // 2% in basis points
-    uint256 public constant FEE_DENOMINATOR = 10000;
-    uint256 public submissionWindow = 30 days;
-    uint256 public approvalWindow = 7 days;
+    uint256 public defaultPlatformFee = 200;           // 2% in basis points
+    uint256 public defaultStakePercentage = 500;       // 5% in basis points
+    uint256 public defaultArbitrationDeposit = 200;    // 2% in basis points
+    uint256 public constant SUBMISSION_WINDOW = 30 days;
+    uint256 public constant REVIEW_WINDOW = 7 days;
+    uint256 public constant REVISION_REVIEW_WINDOW = 3 days;
     
     // Events
-    event JobCreated(uint256 indexed jobId, address indexed client, address indexed freelancer, uint256 amount);
-    event JobFunded(uint256 indexed jobId, address token, uint256 amount);
-    event WorkSubmitted(uint256 indexed jobId, string ipfsHash);
+    event JobFunded(uint256 indexed jobId, address indexed token, uint256 amount, uint256 stake);
+    event WorkSubmitted(uint256 indexed jobId, string ipfsHash, string gitCommitHash);
+    event RevisionRequested(uint256 indexed jobId, string notes);
+    event RevisionSubmitted(uint256 indexed jobId, uint256 revisionNumber, string ipfsHash);
     event JobApproved(uint256 indexed jobId, uint256 freelancerAmount, uint256 platformFee);
-    event DisputeRaised(uint256 indexed jobId, address indexed raiser);
-    event DisputeResolved(uint256 indexed jobId, uint256 clientAmount, uint256 freelancerAmount);
-    event JobRefunded(uint256 indexed jobId, uint256 amount);
-    event ArbitratorUpdated(address indexed arbitrator, bool status);
-    event PlatformFeeUpdated(uint256 newFee);
+    event DisputeRaised(uint256 indexed jobId, address indexed raiser, uint256 deposit);
+    event DisputeResolved(uint256 indexed jobId, uint256 clientAmount, uint256 freelancerAmount, string notes);
+    event FundsReclaimed(uint256 indexed jobId, uint256 amount);
+    event StakeSlashed(uint256 indexed jobId, address indexed freelancer, uint256 amount);
+    event AutoReleaseTriggered(uint256 indexed jobId, uint256 amount);
     
     // Modifiers
     modifier onlyClient(uint256 jobId) {
@@ -82,68 +107,153 @@ contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
     }
     
     /**
-     * @notice Create and fund a new escrow job
-     * @param jobId Unique job identifier
+     * @notice Fund a job and lock funds in escrow (with optional freelancer stake)
+     * @param jobId Unique identifier for the job
      * @param freelancer Address of the freelancer
-     * @param token ERC20 token address for payment
+     * @param token ERC20 token address
      * @param amount Total payment amount
+     * @param requiresStake Whether freelancer must provide stake
+     * @param allowedRevisions Max number of revisions allowed
      */
     function fundJob(
         uint256 jobId,
         address freelancer,
         address token,
-        uint256 amount
+        uint256 amount,
+        bool requiresStake,
+        uint256 allowedRevisions
     ) external nonReentrant {
         require(!jobs[jobId].exists, "Job already exists");
-        require(freelancer != address(0), "Invalid freelancer address");
-        require(token != address(0), "Invalid token address");
-        require(amount > 0, "Amount must be greater than 0");
+        require(freelancer != address(0), "Invalid freelancer");
+        require(amount > 0, "Amount must be > 0");
+        require(allowedRevisions > 0, "Must allow at least 1 revision");
         
-        // Transfer tokens to contract
-        IERC20(token).transferFrom(msg.sender, address(this), amount);
+        uint256 platformFeeAmount = (amount * defaultPlatformFee) / 10000;
+        uint256 stakeAmount = requiresStake ? (amount * defaultStakePercentage) / 10000 : 0;
         
-        // Calculate deadlines
-        uint256 submissionDeadline = block.timestamp + submissionWindow;
-        uint256 approvalDeadline = submissionDeadline + approvalWindow;
+        // Transfer tokens from client to contract
+        require(
+            IERC20(token).transferFrom(msg.sender, address(this), amount),
+            "Transfer failed"
+        );
         
-        // Create job
+        // If stake required, freelancer must deposit stake
+        if (requiresStake) {
+            require(
+                IERC20(token).transferFrom(freelancer, address(this), stakeAmount),
+                "Stake transfer failed"
+            );
+        }
+        
         jobs[jobId] = Job({
             client: msg.sender,
             freelancer: freelancer,
             token: token,
             amount: amount,
-            platformFee: defaultPlatformFee,
-            submissionDeadline: submissionDeadline,
-            approvalDeadline: approvalDeadline,
+            platformFee: platformFeeAmount,
+            freelancerStake: stakeAmount,
+            arbitrationDeposit: 0,
+            submissionDeadline: block.timestamp + SUBMISSION_WINDOW,
+            reviewDeadline: 0,
+            approvalDeadline: 0,
             ipfsHash: "",
-            status: JobStatus.FUNDED,
+            gitCommitHash: "",
+            currentRevisionNumber: 0,
+            allowedRevisions: allowedRevisions,
+            autoReleaseEnabled: true,
+            status: JobStatus.IN_PROGRESS,
             exists: true
         });
         
-        emit JobCreated(jobId, msg.sender, freelancer, amount);
-        emit JobFunded(jobId, token, amount);
+        emit JobFunded(jobId, token, amount, stakeAmount);
     }
     
     /**
-     * @notice Freelancer submits completed work
+     * @notice Submit completed work with Git commit for verification
      * @param jobId Job identifier
-     * @param ipfsHash IPFS hash of the submitted work
+     * @param ipfsHash IPFS hash of the deliverable
+     * @param gitCommitHash Git commit hash for code verification
      */
-    function submitWork(uint256 jobId, string memory ipfsHash) 
+    function submitWork(uint256 jobId, string memory ipfsHash, string memory gitCommitHash) 
         external 
-        jobExists(jobId) 
         onlyFreelancer(jobId) 
+        jobExists(jobId) 
         nonReentrant 
     {
         Job storage job = jobs[jobId];
-        require(job.status == JobStatus.FUNDED, "Job not in FUNDED status");
+        require(job.status == JobStatus.IN_PROGRESS, "Invalid status");
         require(block.timestamp <= job.submissionDeadline, "Submission deadline passed");
         require(bytes(ipfsHash).length > 0, "IPFS hash required");
         
         job.ipfsHash = ipfsHash;
+        job.gitCommitHash = gitCommitHash;
         job.status = JobStatus.SUBMITTED;
+        job.reviewDeadline = block.timestamp + REVIEW_WINDOW;
+        job.approvalDeadline = block.timestamp + REVIEW_WINDOW + 1 days;
         
-        emit WorkSubmitted(jobId, ipfsHash);
+        // Store revision
+        revisions[jobId].push(Revision({
+            ipfsHash: ipfsHash,
+            gitCommitHash: gitCommitHash,
+            timestamp: block.timestamp,
+            notes: "Initial submission"
+        }));
+        
+        emit WorkSubmitted(jobId, ipfsHash, gitCommitHash);
+    }
+    
+    /**
+     * @notice Client requests revision
+     * @param jobId Job identifier
+     * @param notes Revision notes explaining what needs to be fixed
+     */
+    function requestRevision(uint256 jobId, string memory notes)
+        external
+        onlyClient(jobId)
+        jobExists(jobId)
+        nonReentrant
+    {
+        Job storage job = jobs[jobId];
+        require(job.status == JobStatus.SUBMITTED, "Work not submitted");
+        require(job.currentRevisionNumber < job.allowedRevisions, "Max revisions exceeded");
+        require(block.timestamp <= job.reviewDeadline, "Review deadline passed");
+        
+        job.status = JobStatus.REVISION_REQUESTED;
+        job.currentRevisionNumber++;
+        
+        emit RevisionRequested(jobId, notes);
+    }
+    
+    /**
+     * @notice Freelancer submits revision
+     * @param jobId Job identifier
+     * @param ipfsHash IPFS hash of revised work
+     * @param gitCommitHash Updated git commit hash
+     */
+    function submitRevision(uint256 jobId, string memory ipfsHash, string memory gitCommitHash)
+        external
+        onlyFreelancer(jobId)
+        jobExists(jobId)
+        nonReentrant
+    {
+        Job storage job = jobs[jobId];
+        require(job.status == JobStatus.REVISION_REQUESTED, "Revision not requested");
+        require(bytes(ipfsHash).length > 0, "IPFS hash required");
+        
+        job.ipfsHash = ipfsHash;
+        job.gitCommitHash = gitCommitHash;
+        job.status = JobStatus.SUBMITTED;
+        job.reviewDeadline = block.timestamp + REVISION_REVIEW_WINDOW;
+        
+        // Store revision
+        revisions[jobId].push(Revision({
+            ipfsHash: ipfsHash,
+            gitCommitHash: gitCommitHash,
+            timestamp: block.timestamp,
+            notes: string(abi.encodePacked("Revision #", uint2str(job.currentRevisionNumber)))
+        }));
+        
+        emit RevisionSubmitted(jobId, job.currentRevisionNumber, ipfsHash);
     }
     
     /**
@@ -152,28 +262,12 @@ contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
      */
     function approveJob(uint256 jobId) 
         external 
-        jobExists(jobId) 
         onlyClient(jobId) 
-        nonReentrant 
-    {
-        Job storage job = jobs[jobId];
-        require(job.status == JobStatus.SUBMITTED, "Job not submitted");
-        
-        _releasePayment(jobId);
-    }
-    
-    /**
-     * @notice Auto-release payment if approval deadline passes
-     * @param jobId Job identifier
-     */
-    function autoReleasePayment(uint256 jobId) 
-        external 
         jobExists(jobId) 
         nonReentrant 
     {
         Job storage job = jobs[jobId];
-        require(job.status == JobStatus.SUBMITTED, "Job not submitted");
-        require(block.timestamp > job.approvalDeadline, "Approval deadline not passed");
+        require(job.status == JobStatus.SUBMITTED, "Work not submitted");
         
         _releasePayment(jobId);
     }
@@ -184,70 +278,145 @@ contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
     function _releasePayment(uint256 jobId) internal {
         Job storage job = jobs[jobId];
         
-        // Calculate platform fee
-        uint256 feeAmount = (job.amount * job.platformFee) / FEE_DENOMINATOR;
-        uint256 freelancerAmount = job.amount - feeAmount;
+        uint256 freelancerAmount = job.amount - job.platformFee + job.freelancerStake;
         
-        // Transfer payment
-        IERC20(job.token).transfer(job.freelancer, freelancerAmount);
+        // Transfer payment to freelancer
+        require(
+            IERC20(job.token).transfer(job.freelancer, freelancerAmount),
+            "Freelancer transfer failed"
+        );
         
         // Transfer platform fee
-        if (feeAmount > 0) {
-            IERC20(job.token).transfer(platformWallet, feeAmount);
+        if (job.platformFee > 0) {
+            require(
+                IERC20(job.token).transfer(platformWallet, job.platformFee),
+                "Platform fee transfer failed"
+            );
         }
         
         job.status = JobStatus.COMPLETED;
         
-        emit JobApproved(jobId, freelancerAmount, feeAmount);
+        emit JobApproved(jobId, freelancerAmount, job.platformFee);
     }
     
     /**
-     * @notice Client raises a dispute
+     * @notice Auto-release funds if client doesn't respond within deadline
+     * @param jobId Job identifier
+     */
+    function autoReleasePayment(uint256 jobId)
+        external
+        jobExists(jobId)
+        nonReentrant
+    {
+        Job storage job = jobs[jobId];
+        require(job.status == JobStatus.SUBMITTED, "Work not submitted");
+        require(job.autoReleaseEnabled, "Auto-release disabled");
+        require(block.timestamp > job.reviewDeadline, "Review period not over");
+        
+        _releasePayment(jobId);
+        
+        emit AutoReleaseTriggered(jobId, job.amount);
+    }
+    
+    /**
+     * @notice Raise a dispute (client must pay arbitration deposit)
      * @param jobId Job identifier
      */
     function raiseDispute(uint256 jobId) 
         external 
+        payable
         jobExists(jobId) 
-        onlyClient(jobId) 
         nonReentrant 
     {
         Job storage job = jobs[jobId];
-        require(job.status == JobStatus.SUBMITTED, "Job not submitted");
+        require(job.status == JobStatus.SUBMITTED, "Work not submitted");
+        require(msg.sender == job.client, "Only client can raise dispute");
         
+        uint256 depositAmount = (job.amount * defaultArbitrationDeposit) / 10000;
+        
+        // Client must pay arbitration deposit
+        require(
+            IERC20(job.token).transferFrom(msg.sender, address(this), depositAmount),
+            "Deposit transfer failed"
+        );
+        
+        job.arbitrationDeposit = depositAmount;
         job.status = JobStatus.DISPUTED;
         
-        emit DisputeRaised(jobId, msg.sender);
+        emit DisputeRaised(jobId, msg.sender, depositAmount);
     }
     
     /**
-     * @notice Arbitrator resolves dispute with custom split
+     * @notice Resolve a dispute with evidence-based decision (arbitrator only)
      * @param jobId Job identifier
-     * @param clientPercentage Percentage to refund to client (in basis points)
+     * @param clientPercentage Percentage to refund to client (0-10000)
+     * @param penalizeClient Whether to penalize client (forfeit deposit)
+     * @param slashFreelancerStake Whether to slash freelancer stake
+     * @param notes Resolution explanation
      */
-    function resolveDispute(uint256 jobId, uint256 clientPercentage) 
-        external 
-        jobExists(jobId) 
-        onlyArbitrator 
-        nonReentrant 
+    function resolveDispute(
+        uint256 jobId,
+        uint256 clientPercentage,
+        bool penalizeClient,
+        bool slashFreelancerStake,
+        string memory notes
+    )
+        external
+        onlyArbitrator
+        jobExists(jobId)
+        nonReentrant
     {
         Job storage job = jobs[jobId];
-        require(job.status == JobStatus.DISPUTED, "Job not disputed");
-        require(clientPercentage <= FEE_DENOMINATOR, "Invalid percentage");
+        require(job.status == JobStatus.DISPUTED, "Not in dispute");
+        require(clientPercentage <= 10000, "Invalid percentage");
         
-        uint256 clientAmount = (job.amount * clientPercentage) / FEE_DENOMINATOR;
+        uint256 clientAmount = (job.amount * clientPercentage) / 10000;
         uint256 freelancerAmount = job.amount - clientAmount;
         
-        // Transfer funds
-        if (clientAmount > 0) {
-            IERC20(job.token).transfer(job.client, clientAmount);
+        // Handle arbitration deposit
+        if (penalizeClient) {
+            // Client loses deposit (goes to freelancer as penalty)
+            freelancerAmount += job.arbitrationDeposit;
+            reputationStrikes[job.client]++;
+        } else {
+            // Return deposit to client
+            clientAmount += job.arbitrationDeposit;
         }
+        
+        // Handle freelancer stake
+        if (slashFreelancerStake && job.freelancerStake > 0) {
+            // Slash stake (goes to client as compensation)
+            clientAmount += job.freelancerStake;
+            reputationStrikes[job.freelancer]++;
+            emit StakeSlashed(jobId, job.freelancer, job.freelancerStake);
+        } else if (job.freelancerStake > 0) {
+            // Return stake to freelancer
+            freelancerAmount += job.freelancerStake;
+        }
+        
+        // Transfer amounts
+        if (clientAmount > 0) {
+            require(
+                IERC20(job.token).transfer(job.client, clientAmount),
+                "Client transfer failed"
+            );
+        }
+        
         if (freelancerAmount > 0) {
-            IERC20(job.token).transfer(job.freelancer, freelancerAmount);
+            uint256 netFreelancerAmount = freelancerAmount - job.platformFee;
+            require(
+                IERC20(job.token).transfer(job.freelancer, netFreelancerAmount),
+                "Freelancer transfer failed"
+            );
+            require(
+                IERC20(job.token).transfer(platformWallet, job.platformFee),
+                "Platform fee transfer failed"
+            );
         }
         
         job.status = JobStatus.COMPLETED;
         
-        emit DisputeResolved(jobId, clientAmount, freelancerAmount);
+        emit DisputeResolved(jobId, clientAmount, freelancerAmount, notes);
     }
     
     /**
@@ -256,41 +425,50 @@ contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
      */
     function reclaimFunds(uint256 jobId) 
         external 
-        jobExists(jobId) 
         onlyClient(jobId) 
+        jobExists(jobId) 
         nonReentrant 
     {
         Job storage job = jobs[jobId];
-        require(job.status == JobStatus.FUNDED, "Job not in FUNDED status");
+        require(job.status == JobStatus.IN_PROGRESS, "Job not in progress");
         require(block.timestamp > job.submissionDeadline, "Submission deadline not passed");
         
         uint256 refundAmount = job.amount;
         job.status = JobStatus.REFUNDED;
         
-        IERC20(job.token).transfer(job.client, refundAmount);
+        require(
+            IERC20(job.token).transfer(job.client, refundAmount),
+            "Refund transfer failed"
+        );
         
-        emit JobRefunded(jobId, refundAmount);
+        // Return freelancer stake if exists
+        if (job.freelancerStake > 0) {
+            require(
+                IERC20(job.token).transfer(job.freelancer, job.freelancerStake),
+                "Stake return failed"
+            );
+        }
+        
+        emit FundsReclaimed(jobId, refundAmount);
     }
     
     /**
-     * @notice Update arbitrator status
+     * @notice Set arbitrator status
      * @param arbitrator Address to update
      * @param status True to grant, false to revoke
      */
     function setArbitrator(address arbitrator, bool status) external onlyOwner {
-        require(arbitrator != address(0), "Invalid arbitrator address");
+        require(arbitrator != address(0), "Invalid arbitrator");
         arbitrators[arbitrator] = status;
-        emit ArbitratorUpdated(arbitrator, status);
     }
     
     /**
-     * @notice Update default platform fee
+     * @notice Update platform fee
      * @param newFee New fee in basis points (max 1000 = 10%)
      */
     function setPlatformFee(uint256 newFee) external onlyOwner {
-        require(newFee <= 1000, "Fee too high"); // Max 10%
+        require(newFee <= 1000, "Fee too high");
         defaultPlatformFee = newFee;
-        emit PlatformFeeUpdated(newFee);
     }
     
     /**
@@ -298,16 +476,66 @@ contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
      * @param newWallet New platform wallet address
      */
     function setPlatformWallet(address newWallet) external onlyOwner {
-        require(newWallet != address(0), "Invalid wallet address");
+        require(newWallet != address(0), "Invalid wallet");
         platformWallet = newWallet;
     }
     
     /**
-     * @notice Get job details
+     * @notice Get revision history for a job
      * @param jobId Job identifier
      */
-    function getJob(uint256 jobId) external view returns (Job memory) {
-        require(jobs[jobId].exists, "Job does not exist");
+    function getRevisions(uint256 jobId)
+        external
+        view
+        jobExists(jobId)
+        returns (Revision[] memory)
+    {
+        return revisions[jobId];
+    }
+    
+    /**
+     * @notice Get reputation strikes for an address
+     * @param user User address
+     */
+    function getReputationStrikes(address user) external view returns (uint256) {
+        return reputationStrikes[user];
+    }
+    
+    /**
+     * @notice Get full job details
+     * @param jobId Job identifier
+     */
+    function getJob(uint256 jobId) 
+        external 
+        view 
+        jobExists(jobId) 
+        returns (Job memory) 
+    {
         return jobs[jobId];
+    }
+    
+    /**
+     * @notice Convert uint to string (helper function)
+     */
+    function uint2str(uint256 _i) internal pure returns (string memory) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint256 j = _i;
+        uint256 len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint256 k = len;
+        while (_i != 0) {
+            k = k-1;
+            uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            _i /= 10;
+        }
+        return string(bstr);
     }
 }

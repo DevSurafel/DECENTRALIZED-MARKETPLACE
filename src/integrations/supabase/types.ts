@@ -117,6 +117,59 @@ export type Database = {
           },
         ]
       }
+      disputes: {
+        Row: {
+          arbitration_deposit_eth: number
+          client_amount_eth: number | null
+          evidence_bundle: Json | null
+          freelancer_amount_eth: number | null
+          id: string
+          job_id: string
+          raised_at: string | null
+          raised_by: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string | null
+        }
+        Insert: {
+          arbitration_deposit_eth: number
+          client_amount_eth?: number | null
+          evidence_bundle?: Json | null
+          freelancer_amount_eth?: number | null
+          id?: string
+          job_id: string
+          raised_at?: string | null
+          raised_by: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+        }
+        Update: {
+          arbitration_deposit_eth?: number
+          client_amount_eth?: number | null
+          evidence_bundle?: Json | null
+          freelancer_amount_eth?: number | null
+          id?: string
+          job_id?: string
+          raised_at?: string | null
+          raised_by?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disputes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_milestones: {
         Row: {
           amount_eth: number
@@ -170,23 +223,74 @@ export type Database = {
           },
         ]
       }
+      job_revisions: {
+        Row: {
+          git_commit_hash: string | null
+          id: string
+          ipfs_hash: string
+          job_id: string
+          notes: string | null
+          revision_number: number
+          submitted_at: string | null
+          submitted_by: string
+        }
+        Insert: {
+          git_commit_hash?: string | null
+          id?: string
+          ipfs_hash: string
+          job_id: string
+          notes?: string | null
+          revision_number: number
+          submitted_at?: string | null
+          submitted_by: string
+        }
+        Update: {
+          git_commit_hash?: string | null
+          id?: string
+          ipfs_hash?: string
+          job_id?: string
+          notes?: string | null
+          revision_number?: number
+          submitted_at?: string | null
+          submitted_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_revisions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           accepted_bid_id: string | null
+          allowed_revisions: number | null
+          arbitration_deposit_percentage: number | null
+          auto_release_enabled: boolean | null
           budget_eth: number
           budget_usd: number | null
           client_id: string
           completed_at: string | null
           contract_address: string | null
           created_at: string | null
+          current_revision_number: number | null
           deadline: string | null
           description: string
+          dispute_id: string | null
           duration_weeks: number | null
           escrow_address: string | null
           freelancer_id: string | null
+          freelancer_stake_eth: number | null
+          git_commit_hash: string | null
           id: string
           ipfs_hash: string | null
+          requires_freelancer_stake: boolean | null
+          review_deadline: string | null
           skills_required: string[]
+          stake_percentage: number | null
           started_at: string | null
           status: Database["public"]["Enums"]["job_status"] | null
           title: string
@@ -194,20 +298,30 @@ export type Database = {
         }
         Insert: {
           accepted_bid_id?: string | null
+          allowed_revisions?: number | null
+          arbitration_deposit_percentage?: number | null
+          auto_release_enabled?: boolean | null
           budget_eth: number
           budget_usd?: number | null
           client_id: string
           completed_at?: string | null
           contract_address?: string | null
           created_at?: string | null
+          current_revision_number?: number | null
           deadline?: string | null
           description: string
+          dispute_id?: string | null
           duration_weeks?: number | null
           escrow_address?: string | null
           freelancer_id?: string | null
+          freelancer_stake_eth?: number | null
+          git_commit_hash?: string | null
           id?: string
           ipfs_hash?: string | null
+          requires_freelancer_stake?: boolean | null
+          review_deadline?: string | null
           skills_required: string[]
+          stake_percentage?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
           title: string
@@ -215,20 +329,30 @@ export type Database = {
         }
         Update: {
           accepted_bid_id?: string | null
+          allowed_revisions?: number | null
+          arbitration_deposit_percentage?: number | null
+          auto_release_enabled?: boolean | null
           budget_eth?: number
           budget_usd?: number | null
           client_id?: string
           completed_at?: string | null
           contract_address?: string | null
           created_at?: string | null
+          current_revision_number?: number | null
           deadline?: string | null
           description?: string
+          dispute_id?: string | null
           duration_weeks?: number | null
           escrow_address?: string | null
           freelancer_id?: string | null
+          freelancer_stake_eth?: number | null
+          git_commit_hash?: string | null
           id?: string
           ipfs_hash?: string | null
+          requires_freelancer_stake?: boolean | null
+          review_deadline?: string | null
           skills_required?: string[]
+          stake_percentage?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
           title?: string
@@ -240,6 +364,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: false
+            referencedRelation: "disputes"
             referencedColumns: ["id"]
           },
           {
@@ -304,12 +435,18 @@ export type Database = {
           completed_jobs: number | null
           created_at: string | null
           display_name: string | null
+          dispute_strikes: number | null
+          failed_disputes: number | null
           hourly_rate: number | null
           id: string
+          is_banned: boolean | null
           location: string | null
           portfolio_items: Json | null
+          reputation_score: number | null
+          requires_kyc: boolean | null
           skills: string[] | null
           success_rate: number | null
+          successful_disputes: number | null
           telegram_chat_id: string | null
           telegram_username: string | null
           total_earnings: number | null
@@ -324,12 +461,18 @@ export type Database = {
           completed_jobs?: number | null
           created_at?: string | null
           display_name?: string | null
+          dispute_strikes?: number | null
+          failed_disputes?: number | null
           hourly_rate?: number | null
           id: string
+          is_banned?: boolean | null
           location?: string | null
           portfolio_items?: Json | null
+          reputation_score?: number | null
+          requires_kyc?: boolean | null
           skills?: string[] | null
           success_rate?: number | null
+          successful_disputes?: number | null
           telegram_chat_id?: string | null
           telegram_username?: string | null
           total_earnings?: number | null
@@ -344,12 +487,18 @@ export type Database = {
           completed_jobs?: number | null
           created_at?: string | null
           display_name?: string | null
+          dispute_strikes?: number | null
+          failed_disputes?: number | null
           hourly_rate?: number | null
           id?: string
+          is_banned?: boolean | null
           location?: string | null
           portfolio_items?: Json | null
+          reputation_score?: number | null
+          requires_kyc?: boolean | null
           skills?: string[] | null
           success_rate?: number | null
+          successful_disputes?: number | null
           telegram_chat_id?: string | null
           telegram_username?: string | null
           total_earnings?: number | null
@@ -417,14 +566,42 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "arbitrator" | "user"
       bid_status: "pending" | "accepted" | "rejected" | "withdrawn"
       job_status:
         | "open"
@@ -433,6 +610,8 @@ export type Database = {
         | "completed"
         | "disputed"
         | "cancelled"
+        | "revision_requested"
+        | "refunded"
       priority_level: "low" | "medium" | "high"
       user_type: "freelancer" | "client" | "both"
     }
@@ -562,6 +741,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "arbitrator", "user"],
       bid_status: ["pending", "accepted", "rejected", "withdrawn"],
       job_status: [
         "open",
@@ -570,6 +750,8 @@ export const Constants = {
         "completed",
         "disputed",
         "cancelled",
+        "revision_requested",
+        "refunded",
       ],
       priority_level: ["low", "medium", "high"],
       user_type: ["freelancer", "client", "both"],

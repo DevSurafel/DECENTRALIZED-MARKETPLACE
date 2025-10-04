@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import JobDetails from "./pages/JobDetails";
 import Escrow from "./pages/Escrow";
+import ArbitratorDashboard from "./pages/ArbitratorDashboard";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/chat" element={<Chat />} />
           <Route path="/jobs/:id" element={<JobDetails />} />
           <Route path="/escrow" element={<Escrow />} />
+          <Route path="/arbitrator" element={<ArbitratorDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
