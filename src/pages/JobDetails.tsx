@@ -8,6 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useJobs } from "@/hooks/useJobs";
 import { useBids } from "@/hooks/useBids";
+import { useRevisions } from "@/hooks/useRevisions";
+import { useDisputes } from "@/hooks/useDisputes";
+import { useAuth } from "@/hooks/useAuth";
+import { JobDetailsPanel } from "@/components/JobDetailsPanel";
 import { 
   DollarSign, 
   Clock, 
@@ -22,12 +26,15 @@ import { toast } from "@/hooks/use-toast";
 const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [job, setJob] = useState<any>(null);
   const [bidAmount, setBidAmount] = useState("");
   const [proposal, setProposal] = useState("");
   const [estimatedDuration, setEstimatedDuration] = useState("");
   const { getJobById, loading } = useJobs();
   const { createBid, loading: submitting } = useBids();
+  const { requestRevision, submitRevision } = useRevisions();
+  const { raiseDispute } = useDisputes();
 
   useEffect(() => {
     if (id) {
@@ -38,38 +45,6 @@ const JobDetails = () => {
   const loadJob = async () => {
     const data = await getJobById(id!);
     setJob(data);
-  };
-
-  if (loading || !job) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <Card className="p-8 text-center">
-            <p className="text-muted-foreground">Loading...</p>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
-  const mockJob = {
-    id: id,
-    title: "DeFi Dashboard Development",
-    description: "We're looking for an experienced blockchain developer to build a comprehensive DeFi analytics dashboard. The project involves creating a responsive web application that displays real-time data from multiple DeFi protocols.\n\nKey Requirements:\n- Experience with React and TypeScript\n- Knowledge of Web3 integration\n- Familiarity with DeFi protocols (Uniswap, Aave, Compound)\n- Ability to work with GraphQL APIs\n- Strong UI/UX skills\n\nDeliverables:\n- Fully functional dashboard with real-time data\n- Responsive design for mobile and desktop\n- Documentation and code comments\n- Testing and deployment support",
-    budget: 5.5,
-    duration: "4-6 weeks",
-    skills: ["React", "Web3", "TypeScript", "DeFi", "GraphQL"],
-    status: "open",
-    posted: "2 days ago",
-    client: {
-      name: "Alice Johnson",
-      rating: 4.9,
-      jobsPosted: 12,
-      location: "San Francisco, CA"
-    },
-    bids: 5,
-    featured: true
   };
 
   const handleSubmitBid = async () => {
@@ -96,6 +71,69 @@ const JobDetails = () => {
     }
   };
 
+  const handleRequestRevision = async (notes: string) => {
+    if (!id) return;
+    const success = await requestRevision(id, notes);
+    if (success) loadJob();
+  };
+
+  const handleSubmitRevision = async (ipfsHash: string, gitHash: string) => {
+    if (!id || !job) return;
+    const success = await submitRevision(
+      id,
+      (job.current_revision_number || 0) + 1,
+      ipfsHash,
+      gitHash
+    );
+    if (success) loadJob();
+  };
+
+  const handleRaiseDispute = async () => {
+    if (!id || !job) return;
+    const depositAmount = ((job.budget_eth || 0) * (job.arbitration_deposit_percentage || 2)) / 100;
+    const success = await raiseDispute(id, depositAmount);
+    if (success) loadJob();
+  };
+
+  const getUserRole = (): 'client' | 'freelancer' | null => {
+    if (!user || !job) return null;
+    if (job.client_id === user.id) return 'client';
+    if (job.freelancer_id === user.id) return 'freelancer';
+    return null;
+  };
+
+  if (loading || !job) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8">
+          <Card className="p-8 text-center">
+            <p className="text-muted-foreground">Loading...</p>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  // Calculate time ago for posted date
+  const getTimeAgo = (dateString: string) => {
+    if (!dateString) return 'Recently';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
+  };
+
+  // Get skills array safely
+  const skills = job.skills_required || [];
+  const durationText = job.duration_weeks ? `${job.duration_weeks} weeks` : 'Flexible';
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -113,143 +151,165 @@ const JobDetails = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Job Details */}
           <div className="lg:col-span-2 space-y-6">
-            <Card className="p-6 bg-card/50 backdrop-blur">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h1 className="text-3xl font-bold">{job?.title || mockJob.title}</h1>
-                    {job.featured && (
-                      <Badge className="bg-accent">Featured</Badge>
+            {getUserRole() ? (
+              <JobDetailsPanel
+                job={job}
+                onRequestRevision={handleRequestRevision}
+                onSubmitRevision={handleSubmitRevision}
+                onRaiseDispute={handleRaiseDispute}
+                userRole={getUserRole()}
+              />
+            ) : (
+              <>
+                <Card className="p-6 bg-card/50 backdrop-blur">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h1 className="text-3xl font-bold">{job.title}</h1>
+                        <Badge variant="secondary">{job.status}</Badge>
+                      </div>
+                      <p className="text-muted-foreground">Posted {getTimeAgo(job.created_at)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Budget</p>
+                        <p className="font-semibold">{job.budget_eth} ETH</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Duration</p>
+                        <p className="font-semibold">{durationText}</p>
+                      </div>
+                    </div>
+                    {job.budget_usd && (
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">USD Equivalent</p>
+                          <p className="font-semibold">${job.budget_usd}</p>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <p className="text-muted-foreground">Posted {job.posted}</p>
-                </div>
-              </div>
 
-              <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Budget</p>
-                    <p className="font-semibold">{job.budget} ETH</p>
+                  <div className="mb-6">
+                    <h2 className="text-xl font-semibold mb-3">Description</h2>
+                    <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
+                      {job.description}
+                    </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Duration</p>
-                    <p className="font-semibold">{job.duration}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Briefcase className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Bids</p>
-                    <p className="font-semibold">{job.bids} submitted</p>
-                  </div>
-                </div>
-              </div>
 
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold mb-3">Description</h2>
-                <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {job.description}
-                </p>
-              </div>
+                  {skills.length > 0 && (
+                    <div>
+                      <h2 className="text-xl font-semibold mb-3">Required Skills</h2>
+                      <div className="flex flex-wrap gap-2">
+                        {skills.map((skill: string, idx: number) => (
+                          <Badge key={idx} variant="secondary">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </Card>
 
-              <div>
-                <h2 className="text-xl font-semibold mb-3">Required Skills</h2>
-                <div className="flex flex-wrap gap-2">
-                  {job.skills.map((skill, idx) => (
-                    <Badge key={idx} variant="secondary">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </Card>
+                {/* Bid Form - only show if user is not the client */}
+                {user && job.client_id !== user.id && job.status === 'open' && (
+                  <Card className="p-6 bg-card/50 backdrop-blur">
+                    <h2 className="text-2xl font-bold mb-4">Submit Your Proposal</h2>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Your Bid Amount (ETH)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 4.5"
+                          value={bidAmount}
+                          onChange={(e) => setBidAmount(e.target.value)}
+                          step="0.1"
+                        />
+                      </div>
 
-            {/* Bid Form */}
-            <Card className="p-6 bg-card/50 backdrop-blur">
-              <h2 className="text-2xl font-bold mb-4">Submit Your Proposal</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Your Bid Amount (ETH)
-                  </label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 4.5"
-                    value={bidAmount}
-                    onChange={(e) => setBidAmount(e.target.value)}
-                    step="0.1"
-                  />
-                </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Estimated Duration (weeks)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 3"
+                          value={estimatedDuration}
+                          onChange={(e) => setEstimatedDuration(e.target.value)}
+                        />
+                      </div>
 
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Estimated Duration
-                  </label>
-                  <Input
-                    placeholder="e.g., 3 weeks"
-                    value={estimatedDuration}
-                    onChange={(e) => setEstimatedDuration(e.target.value)}
-                  />
-                </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Cover Letter / Proposal
+                        </label>
+                        <Textarea
+                          placeholder="Describe your experience and approach to this project..."
+                          value={proposal}
+                          onChange={(e) => setProposal(e.target.value)}
+                          rows={8}
+                          className="resize-none"
+                        />
+                      </div>
 
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Cover Letter / Proposal
-                  </label>
-                  <Textarea
-                    placeholder="Describe your experience and approach to this project..."
-                    value={proposal}
-                    onChange={(e) => setProposal(e.target.value)}
-                    rows={8}
-                    className="resize-none"
-                  />
-                </div>
-
-                <Button 
-                  onClick={handleSubmitBid}
-                  disabled={submitting}
-                  className="w-full shadow-glow"
-                  size="lg"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  {submitting ? "Submitting..." : "Submit Proposal"}
-                </Button>
-              </div>
-            </Card>
+                      <Button 
+                        onClick={handleSubmitBid}
+                        disabled={submitting}
+                        className="w-full shadow-glow"
+                        size="lg"
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        {submitting ? "Submitting..." : "Submit Proposal"}
+                      </Button>
+                    </div>
+                  </Card>
+                )}
+              </>
+            )}
           </div>
 
-          {/* Client Info Sidebar */}
+          {/* Sidebar */}
           <div className="space-y-6">
             <Card className="p-6 bg-card/50 backdrop-blur">
-              <h3 className="text-lg font-semibold mb-4">About the Client</h3>
+              <h3 className="text-lg font-semibold mb-4">Job Information</h3>
               
               <div className="space-y-4">
                 <div>
-                  <p className="text-xl font-bold">{job.client.name}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Star className="h-4 w-4 fill-warning text-warning" />
-                    <span className="font-semibold">{job.client.rating}</span>
-                    <span className="text-muted-foreground text-sm ml-1">
-                      ({job.client.jobsPosted} jobs)
-                    </span>
-                  </div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <Badge variant="secondary" className="mt-1">
+                    {job.status}
+                  </Badge>
                 </div>
 
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  <span>{job.client.location}</span>
-                </div>
+                {job.deadline && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Deadline</p>
+                    <p className="font-semibold">{new Date(job.deadline).toLocaleDateString()}</p>
+                  </div>
+                )}
+
+                {job.escrow_address && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Escrow Contract</p>
+                    <p className="font-mono text-xs break-all">{job.escrow_address.substring(0, 20)}...</p>
+                  </div>
+                )}
 
                 <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground mb-2">Payment verified</p>
+                  <p className="text-sm text-muted-foreground mb-2">Posted by verified client</p>
                   <Badge variant="secondary" className="bg-success/10 text-success">
-                    ✓ Verified Client
+                    ✓ Verified
                   </Badge>
                 </div>
               </div>
