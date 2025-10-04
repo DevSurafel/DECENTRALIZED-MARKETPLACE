@@ -11,15 +11,19 @@ import { useBids } from "@/hooks/useBids";
 import { useRevisions } from "@/hooks/useRevisions";
 import { useDisputes } from "@/hooks/useDisputes";
 import { useAuth } from "@/hooks/useAuth";
-import { JobDetailsPanel } from "@/components/JobDetailsPanel";
+import { BidsPanel } from "@/components/BidsPanel";
+import { WorkSubmissionPanel } from "@/components/WorkSubmissionPanel";
+import { ReviewPanel } from "@/components/ReviewPanel";
+import { RatingDialog } from "@/components/RatingDialog";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   DollarSign, 
   Clock, 
-  MapPin, 
-  Briefcase, 
-  Star,
+  Wallet,
   Send,
-  ArrowLeft
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -95,6 +99,113 @@ const JobDetails = () => {
     if (success) loadJob();
   };
 
+  const handleFundEscrow = async () => {
+    if (!id || !job) return;
+    
+    // In a real implementation, this would interact with the smart contract
+    toast({
+      title: "Fund Escrow",
+      description: "In production, this will open your wallet to fund the escrow contract. For now, we'll simulate this.",
+    });
+
+    // Simulate escrow funding
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({
+          status: 'funded',
+          escrow_address: '0x' + Math.random().toString(16).substring(2, 42),
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Escrow Funded",
+        description: "The escrow has been funded. The freelancer can now start working.",
+      });
+      
+      loadJob();
+    } catch (error) {
+      console.error('Error funding escrow:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fund escrow",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSubmitWork = async (ipfsHash: string, gitHash: string, notes: string) => {
+    if (!id) return;
+    
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({
+          status: 'submitted',
+          ipfs_hash: ipfsHash,
+          git_commit_hash: gitHash,
+          review_deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Work Submitted",
+        description: "Your work has been submitted for review. The client has 5 days to review.",
+      });
+
+      loadJob();
+    } catch (error) {
+      console.error('Error submitting work:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit work",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleApproveWork = async () => {
+    if (!id || !job) return;
+    
+    try {
+      const { error: jobError } = await supabase
+        .from('jobs')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (jobError) throw jobError;
+
+      // Update freelancer stats
+      const { error: profileError } = await supabase.rpc('increment_completed_jobs', {
+        freelancer_id: job.freelancer_id,
+        amount: job.budget_eth,
+      });
+
+      if (profileError) console.error('Error updating profile:', profileError);
+
+      toast({
+        title: "Work Approved",
+        description: "Funds have been released to the freelancer. You can now leave a review.",
+      });
+
+      loadJob();
+    } catch (error) {
+      console.error('Error approving work:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve work",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getUserRole = (): 'client' | 'freelancer' | null => {
     if (!user || !job) return null;
     if (job.client_id === user.id) return 'client';
@@ -151,15 +262,120 @@ const JobDetails = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Job Details */}
           <div className="lg:col-span-2 space-y-6">
-            {getUserRole() ? (
-              <JobDetailsPanel
+            {/* Client View - Show Proposals */}
+            {getUserRole() === 'client' && job.status === 'open' && (
+              <BidsPanel jobId={id!} onBidAccepted={loadJob} />
+            )}
+
+            {/* Client View - Fund Escrow */}
+            {getUserRole() === 'client' && job.status === 'in_progress' && !job.escrow_address && (
+              <Card className="p-6">
+                <h2 className="text-2xl font-bold mb-4">Fund Escrow</h2>
+                <p className="text-muted-foreground mb-6">
+                  You've accepted a proposal. Now fund the escrow to allow the freelancer to start working.
+                </p>
+                <div className="mb-6 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Escrow Amount</span>
+                    <span className="text-lg font-bold">{job.budget_eth} ETH</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Funds will be held in escrow until work is approved
+                  </p>
+                </div>
+                <Button onClick={handleFundEscrow} className="w-full shadow-glow" size="lg">
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Fund Escrow with Wallet
+                </Button>
+              </Card>
+            )}
+
+            {/* Client View - Review Work */}
+            {getUserRole() === 'client' && job.status === 'submitted' && (
+              <ReviewPanel
                 job={job}
+                onApprove={handleApproveWork}
                 onRequestRevision={handleRequestRevision}
-                onSubmitRevision={handleSubmitRevision}
                 onRaiseDispute={handleRaiseDispute}
-                userRole={getUserRole()}
               />
-            ) : (
+            )}
+
+            {/* Client View - Completed */}
+            {getUserRole() === 'client' && job.status === 'completed' && (
+              <Card className="p-6">
+                <div className="text-center mb-6">
+                  <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold mb-2">Project Completed!</h2>
+                  <p className="text-muted-foreground">
+                    Funds have been released to the freelancer
+                  </p>
+                </div>
+                <RatingDialog
+                  jobId={id!}
+                  revieweeId={job.freelancer_id}
+                  revieweeName={job.freelancer?.display_name || 'Freelancer'}
+                  trigger={
+                    <Button className="w-full shadow-glow" size="lg">
+                      Leave Review
+                    </Button>
+                  }
+                  onSuccess={loadJob}
+                />
+              </Card>
+            )}
+
+            {/* Freelancer View - Submit Work */}
+            {getUserRole() === 'freelancer' && (job.status === 'funded' || job.status === 'revision_requested') && (
+              <WorkSubmissionPanel
+                jobId={id!}
+                onSubmit={handleSubmitWork}
+              />
+            )}
+
+            {/* Freelancer View - Waiting for Review */}
+            {getUserRole() === 'freelancer' && job.status === 'submitted' && (
+              <Card className="p-6">
+                <div className="text-center">
+                  <Clock className="h-16 w-16 text-primary mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold mb-2">Awaiting Review</h2>
+                  <p className="text-muted-foreground mb-4">
+                    Your work has been submitted. The client is reviewing it.
+                  </p>
+                  {job.review_deadline && (
+                    <p className="text-sm text-muted-foreground">
+                      Review deadline: {new Date(job.review_deadline).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              </Card>
+            )}
+
+            {/* Freelancer View - Completed */}
+            {getUserRole() === 'freelancer' && job.status === 'completed' && (
+              <Card className="p-6">
+                <div className="text-center mb-6">
+                  <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold mb-2">Payment Received!</h2>
+                  <p className="text-muted-foreground">
+                    You've received {job.budget_eth} ETH
+                  </p>
+                </div>
+                <RatingDialog
+                  jobId={id!}
+                  revieweeId={job.client_id}
+                  revieweeName={job.client?.display_name || 'Client'}
+                  trigger={
+                    <Button className="w-full shadow-glow" size="lg">
+                      Rate Client
+                    </Button>
+                  }
+                  onSuccess={loadJob}
+                />
+              </Card>
+            )}
+
+            {/* Non-participant View - Show Job Details and Bid Form */}
+            {!getUserRole() && (
               <>
                 <Card className="p-6 bg-card/50 backdrop-blur">
                   <div className="flex items-start justify-between mb-4">
