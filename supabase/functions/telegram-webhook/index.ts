@@ -52,8 +52,8 @@ serve(async (req) => {
       // Find user by telegram username or chat_id
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, display_name, telegram_chat_id")
-        .or(`telegram_chat_id.eq.${chat.id},telegram_username.ilike.%${username}%`)
+        .select("id, display_name, telegram_chat_id, telegram_username")
+        .or(`telegram_chat_id.eq.${chat.id},telegram_username.eq.${username}`)
         .maybeSingle();
 
       if (profileError) {
@@ -89,8 +89,7 @@ serve(async (req) => {
         
         await sendTelegramMessage(
           chat.id,
-          "✅ You are authorized!\n\n" +
-          "Now you will receive notifications from the site DeFiLance directly in this chat."
+          "✅ You are authorized!\n\nNow you will receive notifications from the site DeFiLance directly in this chat"
         );
         return new Response(JSON.stringify({ ok: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -154,7 +153,8 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error processing webhook:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

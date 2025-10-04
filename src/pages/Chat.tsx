@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Search, MoreVertical, Phone, Video } from "lucide-react";
 import { useMessages } from "@/hooks/useMessages";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const Chat = () => {
   const { user } = useAuth();
@@ -37,13 +38,25 @@ const Chat = () => {
   useEffect(() => {
     if (selectedConversation) {
       loadMessages();
+      markMessagesAsRead(selectedConversation);
       const unsubscribe = subscribeToMessages(selectedConversation, (newMessage) => {
         setMessages(prev => [...prev, newMessage]);
         scrollToBottom();
+        markMessagesAsRead(selectedConversation);
       });
       return unsubscribe;
     }
   }, [selectedConversation]);
+
+  const markMessagesAsRead = async (conversationId: string) => {
+    if (!user) return;
+    await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', user.id)
+      .eq('is_read', false);
+  };
 
   useEffect(() => {
     scrollToBottom();
@@ -122,6 +135,7 @@ const Chat = () => {
                 const other = getOtherParticipant(conv);
                 if (!other) return null;
                 const lastMsg = conv.messages?.[0];
+                const hasUnread = conv.messages?.some((m: any) => !m.is_read && m.sender_id !== user?.id);
                 return (
                   <div
                     key={conv.id}
@@ -131,19 +145,26 @@ const Chat = () => {
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <Avatar>
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                          {other.display_name?.substring(0, 2).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar>
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                            {other.display_name?.substring(0, 2).toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        {hasUnread && (
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full animate-pulse" />
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">
-                          <h3 className="font-semibold truncate">{other.display_name || 'Unknown User'}</h3>
+                          <h3 className={`font-semibold truncate ${hasUnread ? 'text-foreground' : ''}`}>
+                            {other.display_name || 'Unknown User'}
+                          </h3>
                           <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
                             {lastMsg ? new Date(lastMsg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                           </span>
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
+                        <p className={`text-sm truncate ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
                           {lastMsg?.content || 'No messages yet'}
                         </p>
                       </div>

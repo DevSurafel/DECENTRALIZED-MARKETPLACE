@@ -1,13 +1,61 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Wallet, Menu, X, LogOut } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      checkUnreadMessages();
+      // Subscribe to new messages
+      const channel = supabase
+        .channel('unread-messages')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages'
+          },
+          () => checkUnreadMessages()
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user]);
+
+  const checkUnreadMessages = async () => {
+    if (!user) return;
+    
+    const { data: conversations } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`);
+
+    if (!conversations) return;
+
+    const conversationIds = conversations.map(c => c.id);
+    
+    const { data: unreadMessages } = await supabase
+      .from('messages')
+      .select('id')
+      .in('conversation_id', conversationIds)
+      .neq('sender_id', user.id)
+      .eq('is_read', false)
+      .limit(1);
+
+    setHasUnreadMessages(unreadMessages && unreadMessages.length > 0);
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b">
@@ -31,8 +79,11 @@ const Navbar = () => {
             <Link to="/profile" className="transition-smooth hover:text-primary">
               Profile
             </Link>
-            <Link to="/chat" className="transition-smooth hover:text-primary">
+            <Link to="/chat" className="transition-smooth hover:text-primary relative">
               Chat
+              {hasUnreadMessages && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              )}
             </Link>
             <Link to="/escrow" className="transition-smooth hover:text-primary">
               Escrow
@@ -97,10 +148,13 @@ const Navbar = () => {
             </Link>
             <Link 
               to="/chat" 
-              className="block py-2 transition-smooth hover:text-primary"
+              className="block py-2 transition-smooth hover:text-primary relative"
               onClick={() => setIsMenuOpen(false)}
             >
               Chat
+              {hasUnreadMessages && (
+                <span className="absolute top-2 left-12 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              )}
             </Link>
             <Link 
               to="/escrow" 
