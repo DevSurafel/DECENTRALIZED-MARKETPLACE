@@ -255,6 +255,42 @@ const Dashboard = () => {
                   </div>
                 </div>
               </Card>
+
+              {/* Completed jobs for freelancers: jump to latest to leave a review */}
+              <Card 
+                className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
+                onClick={async () => {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) return;
+                  
+                  const { data: jobs } = await supabase
+                    .from('jobs')
+                    .select('id')
+                    .eq('freelancer_id', user.id)
+                    .eq('status', 'completed')
+                    .order('updated_at', { ascending: false })
+                    .limit(1);
+                  
+                  if (jobs?.[0]) {
+                    window.location.href = `/jobs/${jobs[0].id}`;
+                  } else {
+                    toast({
+                      title: "No completed jobs",
+                      description: "You don't have any completed jobs to review yet"
+                    });
+                  }
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <CheckCircle className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Leave a Review</p>
+                    <p className="text-sm text-muted-foreground">For your latest completed job</p>
+                  </div>
+                </div>
+              </Card>
               
               <Card 
                 className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"

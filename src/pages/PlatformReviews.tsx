@@ -23,80 +23,131 @@ interface PlatformReview {
   };
 }
 
+interface UserReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  reviewer: {
+    id: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+  job: {
+    title: string;
+  };
+}
+
 const PlatformReviews = () => {
   const navigate = useNavigate();
-  const [reviews, setReviews] = useState<PlatformReview[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    average: 0,
-    total: 0,
-    distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
-  });
+const [reviews, setReviews] = useState<PlatformReview[]>([]);
+const [userReviews, setUserReviews] = useState<UserReview[]>([]);
+const [loading, setLoading] = useState(true);
+const [stats, setStats] = useState({
+  average: 0,
+  total: 0,
+  distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+});
 
   useEffect(() => {
     loadReviews();
   }, []);
 
-  const loadReviews = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('platform_reviews')
-        .select(`
-          id,
-          rating,
-          comment,
-          created_at,
-          reviewer_id,
-          job_id
-        `)
-        .order('created_at', { ascending: false });
+const loadReviews = async () => {
+  try {
+    // Platform reviews
+    const { data, error } = await supabase
+      .from('platform_reviews')
+      .select(`
+        id,
+        rating,
+        comment,
+        created_at,
+        reviewer_id,
+        job_id
+      `)
+      .order('created_at', { ascending: false });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // Fetch reviewer profiles and job titles separately
-      const reviewsWithDetails = await Promise.all(
-        (data || []).map(async (review) => {
-          const { data: reviewer } = await supabase
-            .from('profiles')
-            .select('id, display_name, avatar_url, user_type')
-            .eq('id', review.reviewer_id)
-            .single();
+    const reviewsWithDetails = await Promise.all(
+      (data || []).map(async (review) => {
+        const { data: reviewer } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url, user_type')
+          .eq('id', review.reviewer_id)
+          .single();
 
-          const { data: job } = await supabase
-            .from('jobs')
-            .select('title')
-            .eq('id', review.job_id)
-            .single();
+        const { data: job } = await supabase
+          .from('jobs')
+          .select('title')
+          .eq('id', review.job_id)
+          .single();
 
-          return {
-            ...review,
-            reviewer: reviewer || { id: review.reviewer_id, display_name: null, avatar_url: null, user_type: 'both' },
-            job: job || { title: 'Unknown Job' }
-          };
-        })
-      );
+        return {
+          ...review,
+          reviewer: reviewer || { id: review.reviewer_id, display_name: null, avatar_url: null, user_type: 'both' },
+          job: job || { title: 'Unknown Job' }
+        } as PlatformReview;
+      })
+    );
 
-      setReviews(reviewsWithDetails as PlatformReview[]);
+    setReviews(reviewsWithDetails);
 
-      // Calculate stats
-      if (reviewsWithDetails.length > 0) {
-        const total = reviewsWithDetails.length;
-        const sum = reviewsWithDetails.reduce((acc, r) => acc + r.rating, 0);
-        const average = sum / total;
+    // Calculate stats for platform reviews
+    if (reviewsWithDetails.length > 0) {
+      const total = reviewsWithDetails.length;
+      const sum = reviewsWithDetails.reduce((acc, r) => acc + r.rating, 0);
+      const average = sum / total;
 
-        const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-        reviewsWithDetails.forEach(r => {
-          distribution[r.rating as keyof typeof distribution]++;
-        });
+      const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as Record<5|4|3|2|1, number>;
+      reviewsWithDetails.forEach(r => {
+        distribution[r.rating as 5|4|3|2|1]++;
+      });
 
-        setStats({ average, total, distribution });
-      }
-    } catch (error) {
-      console.error('Error loading reviews:', error);
-    } finally {
-      setLoading(false);
+      setStats({ average, total, distribution } as any);
+    } else {
+      setStats({ average: 0, total: 0, distribution: {5:0,4:0,3:0,2:0,1:0} });
     }
-  };
+
+    // User-to-user reviews
+    const { data: userData } = await supabase
+      .from('reviews')
+      .select('id, rating, comment, created_at, reviewer_id, reviewee_id, job_id')
+      .order('created_at', { ascending: false });
+
+    const userReviewsWithDetails = await Promise.all(
+      (userData || []).map(async (review) => {
+        const { data: reviewer } = await supabase
+          .from('profiles')
+          .select('id, display_name, avatar_url')
+          .eq('id', review.reviewer_id)
+          .single();
+
+        const { data: job } = await supabase
+          .from('jobs')
+          .select('title')
+          .eq('id', review.job_id)
+          .single();
+
+        return {
+          id: review.id,
+          rating: review.rating,
+          comment: review.comment,
+          created_at: review.created_at,
+          reviewer: reviewer || { id: review.reviewer_id, display_name: null, avatar_url: null },
+          job: job || { title: 'Unknown Job' }
+        } as UserReview;
+      })
+    );
+
+    setUserReviews(userReviewsWithDetails);
+  } catch (error) {
+    console.error('Error loading reviews:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -174,11 +225,12 @@ const PlatformReviews = () => {
             </Card>
 
             {/* Reviews List */}
-            <div className="lg:col-span-3 space-y-4">
+            <div className="lg:col-span-3 space-y-6">
+              <h2 className="text-xl font-semibold">Platform Reviews</h2>
               {reviews.length === 0 ? (
                 <Card className="p-8 text-center">
                   <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">No reviews yet</p>
+                  <p className="text-muted-foreground">No platform reviews yet</p>
                 </Card>
               ) : (
                 reviews.map((review) => (
@@ -204,7 +256,68 @@ const PlatformReviews = () => {
                           </span>
                           <span className="text-sm text-muted-foreground">·</span>
                           <span className="text-sm text-muted-foreground">
-                            {getTimeAgo(review.created_at)}
+                            {new Date(review.created_at).toLocaleString()}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 mb-2">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-4 w-4 ${
+                                star <= review.rating
+                                  ? 'fill-warning text-warning'
+                                  : 'text-muted-foreground'
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Job: {review.job.title}
+                        </p>
+
+                        {review.comment && (
+                          <p className="text-foreground">{review.comment}</p>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              )}
+
+              <div className="border-t pt-4" />
+              <h2 className="text-xl font-semibold">User Reviews</h2>
+              {userReviews.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No user reviews yet</p>
+                </Card>
+              ) : (
+                userReviews.map((review) => (
+                  <Card key={review.id} className="p-6">
+                    <div className="flex items-start gap-4">
+                      <Avatar
+                        className="cursor-pointer"
+                        onClick={() => navigate(`/profile/${review.reviewer.id}`)}
+                      >
+                        <AvatarImage src={review.reviewer.avatar_url || undefined} />
+                        <AvatarFallback>
+                          {review.reviewer.display_name?.[0] || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span
+                            className="font-semibold cursor-pointer hover:text-primary"
+                            onClick={() => navigate(`/profile/${review.reviewer.id}`)}
+                          >
+                            {review.reviewer.display_name || 'Anonymous'}
+                          </span>
+                          <span className="text-sm text-muted-foreground">·</span>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(review.created_at).toLocaleString()}
                           </span>
                         </div>
 

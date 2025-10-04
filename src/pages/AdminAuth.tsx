@@ -37,11 +37,8 @@ const AdminAuth = () => {
       if (data) {
         navigate('/arbitrator');
       } else {
-        toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges",
-          variant: "destructive"
-        });
+        // Not an admin; keep the form visible so they can switch accounts
+        console.info("User lacks admin role; showing admin login form");
       }
     } catch (error) {
       console.error('Error checking admin role:', error);
@@ -53,6 +50,9 @@ const AdminAuth = () => {
     setLoading(true);
 
     try {
+      // Ensure we start from a clean session so the admin can switch accounts
+      await supabase.auth.signOut();
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -150,13 +150,22 @@ const AdminAuth = () => {
           </Button>
         </form>
 
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <Button
             variant="ghost"
             onClick={() => navigate("/")}
           >
             Back to Home
           </Button>
+          {user && (
+            <div className="text-sm text-muted-foreground">
+              Signed in as {user.email}. Not an admin?{" "}
+              <Button variant="link" className="px-1" onClick={() => supabase.auth.signOut()}>
+                Sign out
+              </Button>
+              and log in with an admin account.
+            </div>
+          )}
         </div>
       </Card>
     </div>
