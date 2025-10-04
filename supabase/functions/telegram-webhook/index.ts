@@ -166,6 +166,28 @@ serve(async (req) => {
 
       console.log("Message from linked user:", profile.id, "Message:", text);
 
+      // Clean the message text by removing bot mentions and reply mentions
+      let cleanedText = text || "";
+      
+      // Remove @bot_name at the start (for inline query responses)
+      cleanedText = cleanedText.replace(/^@\w+\s+/, '');
+      
+      // Remove @username mention at the start (from reply button)
+      cleanedText = cleanedText.replace(/^@\w+\s+/, '');
+      
+      // Trim any extra whitespace
+      cleanedText = cleanedText.trim();
+
+      if (!cleanedText) {
+        await sendTelegramMessage(
+          chat.id,
+          "⚠️ Please enter a message to send."
+        );
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Get the conversation that was last notified or most recent one
       const { data: userProfile, error: profileFetchError } = await supabase
         .from("profiles")
@@ -197,13 +219,13 @@ serve(async (req) => {
         conversationId = conversations[0].id;
       }
 
-      // Save message to database
+      // Save message to database with cleaned content
       const { error: messageError } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversationId,
           sender_id: profile.id,
-          content: text,
+          content: cleanedText,
           telegram_message_id: message_id.toString(),
         });
 
