@@ -35,6 +35,35 @@ export const useBids = () => {
 
       if (error) throw error;
 
+      // Get job details to notify client
+      const { data: jobData } = await supabase
+        .from('jobs')
+        .select('client_id, title, jobs:jobs!inner(client:profiles!jobs_client_id_fkey(display_name, telegram_username))')
+        .eq('id', bidData.job_id)
+        .single();
+
+      // Get freelancer's username
+      const { data: freelancerProfile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .single();
+
+      // Notify client via Telegram
+      if (jobData?.client_id) {
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: jobData.client_id,
+              message: `${freelancerProfile?.display_name || 'A freelancer'} submitted a proposal for "${jobData.title}"`,
+              sender_id: user.id,
+            }
+          });
+        } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+        }
+      }
+
       toast({
         title: "Bid submitted successfully",
         description: "The client will review your proposal"

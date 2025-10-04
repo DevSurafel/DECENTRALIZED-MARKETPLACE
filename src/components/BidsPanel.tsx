@@ -75,6 +75,26 @@ export function BidsPanel({ jobId, onBidAccepted }: BidsPanelProps) {
 
       if (rejectError) throw rejectError;
 
+      // Get job details for notification
+      const { data: jobData } = await supabase
+        .from('jobs')
+        .select('title, client:profiles!jobs_client_id_fkey(display_name)')
+        .eq('id', jobId)
+        .single();
+
+      // Notify freelancer via Telegram
+      try {
+        await supabase.functions.invoke('send-telegram-notification', {
+          body: {
+            recipient_id: selectedBid.freelancer_id,
+            message: `${jobData?.client?.display_name || 'The client'} has accepted your proposal for "${jobData?.title}". Please wait for the client to fund the escrow with their wallet.`,
+            sender_id: (await supabase.auth.getUser()).data.user?.id,
+          }
+        });
+      } catch (notifError) {
+        console.error('Error sending notification:', notifError);
+      }
+
       toast({
         title: "Bid Accepted",
         description: "You can now proceed to fund the escrow for this job.",

@@ -76,9 +76,25 @@ const JobDetails = () => {
   };
 
   const handleRequestRevision = async (notes: string) => {
-    if (!id) return;
+    if (!id || !job) return;
     const success = await requestRevision(id, notes);
-    if (success) loadJob();
+    
+    if (success && job.freelancer_id) {
+      // Notify freelancer via Telegram
+      try {
+        await supabase.functions.invoke('send-telegram-notification', {
+          body: {
+            recipient_id: job.freelancer_id,
+            message: `🔄 The client has requested revisions for "${job.title}". Please check the platform for details.`,
+            sender_id: user?.id,
+          }
+        });
+      } catch (notifError) {
+        console.error('Error sending notification:', notifError);
+      }
+      
+      loadJob();
+    }
   };
 
   const handleSubmitRevision = async (ipfsHash: string, gitHash: string) => {
@@ -120,6 +136,21 @@ const JobDetails = () => {
 
       if (error) throw error;
 
+      // Notify freelancer via Telegram
+      if (job.freelancer_id) {
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.freelancer_id,
+              message: `🔒 Job "${job.title}" funded with ${job.budget_eth} ETH. You can start work!`,
+              sender_id: user?.id,
+            }
+          });
+        } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+        }
+      }
+
       toast({
         title: "Escrow Funded",
         description: "The escrow has been funded. The freelancer can now start working.",
@@ -146,15 +177,36 @@ const JobDetails = () => {
           status: 'under_review',
           ipfs_hash: ipfsHash,
           git_commit_hash: gitHash,
-          review_deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days
+          review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
         })
         .eq('id', id);
 
       if (error) throw error;
 
+      // Notify client via Telegram
+      if (job.client_id) {
+        try {
+          const { data: freelancerProfile } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', user?.id)
+            .single();
+
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.client_id,
+              message: `📦 ${freelancerProfile?.display_name || 'The freelancer'} submitted work for "${job.title}". Review now.`,
+              sender_id: user?.id,
+            }
+          });
+        } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+        }
+      }
+
       toast({
         title: "Work Submitted",
-        description: "Your work has been submitted for review. The client has 5 days to review.",
+        description: "Your work has been submitted for review. The client has 7 days to review.",
       });
 
       loadJob();
@@ -190,6 +242,21 @@ const JobDetails = () => {
         } as any);
       } catch (profileError) {
         console.error('Error updating profile:', profileError);
+      }
+
+      // Notify freelancer via Telegram
+      if (job.freelancer_id) {
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.freelancer_id,
+              message: `🎉 You received ${job.budget_eth} ETH for "${job.title}". Congrats!`,
+              sender_id: user?.id,
+            }
+          });
+        } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+        }
       }
 
       toast({
