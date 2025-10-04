@@ -9,6 +9,7 @@ import { useJobs } from "@/hooks/useJobs";
 import { useBids } from "@/hooks/useBids";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -191,7 +192,23 @@ const Dashboard = () => {
             <div className="space-y-4">
               <Card 
                 className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
-                onClick={() => window.location.href = '/chat'}
+                onClick={async () => {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) return;
+                  
+                  const { data: conversations } = await supabase
+                    .from('conversations')
+                    .select('id')
+                    .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
+                    .order('last_message_at', { ascending: false })
+                    .limit(1);
+                  
+                  if (conversations?.[0]) {
+                    window.location.href = `/chat?conversation=${conversations[0].id}`;
+                  } else {
+                    window.location.href = '/chat';
+                  }
+                }}
               >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -206,7 +223,27 @@ const Dashboard = () => {
               
               <Card 
                 className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
-                onClick={() => window.location.href = '/marketplace'}
+                onClick={async () => {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) return;
+                  
+                  const { data: reviewJobs } = await supabase
+                    .from('jobs')
+                    .select('id')
+                    .eq('client_id', user.id)
+                    .eq('status', 'under_review')
+                    .order('updated_at', { ascending: false })
+                    .limit(1);
+                  
+                  if (reviewJobs?.[0]) {
+                    window.location.href = `/jobs/${reviewJobs[0].id}`;
+                  } else {
+                    toast({
+                      title: "No pending reviews",
+                      description: "You don't have any jobs awaiting review"
+                    });
+                  }
+                }}
               >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
@@ -221,7 +258,26 @@ const Dashboard = () => {
               
               <Card 
                 className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
-                onClick={() => window.location.href = '/marketplace'}
+                onClick={async () => {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) return;
+                  
+                  const { data: jobs } = await supabase
+                    .from('jobs')
+                    .select('id')
+                    .eq('client_id', user.id)
+                    .eq('status', 'open')
+                    .order('created_at', { ascending: false });
+                  
+                  if (jobs?.[0]) {
+                    window.location.href = `/jobs/${jobs[0].id}`;
+                  } else {
+                    toast({
+                      title: "No open jobs",
+                      description: "You don't have any jobs with pending bids"
+                    });
+                  }
+                }}
               >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center group-hover:bg-success/20 transition-colors">

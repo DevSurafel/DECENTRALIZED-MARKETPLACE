@@ -51,6 +51,32 @@ const JobDetails = () => {
     setJob(data);
   };
 
+  // Real-time subscription for job updates
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`job-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'jobs',
+          filter: `id=eq.${id}`
+        },
+        (payload) => {
+          console.log('Job updated:', payload);
+          loadJob(); // Refresh job data
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
+
   const handleSubmitBid = async () => {
     if (!bidAmount || !proposal || !estimatedDuration || !id) {
       toast({
