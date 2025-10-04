@@ -166,17 +166,15 @@ serve(async (req) => {
 
       console.log("Message from linked user:", profile.id, "Message:", text);
 
-      // Clean the message text by removing bot mentions and reply mentions
-      let cleanedText = text || "";
-      
-      // Remove @bot_name at the start (for inline query responses)
-      cleanedText = cleanedText.replace(/^@\w+\s+/, '');
-      
-      // Remove @username mention at the start (from reply button)
-      cleanedText = cleanedText.replace(/^@\w+\s+/, '');
-      
-      // Trim any extra whitespace
-      cleanedText = cleanedText.trim();
+      // Extract mentioned username from leading mentions (handle cases like "@Bot @@user")
+      const rawText = text || "";
+      const mentionsBlockMatch = rawText.match(/^(@+[\w_]+(?:\s+@+[\w_]+)*)/);
+      const mentionedUsername = mentionsBlockMatch
+        ? mentionsBlockMatch[0].trim().split(/\s+/).slice(-1)[0].replace(/^@+/, '')
+        : undefined;
+
+      // Clean the message text by removing any leading @mentions (bot and/or user)
+      let cleanedText = rawText.replace(/^@+[\w_]+(?:\s+@+[\w_]+)*\s*/, '').trim();
 
       if (!cleanedText) {
         await sendTelegramMessage(
@@ -193,11 +191,33 @@ serve(async (req) => {
         .from("profiles")
         .select("last_notified_conversation_id")
         .eq("id", profile.id)
-        .single();
+        .maybeSingle();
 
       let conversationId = userProfile?.last_notified_conversation_id;
 
-      // If no last notified conversation, get most recent one
+      // If no last notified conversation, try to resolve by mentioned username (if any)
+      if (!conversationId && mentionedUsername) {
+        const { data: targetProfile, error: targetErr } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("telegram_username", mentionedUsername)
+          .maybeSingle();
+
+        if (!targetErr && targetProfile?.id) {
+          const { data: convByUser, error: convByUserErr } = await supabase
+            .from("conversations")
+            .select("id")
+            .or(`and(participant_1_id.eq.${profile.id},participant_2_id.eq.${targetProfile.id}),and(participant_1_id.eq.${targetProfile.id},participant_2_id.eq.${profile.id})`)
+            .order("last_message_at", { ascending: false })
+            .limit(1);
+
+          if (!convByUserErr && convByUser && convByUser.length > 0) {
+            conversationId = convByUser[0].id;
+          }
+        }
+      }
+
+      // If still no conversation, get most recent one
       if (!conversationId) {
         const { data: conversations, error: convError } = await supabase
           .from("conversations")
