@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 const Chat = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [currentMessage, setCurrentMessage] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -164,13 +165,25 @@ const Chat = () => {
               <div className="p-4 border-b bg-card/80 backdrop-blur">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Avatar>
+                    <Avatar 
+                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => {
+                        const other = getOtherParticipant(selectedConv);
+                        if (other?.id) navigate(`/profile/${other.id}`);
+                      }}
+                    >
                       <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                         {getOtherParticipant(selectedConv)?.display_name?.substring(0, 2).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h2 className="text-xl font-semibold">
+                      <h2 
+                        className="text-xl font-semibold cursor-pointer hover:underline"
+                        onClick={() => {
+                          const other = getOtherParticipant(selectedConv);
+                          if (other?.id) navigate(`/profile/${other.id}`);
+                        }}
+                      >
                         {getOtherParticipant(selectedConv)?.display_name || 'Unknown User'}
                       </h2>
                     </div>
@@ -206,7 +219,12 @@ const Chat = () => {
                         }`}
                       >
                         {!isOwn && msg.sender && (
-                          <p className="text-xs font-semibold mb-1 opacity-70">{msg.sender.display_name}</p>
+                          <p 
+                            className="text-xs font-semibold mb-1 opacity-70 cursor-pointer hover:opacity-100"
+                            onClick={() => msg.sender_id && navigate(`/profile/${msg.sender_id}`)}
+                          >
+                            {msg.sender.display_name}
+                          </p>
                         )}
                         <p className="leading-relaxed">{msg.content}</p>
                         <span className="text-xs opacity-70 mt-2 block">

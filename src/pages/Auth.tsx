@@ -23,6 +23,8 @@ const Auth = () => {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [telegramUsername, setTelegramUsername] = useState("");
+  const [showTelegramInstructions, setShowTelegramInstructions] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,16 +86,24 @@ const Auth = () => {
             id: authData.user.id,
             wallet_address: walletAddress,
             display_name: displayName || signupEmail.split("@")[0],
+            telegram_username: telegramUsername || null,
           });
 
         if (profileError) throw profileError;
 
         toast({
           title: "Account created!",
-          description: "Welcome to DeFiLance. You can now start browsing jobs.",
+          description: telegramUsername 
+            ? "Now start your Telegram bot to receive notifications!" 
+            : "Welcome to DeFiLance. You can now start browsing jobs.",
         });
 
-        navigate("/dashboard");
+        if (telegramUsername) {
+          setShowTelegramInstructions(true);
+          setTimeout(() => navigate("/dashboard"), 5000);
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error: any) {
       toast({
@@ -246,6 +256,20 @@ const Auth = () => {
                   />
                 </div>
 
+                <div>
+                  <Label htmlFor="telegram-username">Telegram Username (Optional)</Label>
+                  <Input
+                    id="telegram-username"
+                    type="text"
+                    placeholder="@yourusername"
+                    value={telegramUsername}
+                    onChange={(e) => setTelegramUsername(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Get real-time notifications in Telegram
+                  </p>
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full"
@@ -254,6 +278,20 @@ const Auth = () => {
                   {isLoading ? "Creating account..." : "Sign Up"}
                 </Button>
               </form>
+
+              {showTelegramInstructions && (
+                <div className="mt-4 p-4 border rounded-lg bg-muted/50">
+                  <h3 className="font-semibold mb-2">🤖 Setup Telegram Bot</h3>
+                  <ol className="text-sm space-y-2">
+                    <li>1. Open Telegram and search for your bot</li>
+                    <li>2. Click "Start" or send /start message</li>
+                    <li>3. You'll receive notifications instantly!</li>
+                  </ol>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Redirecting to dashboard in 5 seconds...
+                  </p>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </Card>

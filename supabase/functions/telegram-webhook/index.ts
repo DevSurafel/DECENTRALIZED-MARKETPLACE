@@ -19,9 +19,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// TODO: Replace with your actual Telegram bot token
-// Get it from @BotFather on Telegram
-// Example: const TELEGRAM_BOT_TOKEN = "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz";
+// TODO: Replace YOUR_TELEGRAM_BOT_TOKEN_HERE with your actual bot token
+// OR add TELEGRAM_BOT_TOKEN to Lovable Secrets (Settings > Secrets)
+// Get your bot token from @BotFather on Telegram
+// Example: "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "YOUR_TELEGRAM_BOT_TOKEN_HERE";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -46,23 +47,54 @@ serve(async (req) => {
     // Process incoming message from Telegram
     if (update.message) {
       const { chat, from, text, message_id } = update.message;
+      const username = from.username || '';
 
-      // Find user profile by telegram_chat_id
+      // Find user by telegram username or chat_id
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id")
-        .eq("telegram_chat_id", chat.id.toString())
-        .single();
+        .select("id, display_name, telegram_chat_id")
+        .or(`telegram_chat_id.eq.${chat.id},telegram_username.ilike.%${username}%`)
+        .maybeSingle();
 
-      if (profileError || !profile) {
-        console.log("User not linked to Telegram chat:", chat.id);
-        
-        // Send instructions to link account
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+        return new Response(JSON.stringify({ error: "Database error" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!profile) {
+        // User not found, send instructions
         await sendTelegramMessage(
           chat.id,
-          "Welcome to DeFiLance! Please link your account by providing your Telegram username in your profile settings on the web app."
+          "👋 Welcome to DeFiLance Bot!\n\n" +
+          "To link your account:\n" +
+          "1. Sign up on DeFiLance platform\n" +
+          "2. Add your Telegram username (@" + username + ") during registration or in your profile\n" +
+          "3. Come back here and send /start\n\n" +
+          "You'll then receive real-time notifications for messages and jobs!"
         );
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Update chat_id if not set or different
+      if (!profile.telegram_chat_id || profile.telegram_chat_id !== chat.id.toString()) {
+        await supabase
+          .from("profiles")
+          .update({ telegram_chat_id: chat.id.toString() })
+          .eq("id", profile.id);
         
+        await sendTelegramMessage(
+          chat.id,
+          `✅ Account linked successfully!\n\nHi ${profile.display_name}! You'll now receive:\n` +
+          "• New message notifications\n" +
+          "• Job updates\n" +
+          "• Bid notifications\n\n" +
+          "Reply to any message here to sync with the platform!"
+        );
         return new Response(JSON.stringify({ ok: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
