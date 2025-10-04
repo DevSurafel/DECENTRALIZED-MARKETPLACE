@@ -339,6 +339,65 @@ const JobDetails = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Job Details */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Job Details Card - Show to everyone */}
+            <Card className="p-6 bg-card/50 backdrop-blur">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h1 className="text-3xl font-bold">{job.title}</h1>
+                    <Badge variant="secondary">{job.status.replace('_', ' ')}</Badge>
+                  </div>
+                  <p className="text-muted-foreground">Posted {getTimeAgo(job.created_at)}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Budget</p>
+                    <p className="font-semibold">{job.budget_eth} ETH</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Duration</p>
+                    <p className="font-semibold">{durationText}</p>
+                  </div>
+                </div>
+                {job.budget_usd && (
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">USD Equivalent</p>
+                      <p className="font-semibold">${job.budget_usd}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold mb-3">Description</h2>
+                <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
+                  {job.description}
+                </p>
+              </div>
+
+              {skills.length > 0 && (
+                <div>
+                  <h2 className="text-xl font-semibold mb-3">Required Skills</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map((skill: string, idx: number) => (
+                      <Badge key={idx} variant="secondary">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+
             {/* Client View - Show Proposals */}
             {getUserRole() === 'client' && job.status === 'open' && (
               <BidsPanel jobId={id!} onBidAccepted={loadJob} />
@@ -419,15 +478,34 @@ const JobDetails = () => {
             {getUserRole() === 'freelancer' && job.status === 'under_review' && (
               <Card className="p-6">
                 <div className="text-center">
-                  <Clock className="h-16 w-16 text-primary mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold mb-2">Awaiting Review</h2>
+                  <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold mb-2">Work Submitted ✓</h2>
                   <p className="text-muted-foreground mb-4">
-                    Your work has been submitted. The client is reviewing it.
+                    Your work has been submitted and is under review by the client.
                   </p>
+                  <div className="p-4 bg-muted/50 rounded-lg mb-4">
+                    <div className="flex items-start gap-3 mb-2">
+                      <div className="flex-1 text-left">
+                        <p className="font-semibold text-sm mb-1">IPFS Hash</p>
+                        <p className="font-mono text-xs text-muted-foreground break-all">{job.ipfs_hash}</p>
+                      </div>
+                    </div>
+                    {job.git_commit_hash && (
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 text-left">
+                          <p className="font-semibold text-sm mb-1">Git Commit</p>
+                          <p className="font-mono text-xs text-muted-foreground break-all">{job.git_commit_hash}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   {job.review_deadline && (
-                    <p className="text-sm text-muted-foreground">
-                      Review deadline: {new Date(job.review_deadline).toLocaleDateString()}
-                    </p>
+                    <div className="flex items-center justify-center gap-2 text-sm">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <p className="text-muted-foreground">
+                        Review deadline: {new Date(job.review_deadline).toLocaleDateString()}
+                      </p>
+                    </div>
                   )}
                 </div>
               </Card>
@@ -457,69 +535,8 @@ const JobDetails = () => {
               </Card>
             )}
 
-            {/* Non-participant View - Show Job Details and Bid Form */}
-            {!getUserRole() && (
-              <>
-                <Card className="p-6 bg-card/50 backdrop-blur">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h1 className="text-3xl font-bold">{job.title}</h1>
-                        <Badge variant="secondary">{job.status}</Badge>
-                      </div>
-                      <p className="text-muted-foreground">Posted {getTimeAgo(job.created_at)}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-primary" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Budget</p>
-                        <p className="font-semibold">{job.budget_eth} ETH</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Duration</p>
-                        <p className="font-semibold">{durationText}</p>
-                      </div>
-                    </div>
-                    {job.budget_usd && (
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">USD Equivalent</p>
-                          <p className="font-semibold">${job.budget_usd}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mb-6">
-                    <h2 className="text-xl font-semibold mb-3">Description</h2>
-                    <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
-                      {job.description}
-                    </p>
-                  </div>
-
-                  {skills.length > 0 && (
-                    <div>
-                      <h2 className="text-xl font-semibold mb-3">Required Skills</h2>
-                      <div className="flex flex-wrap gap-2">
-                        {skills.map((skill: string, idx: number) => (
-                          <Badge key={idx} variant="secondary">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </Card>
-
-                {/* Bid Form - only show if user is not the client */}
-                {user && job.client_id !== user.id && job.status === 'open' && (
+            {/* Non-participant View - Bid Form */}
+            {!getUserRole() && user && job.client_id !== user.id && job.status === 'open' && (
                   <Card className="p-6 bg-card/50 backdrop-blur">
                     <h2 className="text-2xl font-bold mb-4">Submit Your Proposal</h2>
                     
@@ -574,8 +591,6 @@ const JobDetails = () => {
                     </div>
                   </Card>
                 )}
-              </>
-            )}
           </div>
 
           {/* Sidebar */}
