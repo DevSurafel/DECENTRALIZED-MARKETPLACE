@@ -85,6 +85,9 @@ const Navbar = () => {
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               )}
             </Link>
+            <Link to="/reviews" className="transition-smooth hover:text-primary">
+              Reviews
+            </Link>
             <Link to="/escrow" className="transition-smooth hover:text-primary">
               Escrow
             </Link>
@@ -155,6 +158,13 @@ const Navbar = () => {
               {hasUnreadMessages && (
                 <span className="absolute top-2 left-12 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               )}
+            </Link>
+            <Link 
+              to="/reviews" 
+              className="block py-2 transition-smooth hover:text-primary"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Reviews
             </Link>
             <Link 
               to="/escrow" 

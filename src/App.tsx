@@ -16,6 +16,7 @@ import Escrow from "./pages/Escrow";
 import ArbitratorDashboard from "./pages/ArbitratorDashboard";
 import AdminAuth from "./pages/AdminAuth";
 import PlatformReviews from "./pages/PlatformReviews";
+import AssignAdmin from "./pages/AssignAdmin";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/jobs/:id" element={<JobDetails />} />
           <Route path="/escrow" element={<Escrow />} />
           <Route path="/admin" element={<AdminAuth />} />
+          <Route path="/assign-admin" element={<AssignAdmin />} />
           <Route path="/arbitrator" element={<ArbitratorDashboard />} />
           <Route path="/reviews" element={<PlatformReviews />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

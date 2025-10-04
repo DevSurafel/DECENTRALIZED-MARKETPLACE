@@ -131,12 +131,12 @@ const Profile = () => {
         });
       }
       
-      // Fetch reviews
+      // Fetch reviews for this user
       const { data: reviewsData } = await supabase
         .from("reviews")
         .select(`
           *,
-          reviewer:profiles!reviews_reviewer_id_fkey(display_name, wallet_address)
+          reviewer:profiles!reviews_reviewer_id_fkey(id, display_name, wallet_address, avatar_url)
         `)
         .eq("reviewee_id", targetUserId)
         .order("created_at", { ascending: false })
@@ -642,14 +642,24 @@ const Profile = () => {
               {reviews.length > 0 ? reviews.map((review) => (
                 <Card key={review.id} className="p-6 glass-card shadow-card">
                   <div className="flex items-start gap-4">
-                    <Avatar>
-                      <AvatarFallback>
-                        {review.reviewer?.display_name?.substring(0, 2).toUpperCase() || 'CL'}
-                      </AvatarFallback>
+                    <Avatar 
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/profile/${review.reviewer.id}`)}
+                    >
+                      {review.reviewer?.avatar_url ? (
+                        <img src={review.reviewer.avatar_url} alt={review.reviewer.display_name || 'User'} />
+                      ) : (
+                        <AvatarFallback>
+                          {review.reviewer?.display_name?.substring(0, 2).toUpperCase() || 'CL'}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="font-bold">
+                        <span 
+                          className="font-bold cursor-pointer hover:text-primary transition-smooth"
+                          onClick={() => navigate(`/profile/${review.reviewer.id}`)}
+                        >
                           {review.reviewer?.display_name || review.reviewer?.wallet_address?.slice(0, 8) + '...'}
                         </span>
                         <span className="text-muted-foreground">•</span>

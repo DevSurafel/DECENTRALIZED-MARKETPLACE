@@ -46,29 +46,46 @@ const PlatformReviews = () => {
           rating,
           comment,
           created_at,
-          reviewer:profiles!platform_reviews_reviewer_id_fkey(
-            id,
-            display_name,
-            avatar_url,
-            user_type
-          ),
-          job:jobs(title)
+          reviewer_id,
+          job_id
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const reviewsData = data as unknown as PlatformReview[];
-      setReviews(reviewsData);
+      // Fetch reviewer profiles and job titles separately
+      const reviewsWithDetails = await Promise.all(
+        (data || []).map(async (review) => {
+          const { data: reviewer } = await supabase
+            .from('profiles')
+            .select('id, display_name, avatar_url, user_type')
+            .eq('id', review.reviewer_id)
+            .single();
+
+          const { data: job } = await supabase
+            .from('jobs')
+            .select('title')
+            .eq('id', review.job_id)
+            .single();
+
+          return {
+            ...review,
+            reviewer: reviewer || { id: review.reviewer_id, display_name: null, avatar_url: null, user_type: 'both' },
+            job: job || { title: 'Unknown Job' }
+          };
+        })
+      );
+
+      setReviews(reviewsWithDetails as PlatformReview[]);
 
       // Calculate stats
-      if (reviewsData.length > 0) {
-        const total = reviewsData.length;
-        const sum = reviewsData.reduce((acc, r) => acc + r.rating, 0);
+      if (reviewsWithDetails.length > 0) {
+        const total = reviewsWithDetails.length;
+        const sum = reviewsWithDetails.reduce((acc, r) => acc + r.rating, 0);
         const average = sum / total;
 
         const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-        reviewsData.forEach(r => {
+        reviewsWithDetails.forEach(r => {
           distribution[r.rating as keyof typeof distribution]++;
         });
 

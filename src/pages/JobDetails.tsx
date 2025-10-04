@@ -20,6 +20,7 @@ import { PlatformReviewDialog } from "@/components/PlatformReviewDialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
