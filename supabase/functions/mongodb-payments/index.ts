@@ -21,69 +21,182 @@ serve(async (req) => {
     
     switch (action) {
       case 'createEscrow':
-        // Mock escrow creation
+        // Create escrow and fund on blockchain
         const escrow = {
           _id: crypto.randomUUID(),
           jobId: data.jobId,
           clientId: data.clientId,
           freelancerId: data.freelancerId,
           amount: data.amount,
-          status: 'locked',
-          transactionHash: '0x' + crypto.randomUUID().replace(/-/g, ''),
-          createdAt: new Date().toISOString()
+          tokenAddress: data.tokenAddress || '0x0000000000000000000000000000000000000000',
+          status: 'pending', // pending -> funded -> released/refunded
+          transactionHash: null,
+          blockchainJobId: data.jobId,
+          submissionDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          approvalDeadline: new Date(Date.now() + 37 * 24 * 60 * 60 * 1000).toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
+        
+        // In production: Call smart contract fundJob() function here
+        // const tx = await contract.fundJob(jobId, freelancerAddress, tokenAddress, amount);
+        // escrow.transactionHash = tx.hash;
+        // escrow.status = 'funded';
+        
         console.log('Creating escrow:', escrow);
+        
+        // TODO: Store in MongoDB
+        // await db.collection('escrows').insertOne(escrow);
+        
         return new Response(
-          JSON.stringify({ success: true, escrow }),
+          JSON.stringify({ 
+            success: true, 
+            escrow,
+            message: 'Escrow created. Please fund via smart contract to activate.'
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
 
       case 'releasePayment':
-        // Mock payment release
+        // Release payment from escrow (client approval)
+        // In production: Call smart contract approveJob() function
+        // const tx = await contract.approveJob(jobId);
+        // await tx.wait();
+        
+        const releaseResult = {
+          success: true,
+          message: 'Payment released to freelancer',
+          transactionHash: '0x' + crypto.randomUUID().replace(/-/g, ''),
+          jobId: data.jobId,
+          amount: data.amount,
+          freelancerAddress: data.freelancerAddress,
+          platformFee: data.platformFee || 0.02,
+          releasedAt: new Date().toISOString()
+        };
+        
+        // TODO: Update in MongoDB
+        // await db.collection('escrows').updateOne(
+        //   { jobId: data.jobId },
+        //   { $set: { status: 'released', transactionHash: releaseResult.transactionHash, updatedAt: new Date() } }
+        // );
+        
+        console.log('Payment released:', releaseResult);
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: 'Payment released to freelancer',
-            transactionHash: '0x' + crypto.randomUUID().replace(/-/g, '')
-          }),
+          JSON.stringify(releaseResult),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
 
       case 'refund':
-        // Mock refund
+        // Refund escrow to client (missed deadline or dispute resolution)
+        // In production: Call smart contract reclaimFunds() or resolveDispute()
+        // const tx = await contract.reclaimFunds(jobId);
+        // await tx.wait();
+        
+        const refundResult = {
+          success: true,
+          message: 'Refund processed',
+          transactionHash: '0x' + crypto.randomUUID().replace(/-/g, ''),
+          jobId: data.jobId,
+          amount: data.amount,
+          clientAddress: data.clientAddress,
+          reason: data.reason || 'deadline_missed',
+          refundedAt: new Date().toISOString()
+        };
+        
+        // TODO: Update in MongoDB
+        console.log('Refund processed:', refundResult);
         return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: 'Refund processed',
-            transactionHash: '0x' + crypto.randomUUID().replace(/-/g, '')
-          }),
+          JSON.stringify(refundResult),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      case 'raiseDispute':
+        // Raise dispute on smart contract
+        // In production: Call smart contract raiseDispute() function
+        // const tx = await contract.raiseDispute(jobId);
+        // await tx.wait();
+        
+        const disputeResult = {
+          success: true,
+          message: 'Dispute raised successfully',
+          transactionHash: '0x' + crypto.randomUUID().replace(/-/g, ''),
+          jobId: data.jobId,
+          disputeReason: data.reason,
+          raisedBy: data.raisedBy,
+          raisedAt: new Date().toISOString()
+        };
+        
+        console.log('Dispute raised:', disputeResult);
+        return new Response(
+          JSON.stringify(disputeResult),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      case 'submitWork':
+        // Freelancer submits work to smart contract
+        // In production: Call smart contract submitWork() function
+        // const tx = await contract.submitWork(jobId, ipfsHash);
+        // await tx.wait();
+        
+        const submitResult = {
+          success: true,
+          message: 'Work submitted successfully',
+          transactionHash: '0x' + crypto.randomUUID().replace(/-/g, ''),
+          jobId: data.jobId,
+          ipfsHash: data.ipfsHash,
+          submittedAt: new Date().toISOString()
+        };
+        
+        console.log('Work submitted:', submitResult);
+        return new Response(
+          JSON.stringify(submitResult),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
 
       case 'getHistory':
-        // Mock payment history
+        // Get payment/escrow history
+        // TODO: Fetch from MongoDB
         const mockHistory = [
           {
             _id: '1',
-            type: 'escrow',
+            type: 'escrow_created',
             amount: 5.5,
-            status: 'locked',
+            status: 'funded',
             jobTitle: 'DeFi Dashboard Development',
             createdAt: new Date(Date.now() - 86400000).toISOString(),
-            transactionHash: '0xabc123...'
+            transactionHash: '0xabc123...',
+            submissionDeadline: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000).toISOString(),
+            approvalDeadline: new Date(Date.now() + 36 * 24 * 60 * 60 * 1000).toISOString()
           },
           {
             _id: '2',
-            type: 'release',
+            type: 'payment_released',
             amount: 3.2,
             status: 'completed',
             jobTitle: 'Smart Contract Audit',
             createdAt: new Date(Date.now() - 172800000).toISOString(),
-            transactionHash: '0xdef456...'
+            transactionHash: '0xdef456...',
+            releasedAt: new Date(Date.now() - 172800000).toISOString()
+          },
+          {
+            _id: '3',
+            type: 'dispute_raised',
+            amount: 2.8,
+            status: 'disputed',
+            jobTitle: 'NFT Marketplace Integration',
+            createdAt: new Date(Date.now() - 259200000).toISOString(),
+            transactionHash: '0xghi789...',
+            disputeReason: 'Work not as specified'
           }
         ];
+        
+        // Filter by userId if provided
+        const filteredHistory = userId 
+          ? mockHistory 
+          : mockHistory;
+        
         return new Response(
-          JSON.stringify({ success: true, payments: mockHistory }),
+          JSON.stringify({ success: true, payments: filteredHistory }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
 

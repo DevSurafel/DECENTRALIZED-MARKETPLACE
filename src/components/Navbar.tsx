@@ -34,6 +34,9 @@ const Navbar = () => {
             <Link to="/chat" className="transition-smooth hover:text-primary">
               Chat
             </Link>
+            <Link to="/escrow" className="transition-smooth hover:text-primary">
+              Escrow
+            </Link>
           </div>
 
           <div className="hidden md:flex items-center gap-4">
@@ -98,6 +101,13 @@ const Navbar = () => {
               onClick={() => setIsMenuOpen(false)}
             >
               Chat
+            </Link>
+            <Link 
+              to="/escrow" 
+              className="block py-2 transition-smooth hover:text-primary"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Escrow
             </Link>
             {user ? (
               <Button 
