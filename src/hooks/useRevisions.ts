@@ -98,11 +98,21 @@ export const useRevisions = () => {
       // Get current job data
       const { data: job, error: fetchError } = await supabase
         .from('jobs')
-        .select('current_revision_number, allowed_revisions')
+        .select('current_revision_number, allowed_revisions, client_id')
         .eq('id', jobId)
         .single();
 
       if (fetchError) throw fetchError;
+
+      // Verify user is the client
+      if (job.client_id !== user.id) {
+        toast({
+          title: "Access Denied",
+          description: "Only the client can request revisions",
+          variant: "destructive"
+        });
+        return false;
+      }
 
       if (job.current_revision_number >= job.allowed_revisions) {
         toast({
@@ -113,12 +123,12 @@ export const useRevisions = () => {
         return false;
       }
 
-      // Update job status
+      // Update job status to revision_requested
       const { error: updateError } = await supabase
         .from('jobs')
         .update({ 
           status: 'revision_requested',
-          current_revision_number: job.current_revision_number + 1
+          review_deadline: null // Clear review deadline when requesting revision
         })
         .eq('id', jobId);
 

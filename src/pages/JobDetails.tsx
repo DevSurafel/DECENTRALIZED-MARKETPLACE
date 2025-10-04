@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useJobs } from "@/hooks/useJobs";
 import { useBids } from "@/hooks/useBids";
 import { useRevisions } from "@/hooks/useRevisions";
@@ -15,7 +16,16 @@ import { BidsPanel } from "@/components/BidsPanel";
 import { WorkSubmissionPanel } from "@/components/WorkSubmissionPanel";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { RatingDialog } from "@/components/RatingDialog";
+import { PlatformReviewDialog } from "@/components/PlatformReviewDialog";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   DollarSign, 
   Clock, 
@@ -35,6 +45,7 @@ const JobDetails = () => {
   const [bidAmount, setBidAmount] = useState("");
   const [proposal, setProposal] = useState("");
   const [estimatedDuration, setEstimatedDuration] = useState("");
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
   const { getJobById, loading } = useJobs();
   const { createBid, loading: submitting } = useBids();
   const { requestRevision, submitRevision } = useRevisions();
@@ -295,10 +306,13 @@ const JobDetails = () => {
 
       toast({
         title: "Work Approved",
-        description: "Funds have been released to the freelancer. You can now leave a review.",
+        description: "Funds have been released to the freelancer.",
       });
 
       loadJob();
+      
+      // Show review dialog after successful approval
+      setShowReviewDialog(true);
     } catch (error) {
       console.error('Error approving work:', error);
       toast({
@@ -678,6 +692,60 @@ const JobDetails = () => {
             </Card>
           </div>
         </div>
+
+        {/* Review Dialogs after job completion */}
+        <AlertDialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Leave Reviews</AlertDialogTitle>
+              <AlertDialogDescription>
+                Please take a moment to review your experience
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            
+            <div className="space-y-4 py-4">
+              {/* Review for the other party */}
+              {getUserRole() === 'client' && job?.freelancer_id && (
+                <div className="space-y-2">
+                  <Label>Review Freelancer</Label>
+                  <RatingDialog
+                    jobId={id!}
+                    revieweeId={job.freelancer_id}
+                    revieweeName={job.freelancer?.display_name || 'Freelancer'}
+                    trigger={<Button variant="outline" className="w-full">Rate Freelancer</Button>}
+                  />
+                </div>
+              )}
+              
+              {getUserRole() === 'freelancer' && job?.client_id && (
+                <div className="space-y-2">
+                  <Label>Review Client</Label>
+                  <RatingDialog
+                    jobId={id!}
+                    revieweeId={job.client_id}
+                    revieweeName={job.client?.display_name || 'Client'}
+                    trigger={<Button variant="outline" className="w-full">Rate Client</Button>}
+                  />
+                </div>
+              )}
+
+              {/* Platform review */}
+              <div className="space-y-2">
+                <Label>Review Platform</Label>
+                <PlatformReviewDialog
+                  jobId={id!}
+                  trigger={<Button variant="outline" className="w-full">Rate DeFiLance</Button>}
+                />
+              </div>
+            </div>
+
+            <AlertDialogFooter>
+              <Button onClick={() => setShowReviewDialog(false)}>
+                Done
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );

@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDisputes } from '@/hooks/useDisputes';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +16,8 @@ import { Gavel, FileText, ExternalLink, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function ArbitratorDashboard() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { getPendingDisputes, resolveDispute, loading } = useDisputes();
   const [disputes, setDisputes] = useState<any[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
@@ -20,10 +26,53 @@ export default function ArbitratorDashboard() {
   const [resolutionNotes, setResolutionNotes] = useState<string>('');
   const [penalizeClient, setPenalizeClient] = useState(false);
   const [slashStake, setSlashStake] = useState(false);
+  const [hasAdminAccess, setHasAdminAccess] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   useEffect(() => {
-    fetchDisputes();
-  }, []);
+    checkAdminAccess();
+  }, [user]);
+
+  useEffect(() => {
+    if (hasAdminAccess) {
+      fetchDisputes();
+    }
+  }, [hasAdminAccess]);
+
+  const checkAdminAccess = async () => {
+    if (!user) {
+      setCheckingAccess(false);
+      navigate('/admin');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setHasAdminAccess(true);
+      } else {
+        toast({
+          title: "Access Denied",
+          description: "You don't have admin privileges",
+          variant: "destructive"
+        });
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Error checking admin access:', error);
+      navigate('/');
+    } finally {
+      setCheckingAccess(false);
+    }
+  };
 
   const fetchDisputes = async () => {
     const data = await getPendingDisputes();
@@ -54,6 +103,23 @@ export default function ArbitratorDashboard() {
     }
   };
 
+  if (checkingAccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8">
+          <Card className="p-8 text-center">
+            <p className="text-muted-foreground">Checking access...</p>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (!hasAdminAccess) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -61,7 +127,7 @@ export default function ArbitratorDashboard() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Gavel className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">Arbitrator Dashboard</h1>
+            <h1 className="text-4xl font-bold">Admin - Dispute Resolution</h1>
           </div>
           <p className="text-muted-foreground">Review and resolve disputes with evidence-based decisions</p>
         </div>
