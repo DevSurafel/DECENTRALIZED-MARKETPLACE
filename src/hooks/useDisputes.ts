@@ -33,14 +33,42 @@ export const useDisputes = () => {
         return false;
       }
 
-      // Create dispute record
+      // Fetch job details to include in evidence
+      const { data: jobData } = await supabase
+        .from('jobs')
+        .select('title, description, ipfs_hash, git_commit_hash, budget_eth')
+        .eq('id', jobId)
+        .single();
+
+      // Fetch all revisions for this job
+      const { data: revisions } = await supabase
+        .from('job_revisions')
+        .select('*')
+        .eq('job_id', jobId)
+        .order('submitted_at', { ascending: false });
+
+      // Create evidence bundle with job details and work submissions
+      const evidenceBundle = {
+        job_title: jobData?.title,
+        job_description: jobData?.description,
+        submitted_work: {
+          ipfs_hash: jobData?.ipfs_hash,
+          git_commit_hash: jobData?.git_commit_hash,
+        },
+        revisions: revisions || [],
+        dispute_raised_at: new Date().toISOString(),
+        raised_by_user_id: user.id
+      };
+
+      // Create dispute record with evidence
       const { error: disputeError } = await supabase
         .from('disputes')
         .insert({
           job_id: jobId,
           raised_by: user.id,
           arbitration_deposit_eth: arbitrationDepositEth,
-          status: 'pending'
+          status: 'pending',
+          evidence_bundle: evidenceBundle
         });
 
       if (disputeError) throw disputeError;
@@ -166,50 +194,93 @@ export const useDisputes = () => {
 
       if (disputeError) throw disputeError;
 
+      // Fetch job and profile details
+      const { data: job } = await supabase
+        .from('jobs')
+        .select('client_id, freelancer_id')
+        .eq('id', jobId)
+        .single();
+
+      if (!job) throw new Error('Job not found');
+
       // Update job status
       const { error: jobError } = await supabase
         .from('jobs')
-        .update({ status: 'completed' })
+        .update({ 
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
         .eq('id', jobId);
 
       if (jobError) throw jobError;
 
-      // Update reputation if penalties applied
-      if (penalizeClient || slashFreelancerStake) {
-        const { data: job } = await supabase
-          .from('jobs')
-          .select('client_id, freelancer_id')
-          .eq('id', jobId)
+      // Update client earnings (refunded amount)
+      if (clientAmountEth > 0) {
+        const { data: clientProfile } = await supabase
+          .from('profiles')
+          .select('total_earnings')
+          .eq('id', job.client_id)
           .single();
 
-        if (job) {
-          if (penalizeClient) {
-            const { data: profile } = await supabase
+        if (clientProfile) {
+          await supabase
+            .from('profiles')
+            .update({ 
+              total_earnings: (clientProfile.total_earnings || 0) + clientAmountEth 
+            })
+            .eq('id', job.client_id);
+        }
+      }
+
+      // Update freelancer earnings and stats
+      if (freelancerAmountEth > 0 && job.freelancer_id) {
+        const { data: freelancerProfile } = await supabase
+          .from('profiles')
+          .select('total_earnings, completed_jobs, failed_disputes')
+          .eq('id', job.freelancer_id)
+          .single();
+
+        if (freelancerProfile) {
+          await supabase
+            .from('profiles')
+            .update({ 
+              total_earnings: (freelancerProfile.total_earnings || 0) + freelancerAmountEth,
+              completed_jobs: (freelancerProfile.completed_jobs || 0) + 1,
+              success_rate: ((freelancerProfile.completed_jobs || 0) + 1) / 
+                           ((freelancerProfile.completed_jobs || 0) + 1 + (freelancerProfile.failed_disputes || 0)) * 100
+            })
+            .eq('id', job.freelancer_id);
+        }
+      }
+
+      // Update reputation if penalties applied
+      if (penalizeClient || slashFreelancerStake) {
+        if (penalizeClient) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('dispute_strikes')
+            .eq('id', job.client_id)
+            .single();
+          
+          if (profile) {
+            await supabase
               .from('profiles')
-              .select('dispute_strikes')
-              .eq('id', job.client_id)
-              .single();
-            
-            if (profile) {
-              await supabase
-                .from('profiles')
-                .update({ dispute_strikes: (profile.dispute_strikes || 0) + 1 })
-                .eq('id', job.client_id);
-            }
+              .update({ dispute_strikes: (profile.dispute_strikes || 0) + 1 })
+              .eq('id', job.client_id);
           }
-          if (slashFreelancerStake) {
-            const { data: profile } = await supabase
+        }
+        if (slashFreelancerStake) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('dispute_strikes')
+            .eq('id', job.freelancer_id)
+            .single();
+          
+          if (profile) {
+            await supabase
               .from('profiles')
-              .select('dispute_strikes')
-              .eq('id', job.freelancer_id)
-              .single();
-            
-            if (profile) {
-              await supabase
-                .from('profiles')
-                .update({ dispute_strikes: (profile.dispute_strikes || 0) + 1 })
-                .eq('id', job.freelancer_id);
-            }
+              .update({ dispute_strikes: (profile.dispute_strikes || 0) + 1 })
+              .eq('id', job.freelancer_id);
           }
         }
       }
