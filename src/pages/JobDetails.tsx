@@ -114,7 +114,20 @@ const JobDetails = () => {
         },
         (payload) => {
           console.log('Job updated:', payload);
-          loadJob(); // Refresh job data
+          loadJob(); // Refresh job data and review flags
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'bids',
+          filter: `job_id=eq.${id}`
+        },
+        (payload) => {
+          console.log('New bid:', payload);
+          fetchReviewFlags(); // Refresh bid status
         }
       )
       .subscribe();
@@ -176,13 +189,19 @@ const JobDetails = () => {
 
   const handleSubmitRevision = async (ipfsHash: string, gitHash: string) => {
     if (!id || !job) return;
+    
+    // Get fresh job data to ensure correct revision number
+    const freshJob = await getJobById(id);
+    if (!freshJob) return;
+    
+    const nextRevisionNumber = (freshJob.current_revision_number || 0) + 1;
     const success = await submitRevision(
       id,
-      (job.current_revision_number || 0) + 1,
+      nextRevisionNumber,
       ipfsHash,
       gitHash
     );
-    if (success) loadJob();
+    if (success) await loadJob();
   };
 
   const handleRaiseDispute = async () => {

@@ -51,13 +51,15 @@ const Escrow = () => {
 
       // Transform to escrow format
       const escrowData = (jobs || []).map(job => {
-        // Only include pending disputes, not resolved ones
+        // Check for any disputes (pending or resolved)
         const pendingDispute = job.dispute?.find((d: any) => d.status === 'pending');
+        const resolvedDispute = job.dispute?.find((d: any) => d.status === 'resolved');
         
-        // Determine status - if there's a pending dispute, show as disputed, otherwise use job status
+        // Determine status
         let escrowStatus = job.status === 'in_progress' ? 'funded' : 
                            job.status === 'under_review' ? 'submitted' :
-                           job.status === 'completed' ? 'completed' : 'refunded';
+                           job.status === 'completed' ? 'completed' : 
+                           job.status === 'disputed' ? 'disputed' : 'refunded';
         
         // Override status to disputed only if there's an actual pending dispute
         if (pendingDispute) {
@@ -74,7 +76,8 @@ const Escrow = () => {
           createdAt: job.created_at,
           submissionDeadline: job.deadline,
           milestones: job.milestones,
-          dispute: pendingDispute
+          dispute: pendingDispute || resolvedDispute,
+          resolvedDispute: resolvedDispute
         };
       });
 
@@ -203,6 +206,28 @@ const Escrow = () => {
           <p className="text-sm text-muted-foreground">
             An arbitrator is reviewing this case. You will be notified of the resolution.
           </p>
+        </div>
+      )}
+
+      {escrow.status === 'completed' && escrow.resolvedDispute && (
+        <div className="bg-success/10 border border-success/20 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-success mb-2">
+            <CheckCircle2 className="h-5 w-5" />
+            <span className="font-semibold">Dispute Resolved</span>
+          </div>
+          <p className="text-sm text-muted-foreground mb-2">
+            {escrow.resolvedDispute.resolution_notes || 'The dispute has been resolved by an arbitrator.'}
+          </p>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <div className="bg-background/50 rounded p-2">
+              <p className="text-xs text-muted-foreground">Client Received</p>
+              <p className="font-semibold">{escrow.resolvedDispute.client_amount_eth || 0} ETH</p>
+            </div>
+            <div className="bg-background/50 rounded p-2">
+              <p className="text-xs text-muted-foreground">Freelancer Received</p>
+              <p className="font-semibold">{escrow.resolvedDispute.freelancer_amount_eth || 0} ETH</p>
+            </div>
+          </div>
         </div>
       )}
     </Card>

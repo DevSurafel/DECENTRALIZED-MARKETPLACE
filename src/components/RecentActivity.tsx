@@ -32,14 +32,14 @@ export function RecentActivity({ userId }: { userId?: string }) {
     try {
       const activities: ActivityItem[] = [];
 
-      // Fetch recent completed jobs
+      // Fetch recent completed jobs (increased limit)
       const { data: completedJobs } = await supabase
         .from('jobs')
         .select('id, title, completed_at, status')
         .or(`client_id.eq.${userId},freelancer_id.eq.${userId}`)
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
-        .limit(3);
+        .limit(5);
 
       completedJobs?.forEach(job => {
         activities.push({
@@ -53,13 +53,13 @@ export function RecentActivity({ userId }: { userId?: string }) {
         });
       });
 
-      // Fetch recent messages
+      // Fetch recent messages (increased limit)
       const { data: conversations } = await supabase
         .from('conversations')
         .select('id, last_message_at')
         .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`)
         .order('last_message_at', { ascending: false })
-        .limit(3);
+        .limit(5);
 
       conversations?.forEach(conv => {
         activities.push({
@@ -73,7 +73,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
         });
       });
 
-      // Fetch recent bids accepted
+      // Fetch recent bids accepted (increased limit)
       const { data: acceptedBids } = await supabase
         .from('jobs')
         .select('id, title, started_at')
@@ -81,7 +81,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
         .eq('status', 'in_progress')
         .not('started_at', 'is', null)
         .order('started_at', { ascending: false })
-        .limit(3);
+        .limit(5);
 
       acceptedBids?.forEach(job => {
         activities.push({
@@ -95,13 +95,13 @@ export function RecentActivity({ userId }: { userId?: string }) {
         });
       });
 
-      // Fetch recent reviews received
+      // Fetch recent reviews received (increased limit)
       const { data: reviews } = await supabase
         .from('reviews')
         .select('id, created_at, job_id, rating')
         .eq('reviewee_id', userId)
         .order('created_at', { ascending: false })
-        .limit(3);
+        .limit(5);
 
       reviews?.forEach(review => {
         activities.push({
@@ -115,13 +115,13 @@ export function RecentActivity({ userId }: { userId?: string }) {
         });
       });
 
-      // Fetch recent disputes
+      // Fetch recent disputes (increased limit)
       const { data: disputes } = await supabase
         .from('disputes')
         .select('id, raised_at, job_id, jobs(title)')
         .eq('raised_by', userId)
         .order('raised_at', { ascending: false })
-        .limit(2);
+        .limit(5);
 
       disputes?.forEach(dispute => {
         activities.push({
@@ -142,7 +142,9 @@ export function RecentActivity({ userId }: { userId?: string }) {
         return timeB - timeA;
       });
 
-      setActivities(activities.slice(0, 6)); // Show top 6 recent activities
+      // Show at least 3 activities if available, up to 10
+      const displayCount = Math.max(Math.min(activities.length, 10), 3);
+      setActivities(activities.slice(0, displayCount));
     } catch (error) {
       console.error('Error fetching recent activity:', error);
     } finally {
