@@ -1,28 +1,58 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-// BSC Testnet USDT address - replace with mainnet for production
-const USDT_CONTRACT_ADDRESS = '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd'; // BSC Testnet
-// For BSC Mainnet use: 0x55d398326f99059fF775485246999027B3197955
+// Polygon Mumbai Testnet USDC address
+const USDC_CONTRACT_ADDRESS = '0x9999f7Fea5938fD3b1E26A12c3f2fb024e194f97'; // Polygon Mumbai Testnet
+// For Polygon Mainnet use: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+// For Arbitrum Sepolia use: 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d
 
 // Your deployed escrow contract address - MUST BE SET
 const ESCROW_CONTRACT_ADDRESS = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || '';
 
+// Network configuration
+const POLYGON_MUMBAI_CHAIN_ID = 80001n;
+const POLYGON_MAINNET_CHAIN_ID = 137n;
+const ARBITRUM_SEPOLIA_CHAIN_ID = 421614n;
+
+// Use testnet for development
+const NETWORK_CONFIG = {
+  chainId: POLYGON_MUMBAI_CHAIN_ID,
+  chainIdHex: '0x13881',
+  networkName: 'Polygon Mumbai Testnet',
+  rpcUrl: 'https://rpc-mumbai.maticvigil.com',
+  blockExplorer: 'https://mumbai.polygonscan.com',
+  nativeCurrency: {
+    name: 'MATIC',
+    symbol: 'MATIC',
+    decimals: 18
+  }
+};
+
 const ESCROW_ABI = [
-  'function fundJob(uint256 jobId, address freelancer, address token, uint256 amount) external',
-  'function submitWork(uint256 jobId, string ipfsHash) external',
+  'function fundJob(uint256 jobId, address freelancer, address token, uint256 amount, bool requiresStake, uint256 allowedRevisions) external',
+  'function submitWork(uint256 jobId, string ipfsHash, string gitCommitHash) external',
+  'function submitRevision(uint256 jobId, string ipfsHash, string gitCommitHash) external',
   'function approveJob(uint256 jobId) external',
+  'function autoReleasePayment(uint256 jobId) external',
   'function raiseDispute(uint256 jobId) external',
-  'function resolveDispute(uint256 jobId, uint256 clientPercentage) external',
+  'function resolveDispute(uint256 jobId, uint256 clientPercentage, bool penalizeClient, bool slashFreelancerStake, string notes) external',
   'function reclaimFunds(uint256 jobId) external',
-  'function getJob(uint256 jobId) external view returns (tuple(address client, address freelancer, address token, uint256 amount, uint256 platformFee, uint256 submissionDeadline, uint256 approvalDeadline, string ipfsHash, uint8 status, bool exists))',
-  'event JobFunded(uint256 indexed jobId, address token, uint256 amount)',
+  'function requestRevision(uint256 jobId, string notes) external',
+  'function getJob(uint256 jobId) external view returns (tuple(address client, address freelancer, address token, uint256 amount, uint256 platformFee, uint256 freelancerStake, uint256 arbitrationDeposit, uint256 submissionDeadline, uint256 reviewDeadline, uint256 approvalDeadline, string ipfsHash, string gitCommitHash, uint256 currentRevisionNumber, uint256 allowedRevisions, bool autoReleaseEnabled, uint8 status, bool exists))',
+  'event JobFunded(uint256 indexed jobId, address indexed token, uint256 amount, uint256 stake)',
+  'event WorkSubmitted(uint256 indexed jobId, string ipfsHash, string gitCommitHash)',
+  'event RevisionRequested(uint256 indexed jobId, string notes)',
+  'event RevisionSubmitted(uint256 indexed jobId, uint256 revisionNumber, string ipfsHash)',
   'event JobApproved(uint256 indexed jobId, uint256 freelancerAmount, uint256 platformFee)',
-  'event DisputeRaised(uint256 indexed jobId, address indexed raiser)'
+  'event DisputeRaised(uint256 indexed jobId, address indexed raiser, uint256 deposit)',
+  'event DisputeResolved(uint256 indexed jobId, uint256 clientAmount, uint256 freelancerAmount, string notes)',
+  'event AutoReleaseTriggered(uint256 indexed jobId, uint256 amount)',
+  'event FundsReclaimed(uint256 indexed jobId, uint256 amount)'
 ];
 
-const USDT_ABI = [
+const USDC_ABI = [
   'function approve(address spender, uint256 amount) external returns (bool)',
   'function allowance(address owner, address spender) external view returns (uint256)',
   'function balanceOf(address account) external view returns (uint256)',
@@ -72,33 +102,49 @@ export const useEscrow = () => {
 
   const checkNetwork = async (provider: ethers.BrowserProvider) => {
     const network = await provider.getNetwork();
-    const bscTestnetChainId = 97n; // BSC Testnet
-    // For mainnet, use: const bscMainnetChainId = 56n;
     
-    if (network.chainId !== bscTestnetChainId) {
+    if (network.chainId !== NETWORK_CONFIG.chainId) {
       try {
         await (window as any).ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x61' }], // 97 in hex for testnet, use 0x38 for mainnet
+          params: [{ chainId: NETWORK_CONFIG.chainIdHex }],
         });
       } catch (error: any) {
+        // If network not added, add it
         if (error.code === 4902) {
-          toast({
-            title: "Network Not Added",
-            description: "Please add BSC Testnet to MetaMask",
-            variant: "destructive"
-          });
+          try {
+            await (window as any).ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: NETWORK_CONFIG.chainIdHex,
+                chainName: NETWORK_CONFIG.networkName,
+                rpcUrls: [NETWORK_CONFIG.rpcUrl],
+                blockExplorerUrls: [NETWORK_CONFIG.blockExplorer],
+                nativeCurrency: NETWORK_CONFIG.nativeCurrency
+              }]
+            });
+          } catch (addError) {
+            toast({
+              title: "Network Error",
+              description: `Failed to add ${NETWORK_CONFIG.networkName}`,
+              variant: "destructive"
+            });
+            throw addError;
+          }
+        } else {
+          throw error;
         }
-        throw error;
       }
     }
   };
 
   const fundJob = async (
-    jobId: number,
+    jobId: string,
     freelancerAddress: string,
-    amountUSDT: string
-  ): Promise<boolean> => {
+    amountUSDC: string,
+    requiresStake: boolean = false,
+    allowedRevisions: number = 3
+  ): Promise<{ success: boolean; txHash?: string }> => {
     setLoading(true);
     try {
       if (!ESCROW_CONTRACT_ADDRESS) {
@@ -107,40 +153,40 @@ export const useEscrow = () => {
           description: "Escrow contract address not configured. Please contact support.",
           variant: "destructive"
         });
-        return false;
+        return { success: false };
       }
 
       const provider = await getProvider();
-      if (!provider) return false;
+      if (!provider) return { success: false };
 
       await checkNetwork(provider);
       const signer = await provider.getSigner();
 
-      // Convert USDT amount to proper decimals (18 for USDT BEP-20)
-      const amount = ethers.parseUnits(amountUSDT, 18);
+      // USDC uses 6 decimals on Polygon
+      const amount = ethers.parseUnits(amountUSDC, 6);
 
       // Initialize contracts
-      const usdtContract = new ethers.Contract(USDT_CONTRACT_ADDRESS, USDT_ABI, signer);
+      const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, USDC_ABI, signer);
       const escrowContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
-      // Check USDT balance
-      const balance = await usdtContract.balanceOf(await signer.getAddress());
+      // Check USDC balance
+      const balance = await usdcContract.balanceOf(await signer.getAddress());
       if (balance < amount) {
         toast({
           title: "Insufficient Balance",
-          description: `You need ${amountUSDT} USDT to fund this job`,
+          description: `You need ${amountUSDC} USDC to fund this job`,
           variant: "destructive"
         });
-        return false;
+        return { success: false };
       }
 
       toast({
-        title: "Approving USDT...",
+        title: "Approving USDC...",
         description: "Please confirm the approval transaction in MetaMask",
       });
 
-      // Approve USDT spending
-      const approveTx = await usdtContract.approve(ESCROW_CONTRACT_ADDRESS, amount);
+      // Approve USDC spending
+      const approveTx = await usdcContract.approve(ESCROW_CONTRACT_ADDRESS, amount);
       await approveTx.wait();
 
       toast({
@@ -148,22 +194,33 @@ export const useEscrow = () => {
         description: "Please confirm the funding transaction in MetaMask",
       });
 
-      // Fund the escrow
+      // Fund the escrow with new parameters
       const fundTx = await escrowContract.fundJob(
         jobId,
         freelancerAddress,
-        USDT_CONTRACT_ADDRESS,
-        amount
+        USDC_CONTRACT_ADDRESS,
+        amount,
+        requiresStake,
+        allowedRevisions
       );
       const receipt = await fundTx.wait();
 
+      // Store transaction hash in database
+      await supabase
+        .from('jobs')
+        .update({ 
+          contract_address: receipt.hash,
+          status: 'in_progress'
+        })
+        .eq('id', jobId);
+
       toast({
         title: "Escrow Funded Successfully",
-        description: `Job ${jobId} funded with ${amountUSDT} USDT`,
+        description: `Job funded with ${amountUSDC} USDC on Polygon`,
       });
 
       console.log('Transaction hash:', receipt.hash);
-      return true;
+      return { success: true, txHash: receipt.hash };
     } catch (error: any) {
       console.error('Error funding job:', error);
       toast({
@@ -171,13 +228,13 @@ export const useEscrow = () => {
         description: error.reason || error.message || "Failed to fund escrow",
         variant: "destructive"
       });
-      return false;
+      return { success: false };
     } finally {
       setLoading(false);
     }
   };
 
-  const submitWork = async (jobId: number, ipfsHash: string): Promise<boolean> => {
+  const submitWork = async (jobId: string, ipfsHash: string, gitCommitHash: string = ''): Promise<{ success: boolean; txHash?: string }> => {
     setLoading(true);
     try {
       if (!ESCROW_CONTRACT_ADDRESS) {
@@ -186,29 +243,35 @@ export const useEscrow = () => {
           description: "Escrow contract address not configured",
           variant: "destructive"
         });
-        return false;
+        return { success: false };
       }
 
       const provider = await getProvider();
-      if (!provider) return false;
+      if (!provider) return { success: false };
 
       await checkNetwork(provider);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
       toast({
-        title: "Submitting Work...",
+        title: "Submitting Work to Blockchain...",
         description: "Please confirm the transaction in MetaMask",
       });
 
-      const tx = await contract.submitWork(jobId, ipfsHash);
-      await tx.wait();
+      const tx = await contract.submitWork(jobId, ipfsHash, gitCommitHash);
+      const receipt = await tx.wait();
+
+      // Store transaction hash
+      await supabase
+        .from('jobs')
+        .update({ contract_address: receipt.hash })
+        .eq('id', jobId);
 
       toast({
         title: "Work Submitted",
-        description: `Work for job ${jobId} has been submitted to blockchain`,
+        description: `Work submitted to blockchain with tx: ${receipt.hash.substring(0, 10)}...`,
       });
-      return true;
+      return { success: true, txHash: receipt.hash };
     } catch (error: any) {
       console.error('Error submitting work:', error);
       toast({
@@ -216,13 +279,13 @@ export const useEscrow = () => {
         description: error.reason || error.message || "Failed to submit work",
         variant: "destructive"
       });
-      return false;
+      return { success: false };
     } finally {
       setLoading(false);
     }
   };
 
-  const approveJob = async (jobId: number): Promise<boolean> => {
+  const approveJob = async (jobId: string): Promise<{ success: boolean; txHash?: string }> => {
     setLoading(true);
     try {
       if (!ESCROW_CONTRACT_ADDRESS) {
@@ -231,11 +294,11 @@ export const useEscrow = () => {
           description: "Escrow contract address not configured",
           variant: "destructive"
         });
-        return false;
+        return { success: false };
       }
 
       const provider = await getProvider();
-      if (!provider) return false;
+      if (!provider) return { success: false };
 
       await checkNetwork(provider);
       const signer = await provider.getSigner();
@@ -249,13 +312,19 @@ export const useEscrow = () => {
       const tx = await contract.approveJob(jobId);
       const receipt = await tx.wait();
 
+      // Store transaction hash
+      await supabase
+        .from('jobs')
+        .update({ contract_address: receipt.hash })
+        .eq('id', jobId);
+
       toast({
         title: "Job Approved",
-        description: `Payment released for job ${jobId}. Funds sent to freelancer.`,
+        description: `Payment released! Tx: ${receipt.hash.substring(0, 10)}...`,
       });
 
       console.log('Transaction hash:', receipt.hash);
-      return true;
+      return { success: true, txHash: receipt.hash };
     } catch (error: any) {
       console.error('Error approving job:', error);
       toast({
@@ -263,13 +332,13 @@ export const useEscrow = () => {
         description: error.reason || error.message || "Failed to approve job",
         variant: "destructive"
       });
-      return false;
+      return { success: false };
     } finally {
       setLoading(false);
     }
   };
 
-  const raiseDispute = async (jobId: number): Promise<boolean> => {
+  const raiseDispute = async (jobId: string): Promise<{ success: boolean; txHash?: string }> => {
     setLoading(true);
     try {
       if (!ESCROW_CONTRACT_ADDRESS) {
@@ -278,11 +347,11 @@ export const useEscrow = () => {
           description: "Escrow contract address not configured",
           variant: "destructive"
         });
-        return false;
+        return { success: false };
       }
 
       const provider = await getProvider();
-      if (!provider) return false;
+      if (!provider) return { success: false };
 
       await checkNetwork(provider);
       const signer = await provider.getSigner();
@@ -294,13 +363,19 @@ export const useEscrow = () => {
       });
 
       const tx = await contract.raiseDispute(jobId);
-      await tx.wait();
+      const receipt = await tx.wait();
+
+      // Store transaction hash
+      await supabase
+        .from('jobs')
+        .update({ contract_address: receipt.hash })
+        .eq('id', jobId);
 
       toast({
         title: "Dispute Raised",
-        description: `Dispute raised for job ${jobId}. An arbitrator will review.`,
+        description: `Dispute raised. An arbitrator will review. Tx: ${receipt.hash.substring(0, 10)}...`,
       });
-      return true;
+      return { success: true, txHash: receipt.hash };
     } catch (error: any) {
       console.error('Error raising dispute:', error);
       toast({
@@ -308,13 +383,49 @@ export const useEscrow = () => {
         description: error.reason || error.message || "Failed to raise dispute",
         variant: "destructive"
       });
-      return false;
+      return { success: false };
     } finally {
       setLoading(false);
     }
   };
 
-  const getJobDetails = async (jobId: number): Promise<EscrowJob | null> => {
+  // Listen to real-time contract events
+  const subscribeToEvents = (jobId: string, onEvent: (event: string, data: any) => void) => {
+    if (!ESCROW_CONTRACT_ADDRESS || typeof window === 'undefined' || !(window as any).ethereum) {
+      return () => {};
+    }
+
+    const provider = new ethers.BrowserProvider((window as any).ethereum);
+    const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
+
+    // Listen to all events for this job
+    const filters = {
+      jobFunded: contract.filters.JobFunded(jobId),
+      workSubmitted: contract.filters.WorkSubmitted(jobId),
+      revisionRequested: contract.filters.RevisionRequested(jobId),
+      revisionSubmitted: contract.filters.RevisionSubmitted(jobId),
+      jobApproved: contract.filters.JobApproved(jobId),
+      disputeRaised: contract.filters.DisputeRaised(jobId),
+      disputeResolved: contract.filters.DisputeResolved(jobId),
+      autoRelease: contract.filters.AutoReleaseTriggered(jobId),
+      fundsReclaimed: contract.filters.FundsReclaimed(jobId)
+    };
+
+    Object.entries(filters).forEach(([eventName, filter]) => {
+      contract.on(filter, (...args) => {
+        onEvent(eventName, args);
+      });
+    });
+
+    // Cleanup function
+    return () => {
+      Object.values(filters).forEach(filter => {
+        contract.off(filter);
+      });
+    };
+  };
+
+  const getJobDetails = async (jobId: string): Promise<EscrowJob | null> => {
     try {
       if (!ESCROW_CONTRACT_ADDRESS) return null;
 
@@ -331,7 +442,7 @@ export const useEscrow = () => {
         client: job.client,
         freelancer: job.freelancer,
         token: job.token,
-        amount: ethers.formatUnits(job.amount, 18),
+        amount: ethers.formatUnits(job.amount, 6), // USDC has 6 decimals
         platformFee: job.platformFee.toString(),
         submissionDeadline: Number(job.submissionDeadline) * 1000,
         approvalDeadline: Number(job.approvalDeadline) * 1000,
@@ -351,7 +462,9 @@ export const useEscrow = () => {
     approveJob,
     raiseDispute,
     getJobDetails,
+    subscribeToEvents,
     loading,
-    contractAddress: ESCROW_CONTRACT_ADDRESS
+    contractAddress: ESCROW_CONTRACT_ADDRESS,
+    networkConfig: NETWORK_CONFIG
   };
 };

@@ -102,15 +102,15 @@ const Escrow = () => {
   };
 
   const handleApprove = async (jobId: string) => {
-    const success = await approveJob(parseInt(jobId));
-    if (success) {
+    const result = await approveJob(jobId);
+    if (result.success) {
       fetchEscrows();
     }
   };
 
   const handleDispute = async (jobId: string) => {
-    const success = await raiseDispute(parseInt(jobId));
-    if (success) {
+    const result = await raiseDispute(jobId);
+    if (result.success) {
       fetchEscrows();
     }
   };
