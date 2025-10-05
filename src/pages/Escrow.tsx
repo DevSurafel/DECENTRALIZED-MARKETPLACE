@@ -34,7 +34,7 @@ const Escrow = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch jobs where user is either client or freelancer
+      // Fetch jobs where user is either client or freelancer (include disputed status)
       const { data: jobs, error } = await supabase
         .from('jobs')
         .select(`
@@ -45,7 +45,7 @@ const Escrow = () => {
           dispute:disputes!disputes_job_id_fkey(*)
         `)
         .or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`)
-        .in('status', ['in_progress', 'under_review', 'completed', 'cancelled', 'refunded']);
+        .in('status', ['in_progress', 'under_review', 'completed', 'cancelled', 'refunded', 'disputed']);
 
       if (error) throw error;
 

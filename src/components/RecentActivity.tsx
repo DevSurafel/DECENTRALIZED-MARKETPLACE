@@ -39,7 +39,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
         .or(`client_id.eq.${userId},freelancer_id.eq.${userId}`)
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
-        .limit(2);
+        .limit(3);
 
       completedJobs?.forEach(job => {
         activities.push({
@@ -59,7 +59,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
         .select('id, last_message_at')
         .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`)
         .order('last_message_at', { ascending: false })
-        .limit(2);
+        .limit(3);
 
       conversations?.forEach(conv => {
         activities.push({
@@ -81,7 +81,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
         .eq('status', 'in_progress')
         .not('started_at', 'is', null)
         .order('started_at', { ascending: false })
-        .limit(2);
+        .limit(3);
 
       acceptedBids?.forEach(job => {
         activities.push({
@@ -101,7 +101,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
         .select('id, created_at, job_id, rating')
         .eq('reviewee_id', userId)
         .order('created_at', { ascending: false })
-        .limit(2);
+        .limit(3);
 
       reviews?.forEach(review => {
         activities.push({
@@ -121,7 +121,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
         .select('id, raised_at, job_id, jobs(title)')
         .eq('raised_by', userId)
         .order('raised_at', { ascending: false })
-        .limit(1);
+        .limit(2);
 
       disputes?.forEach(dispute => {
         activities.push({
@@ -142,7 +142,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
         return timeB - timeA;
       });
 
-      setActivities(activities.slice(0, 5)); // Show top 5 recent activities
+      setActivities(activities.slice(0, 6)); // Show top 6 recent activities
     } catch (error) {
       console.error('Error fetching recent activity:', error);
     } finally {

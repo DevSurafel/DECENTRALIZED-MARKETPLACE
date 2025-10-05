@@ -240,25 +240,7 @@ export const useDisputes = () => {
 
       if (jobError) throw jobError;
 
-      // Update client earnings (refunded amount)
-      if (clientAmountEth > 0) {
-        const { data: clientProfile } = await supabase
-          .from('profiles')
-          .select('total_earnings')
-          .eq('id', job.client_id)
-          .single();
-
-        if (clientProfile) {
-          await supabase
-            .from('profiles')
-            .update({ 
-              total_earnings: (clientProfile.total_earnings || 0) + clientAmountEth 
-            })
-            .eq('id', job.client_id);
-        }
-      }
-
-      // Update freelancer earnings and stats
+      // Update freelancer earnings and stats (only freelancer gets earnings, not client refund)
       if (freelancerAmountEth > 0 && job.freelancer_id) {
         const { data: freelancerProfile } = await supabase
           .from('profiles')

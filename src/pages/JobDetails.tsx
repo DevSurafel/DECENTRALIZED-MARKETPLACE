@@ -49,6 +49,7 @@ const JobDetails = () => {
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [hasLeftUserReview, setHasLeftUserReview] = useState(false);
   const [hasLeftPlatformReview, setHasLeftPlatformReview] = useState(false);
+  const [hasSubmittedBid, setHasSubmittedBid] = useState(false);
   const { getJobById, loading } = useJobs();
   const { createBid, loading: submitting } = useBids();
   const { requestRevision, submitRevision } = useRevisions();
@@ -63,7 +64,7 @@ const JobDetails = () => {
   const fetchReviewFlags = async () => {
     if (!id || !user?.id) return;
     try {
-      const [{ data: userReview }, { data: platformReview }] = await Promise.all([
+      const [{ data: userReview }, { data: platformReview }, { data: existingBid }] = await Promise.all([
         supabase
           .from('reviews')
           .select('id')
@@ -76,9 +77,16 @@ const JobDetails = () => {
           .eq('job_id', id)
           .eq('reviewer_id', user.id)
           .maybeSingle(),
+        supabase
+          .from('bids')
+          .select('id')
+          .eq('job_id', id)
+          .eq('freelancer_id', user.id)
+          .maybeSingle(),
       ]);
       setHasLeftUserReview(!!userReview);
       setHasLeftPlatformReview(!!platformReview);
+      setHasSubmittedBid(!!existingBid);
     } catch (e) {
       console.error('Error checking review flags', e);
     }
@@ -137,6 +145,8 @@ const JobDetails = () => {
       setBidAmount("");
       setProposal("");
       setEstimatedDuration("");
+      setHasSubmittedBid(true);
+      loadJob();
     }
   };
 
@@ -639,8 +649,19 @@ const JobDetails = () => {
               </Card>
             )}
 
-            {/* Non-participant View - Bid Form */}
+            {/* Non-participant View - Bid Form or Already Submitted */}
             {!getUserRole() && user && job.client_id !== user.id && job.status === 'open' && (
+              hasSubmittedBid ? (
+                <Card className="p-6 bg-card/50 backdrop-blur border-primary/20">
+                  <div className="text-center py-8">
+                    <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold mb-2">Proposal Submitted</h2>
+                    <p className="text-muted-foreground">
+                      You've already submitted a proposal for this job. The client will review it and contact you if interested.
+                    </p>
+                  </div>
+                </Card>
+              ) : (
                   <Card className="p-6 bg-card/50 backdrop-blur">
                     <h2 className="text-2xl font-bold mb-4">Submit Your Proposal</h2>
                     
@@ -694,7 +715,8 @@ const JobDetails = () => {
                       </Button>
                     </div>
                   </Card>
-                )}
+              )
+            )}
           </div>
 
           {/* Sidebar */}
