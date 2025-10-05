@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Briefcase, Clock, TrendingUp, Users, MessageSquare, CheckCircle, AlertCircle } from "lucide-react";
 import { JobPostDialog } from "@/components/JobPostDialog";
+import { RecentActivity } from "@/components/RecentActivity";
 import { useJobs } from "@/hooks/useJobs";
 import { useBids } from "@/hooks/useBids";
 import { useAuth } from "@/hooks/useAuth";
@@ -373,29 +374,11 @@ const Dashboard = () => {
               </Card>
             </div>
             
-            {/* Recent Notifications */}
+            {/* Recent Activity */}
             <div className="mt-6">
               <h3 className="text-lg font-semibold mb-3">Recent Activity</h3>
               <Card className="p-4 bg-card/50 backdrop-blur">
-                <div className="space-y-3">
-                  {[
-                    { icon: CheckCircle, text: "Milestone completed", time: "2h ago", color: "text-success", path: "/marketplace" },
-                    { icon: MessageSquare, text: "New message", time: "4h ago", color: "text-primary", path: "/chat" },
-                    { icon: DollarSign, text: "Payment received", time: "1d ago", color: "text-accent", path: "/escrow" },
-                  ].map((item, idx) => (
-                    <div 
-                      key={idx} 
-                      className="flex items-start gap-3 pb-3 border-b last:border-0 cursor-pointer hover:bg-accent/5 -mx-2 px-2 py-1 rounded transition-colors"
-                      onClick={() => window.location.href = item.path}
-                    >
-                      <item.icon className={`h-4 w-4 mt-1 ${item.color}`} />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{item.text}</p>
-                        <p className="text-xs text-muted-foreground">{item.time}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <RecentActivity userId={user?.id} />
               </Card>
             </div>
           </div>

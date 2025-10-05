@@ -36,7 +36,7 @@ export const useDisputes = () => {
       // Fetch job details to include in evidence
       const { data: jobData } = await supabase
         .from('jobs')
-        .select('title, description, ipfs_hash, git_commit_hash, budget_eth')
+        .select('title, description, ipfs_hash, git_commit_hash, budget_eth, client_id, freelancer_id')
         .eq('id', jobId)
         .single();
 
@@ -73,13 +73,39 @@ export const useDisputes = () => {
 
       if (disputeError) throw disputeError;
 
-      // Update job status
-      const { error: jobError } = await supabase
+      // Update job status to disputed
+      const { error: jobUpdateError } = await supabase
         .from('jobs')
         .update({ status: 'disputed' })
         .eq('id', jobId);
 
-      if (jobError) throw jobError;
+      if (jobUpdateError) {
+        console.error('Failed to update job status:', jobUpdateError);
+      }
+
+      // Notify both client and freelancer via Telegram
+      if (jobData?.client_id && jobData?.freelancer_id) {
+        const otherPartyId = user.id === jobData.client_id ? jobData.freelancer_id : jobData.client_id;
+        const { data: raiserProfile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', user.id)
+          .single();
+
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: otherPartyId,
+              message: `⚠️ ${raiserProfile?.display_name || 'The other party'} raised a dispute for job "${jobData.title}". An arbitrator will review.`,
+              sender_id: user.id,
+              url: `${window.location.origin}/jobs/${jobId}`,
+              button_text: 'View Details'
+            }
+          });
+        } catch (notifError) {
+          console.error('Error sending telegram notification:', notifError);
+        }
+      }
 
       toast({
         title: "Dispute Raised",
@@ -283,6 +309,30 @@ export const useDisputes = () => {
               .eq('id', job.freelancer_id);
           }
         }
+      }
+
+      // Notify both client and freelancer via Telegram about resolution
+      try {
+        const [clientNotif, freelancerNotif] = await Promise.all([
+          supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.client_id,
+              message: `✅ Dispute resolved for the job. You received ${clientAmountEth} ETH.`,
+              url: `${window.location.origin}/escrow`,
+              button_text: 'View Escrow'
+            }
+          }),
+          supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.freelancer_id,
+              message: `✅ Dispute resolved for the job. You received ${freelancerAmountEth} ETH.`,
+              url: `${window.location.origin}/escrow`,
+              button_text: 'View Escrow'
+            }
+          })
+        ]);
+      } catch (notifError) {
+        console.error('Error sending resolution notifications:', notifError);
       }
 
       toast({
