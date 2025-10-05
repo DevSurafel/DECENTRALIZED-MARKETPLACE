@@ -61,6 +61,13 @@ const JobDetails = () => {
     }
   }, [id]);
 
+  // Re-fetch review flags when user becomes available
+  useEffect(() => {
+    if (user?.id && id) {
+      fetchReviewFlags();
+    }
+  }, [user?.id, id]);
+
   const fetchReviewFlags = async () => {
     if (!id || !user?.id) return;
     try {

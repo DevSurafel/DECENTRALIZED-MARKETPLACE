@@ -55,13 +55,14 @@ const Escrow = () => {
         const pendingDispute = job.dispute?.find((d: any) => d.status === 'pending');
         const resolvedDispute = job.dispute?.find((d: any) => d.status === 'resolved');
         
-        // Determine status
+        // Determine status - only show disputed in active if there's a pending dispute
         let escrowStatus = job.status === 'in_progress' ? 'funded' : 
                            job.status === 'under_review' ? 'submitted' :
                            job.status === 'completed' ? 'completed' : 
-                           job.status === 'disputed' ? 'disputed' : 'refunded';
+                           job.status === 'cancelled' ? 'refunded' :
+                           job.status === 'refunded' ? 'refunded' : 'completed';
         
-        // Override status to disputed only if there's an actual pending dispute
+        // Only set to disputed if there's an active pending dispute
         if (pendingDispute) {
           escrowStatus = 'disputed';
         }
