@@ -50,21 +50,26 @@ const Escrow = () => {
       if (error) throw error;
 
       // Transform to escrow format
-      const escrowData = (jobs || []).map(job => ({
-        _id: job.id,
-        jobId: job.id,
-        jobTitle: job.title,
-        amount: job.budget_eth,
-        status: job.status === 'in_progress' ? 'funded' : 
-                job.status === 'under_review' ? 'submitted' :
-                job.status === 'disputed' ? 'disputed' :
-                job.status === 'completed' ? 'completed' : 'refunded',
-        transactionHash: job.contract_address || 'N/A',
-        createdAt: job.created_at,
-        submissionDeadline: job.deadline,
-        milestones: job.milestones,
-        dispute: job.dispute?.[0]
-      }));
+      const escrowData = (jobs || []).map(job => {
+        // Only include pending disputes, not resolved ones
+        const pendingDispute = job.dispute?.find((d: any) => d.status === 'pending');
+        
+        return {
+          _id: job.id,
+          jobId: job.id,
+          jobTitle: job.title,
+          amount: job.budget_eth,
+          status: job.status === 'in_progress' ? 'funded' : 
+                  job.status === 'under_review' ? 'submitted' :
+                  job.status === 'disputed' ? 'disputed' :
+                  job.status === 'completed' ? 'completed' : 'refunded',
+          transactionHash: job.contract_address || 'N/A',
+          createdAt: job.created_at,
+          submissionDeadline: job.deadline,
+          milestones: job.milestones,
+          dispute: pendingDispute
+        };
+      });
 
       const active = escrowData.filter(e => 
         ['funded', 'submitted', 'disputed'].includes(e.status)
