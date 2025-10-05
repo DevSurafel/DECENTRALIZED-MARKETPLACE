@@ -22,6 +22,7 @@ export function RecentActivity({ userId }: { userId?: string }) {
     if (userId) {
       fetchRecentActivity();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const fetchRecentActivity = async () => {
@@ -207,3 +208,5 @@ export function RecentActivity({ userId }: { userId?: string }) {
     </div>
   );
 }
+
+export default RecentActivity;
