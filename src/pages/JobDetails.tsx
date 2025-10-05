@@ -197,14 +197,8 @@ const JobDetails = () => {
   const handleSubmitRevision = async (ipfsHash: string, gitHash: string) => {
     if (!id || !job) return;
     
-    // Get fresh job data to ensure correct revision number
-    const freshJob = await getJobById(id);
-    if (!freshJob) return;
-    
-    const nextRevisionNumber = (freshJob.current_revision_number || 0) + 1;
     const success = await submitRevision(
       id,
-      nextRevisionNumber,
       ipfsHash,
       gitHash
     );

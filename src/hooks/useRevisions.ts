@@ -18,7 +18,6 @@ export const useRevisions = () => {
 
   const submitRevision = async (
     jobId: string,
-    revisionNumber: number,
     ipfsHash: string,
     gitCommitHash?: string,
     notes?: string
@@ -35,16 +34,37 @@ export const useRevisions = () => {
         return false;
       }
 
+      // Fetch fresh job data to get current revision number
+      const { data: job, error: fetchError } = await supabase
+        .from('jobs')
+        .select('current_revision_number, freelancer_id')
+        .eq('id', jobId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Verify user is the freelancer
+      if (job.freelancer_id !== user.id) {
+        toast({
+          title: "Access Denied",
+          description: "Only the assigned freelancer can submit revisions",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      const nextRevisionNumber = (job.current_revision_number || 0) + 1;
+
       // Insert revision record
       const { error: revisionError } = await supabase
         .from('job_revisions')
         .insert({
           job_id: jobId,
-          revision_number: revisionNumber,
+          revision_number: nextRevisionNumber,
           ipfs_hash: ipfsHash,
           git_commit_hash: gitCommitHash,
           submitted_by: user.id,
-          notes: notes || `Revision #${revisionNumber}`
+          notes: notes || `Revision #${nextRevisionNumber}`
         });
 
       if (revisionError) throw revisionError;
@@ -54,7 +74,7 @@ export const useRevisions = () => {
         .from('jobs')
         .update({
           status: 'in_progress',
-          current_revision_number: revisionNumber,
+          current_revision_number: nextRevisionNumber,
           ipfs_hash: ipfsHash,
           git_commit_hash: gitCommitHash,
           review_deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days
@@ -65,7 +85,7 @@ export const useRevisions = () => {
 
       toast({
         title: "Revision Submitted",
-        description: `Revision #${revisionNumber} submitted successfully`,
+        description: `Revision #${nextRevisionNumber} submitted successfully`,
       });
 
       return true;
