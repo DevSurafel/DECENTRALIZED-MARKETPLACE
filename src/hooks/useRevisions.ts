@@ -73,7 +73,7 @@ export const useRevisions = () => {
       const { error: jobError } = await supabase
         .from('jobs')
         .update({
-          status: 'in_progress',
+          status: 'under_review',
           current_revision_number: nextRevisionNumber,
           ipfs_hash: ipfsHash,
           git_commit_hash: gitCommitHash,
