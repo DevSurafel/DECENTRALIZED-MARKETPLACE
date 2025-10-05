@@ -71,6 +71,36 @@ export function RatingDialog({ jobId, revieweeId, revieweeName, trigger, onSucce
           .eq('id', revieweeId);
       }
 
+      // Notify the reviewee via Telegram about the review
+      try {
+        const { data: reviewerProfile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', user.id)
+          .single();
+
+        const { data: jobData } = await supabase
+          .from('jobs')
+          .select('title')
+          .eq('id', jobId)
+          .single();
+
+        const stars = '⭐'.repeat(rating);
+        const reviewText = comment.trim() ? `\n\n"${comment.trim()}"` : '';
+
+        await supabase.functions.invoke('send-telegram-notification', {
+          body: {
+            recipient_id: revieweeId,
+            message: `⭐ ${reviewerProfile?.display_name || 'A user'} left you a review for "${jobData?.title}":\n\n${stars} (${rating}/5)${reviewText}`,
+            sender_id: user.id,
+            url: `${window.location.origin}/profile/${revieweeId}`,
+            button_text: 'View Profile'
+          }
+        });
+      } catch (notifError) {
+        console.error('Error sending review notification:', notifError);
+      }
+
       toast({
         title: "Review Submitted",
         description: "Thank you for your feedback!",

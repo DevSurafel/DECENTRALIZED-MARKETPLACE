@@ -83,6 +83,35 @@ export const useRevisions = () => {
 
       if (jobError) throw jobError;
 
+      // Notify client via Telegram
+      try {
+        const { data: jobData } = await supabase
+          .from('jobs')
+          .select('client_id, title, freelancer_id')
+          .eq('id', jobId)
+          .single();
+
+        if (jobData?.client_id) {
+          const { data: freelancerProfile } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', user.id)
+            .single();
+
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: jobData.client_id,
+              message: `📝 ${freelancerProfile?.display_name || 'The freelancer'} submitted Revision #${nextRevisionNumber} for "${jobData.title}". Review now.`,
+              sender_id: user.id,
+              url: `${window.location.origin}/jobs/${jobId}`,
+              button_text: 'View Revision'
+            }
+          });
+        }
+      } catch (notifError) {
+        console.error('Error sending notification:', notifError);
+      }
+
       toast({
         title: "Revision Submitted",
         description: `Revision #${nextRevisionNumber} submitted successfully`,

@@ -345,16 +345,32 @@ const JobDetails = () => {
         console.error('Error updating profile:', profileError);
       }
 
-      // Notify freelancer via Telegram
+      // Notify both parties via Telegram
       if (job.freelancer_id) {
         try {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.freelancer_id,
-              message: `🎉 You received ${job.budget_eth} ETH for "${job.title}". Congrats!`,
+              message: `🎉 Payment released! You received ${job.budget_eth} ETH for "${job.title}". Congrats!`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
-              button_text: 'View Details'
+              button_text: 'View Job'
+            }
+          });
+        } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+        }
+      }
+
+      if (job.client_id) {
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.client_id,
+              message: `✅ Job "${job.title}" completed! ${job.budget_eth} ETH released to freelancer.`,
+              sender_id: user?.id,
+              url: `${window.location.origin}/jobs/${id}`,
+              button_text: 'View Job'
             }
           });
         } catch (notifError) {

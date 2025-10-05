@@ -56,8 +56,8 @@ const Escrow = () => {
         const resolvedDispute = job.dispute?.find((d: any) => d.status === 'resolved');
         
         // Determine status - only show disputed in active if there's a pending dispute
-        let escrowStatus = job.status === 'in_progress' ? 'funded' : 
-                           job.status === 'under_review' ? 'submitted' :
+        let escrowStatus = job.status === 'in_progress' ? 'locked' : 
+                           job.status === 'under_review' ? 'locked' :
                            job.status === 'completed' ? 'completed' : 
                            job.status === 'cancelled' ? 'refunded' :
                            job.status === 'refunded' ? 'refunded' : 'completed';
@@ -83,7 +83,7 @@ const Escrow = () => {
       });
 
       const active = escrowData.filter(e => 
-        ['funded', 'submitted', 'disputed'].includes(e.status)
+        ['locked', 'disputed'].includes(e.status)
       );
       const history = escrowData.filter(e => 
         ['completed', 'refunded'].includes(e.status)
@@ -116,21 +116,20 @@ const Escrow = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { color: string; icon: any }> = {
-      funded: { color: "bg-blue-500/10 text-blue-500", icon: Lock },
-      submitted: { color: "bg-yellow-500/10 text-yellow-500", icon: Clock },
-      disputed: { color: "bg-red-500/10 text-red-500", icon: AlertTriangle },
-      completed: { color: "bg-green-500/10 text-green-500", icon: CheckCircle2 },
-      refunded: { color: "bg-gray-500/10 text-gray-500", icon: XCircle }
+    const variants: Record<string, { color: string; icon: any; label: string }> = {
+      locked: { color: "bg-blue-500/10 text-blue-500 border-blue-500/20", icon: Lock, label: "FUNDED & LOCKED" },
+      disputed: { color: "bg-red-500/10 text-red-500 border-red-500/20", icon: AlertTriangle, label: "DISPUTED" },
+      completed: { color: "bg-green-500/10 text-green-500 border-green-500/20", icon: CheckCircle2, label: "COMPLETED" },
+      refunded: { color: "bg-gray-500/10 text-gray-500 border-gray-500/20", icon: XCircle, label: "REFUNDED" }
     };
 
-    const variant = variants[status] || variants.funded;
+    const variant = variants[status] || variants.locked;
     const Icon = variant.icon;
 
     return (
       <Badge className={variant.color}>
         <Icon className="h-3 w-3 mr-1" />
-        {status.toUpperCase()}
+        {variant.label}
       </Badge>
     );
   };
@@ -176,25 +175,15 @@ const Escrow = () => {
         </div>
       )}
 
-      {showActions && escrow.status === 'submitted' && (
-        <div className="flex gap-3">
-          <Button 
-            onClick={() => handleApprove(escrow.jobId)}
-            disabled={loading}
-            className="flex-1"
-          >
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Approve & Release Payment
-          </Button>
-          <Button 
-            onClick={() => handleDispute(escrow.jobId)}
-            disabled={loading}
-            variant="destructive"
-            className="flex-1"
-          >
-            <AlertTriangle className="h-4 w-4 mr-2" />
-            Raise Dispute
-          </Button>
+      {escrow.status === 'locked' && (
+        <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          <div className="flex items-center gap-2 text-blue-500">
+            <Lock className="h-5 w-5" />
+            <span className="font-semibold">Funds Securely Locked</span>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            Payment is held in escrow until work is completed and approved by both parties.
+          </p>
         </div>
       )}
 
