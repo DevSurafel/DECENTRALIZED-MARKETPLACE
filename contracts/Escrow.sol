@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
@@ -100,7 +100,7 @@ contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
         _;
     }
     
-    constructor(address _platformWallet) {
+    constructor(address _platformWallet) Ownable(msg.sender) {
         require(_platformWallet != address(0), "Invalid platform wallet");
         platformWallet = _platformWallet;
         arbitrators[msg.sender] = true;
