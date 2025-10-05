@@ -94,10 +94,24 @@ const Dashboard = () => {
       const completed = jobs.filter((j: any) => j.status === 'completed');
       const pending = bids.filter((b: any) => b.status === 'pending');
       
+      // Fetch user's total earnings from profile
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      let totalEarnings = 0;
+      
+      if (currentUser) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('total_earnings')
+          .eq('id', currentUser.id)
+          .single();
+        
+        totalEarnings = profile?.total_earnings || 0;
+      }
+      
       setActiveJobs(active.slice(0, 3));
       setStats({
         activeJobs: active.length,
-        totalEarnings: completed.reduce((sum: number, j: any) => sum + parseFloat(j.budget_eth || 0), 0),
+        totalEarnings: totalEarnings,
         pendingBids: pending.length,
         completedJobs: completed.length
       });
@@ -141,7 +155,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Total Earnings</p>
                 <h3 className="text-3xl font-bold mt-1 bg-gradient-to-br from-accent to-primary bg-clip-text text-transparent">
-                  ${stats.totalEarnings}
+                  {stats.totalEarnings.toFixed(4)} ETH
                 </h3>
                 <p className="text-xs text-success mt-1">+15% from last month</p>
               </div>

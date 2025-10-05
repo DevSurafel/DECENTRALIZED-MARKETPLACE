@@ -45,7 +45,7 @@ const Escrow = () => {
           dispute:disputes!disputes_job_id_fkey(*)
         `)
         .or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`)
-        .in('status', ['in_progress', 'under_review', 'completed', 'disputed', 'cancelled', 'refunded']);
+        .in('status', ['in_progress', 'under_review', 'completed', 'cancelled', 'refunded']);
 
       if (error) throw error;
 
@@ -54,15 +54,22 @@ const Escrow = () => {
         // Only include pending disputes, not resolved ones
         const pendingDispute = job.dispute?.find((d: any) => d.status === 'pending');
         
+        // Determine status - if there's a pending dispute, show as disputed, otherwise use job status
+        let escrowStatus = job.status === 'in_progress' ? 'funded' : 
+                           job.status === 'under_review' ? 'submitted' :
+                           job.status === 'completed' ? 'completed' : 'refunded';
+        
+        // Override status to disputed only if there's an actual pending dispute
+        if (pendingDispute) {
+          escrowStatus = 'disputed';
+        }
+        
         return {
           _id: job.id,
           jobId: job.id,
           jobTitle: job.title,
           amount: job.budget_eth,
-          status: job.status === 'in_progress' ? 'funded' : 
-                  job.status === 'under_review' ? 'submitted' :
-                  job.status === 'disputed' ? 'disputed' :
-                  job.status === 'completed' ? 'completed' : 'refunded',
+          status: escrowStatus,
           transactionHash: job.contract_address || 'N/A',
           createdAt: job.created_at,
           submissionDeadline: job.deadline,
