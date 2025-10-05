@@ -154,15 +154,15 @@ const AdminAuth = () => {
           >
             Back to Home
           </Button>
-          {user && (
-            <div className="text-sm text-muted-foreground">
-              Signed in as {user.email}. Not an admin?{" "}
-              <Button variant="link" className="px-1" onClick={() => supabase.auth.signOut()}>
-                Sign out
-              </Button>
-              and log in with an admin account.
-            </div>
-          )}
+            {user && !loading && (
+              <div className="text-sm text-muted-foreground">
+                Signed in as {user.email}. Not an admin?{" "}
+                <Button variant="link" className="px-1" onClick={() => supabase.auth.signOut()}>
+                  Sign out
+                </Button>
+                and log in with an admin account.
+              </div>
+            )}
         </div>
       </Card>
     </div>

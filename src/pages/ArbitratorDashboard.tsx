@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 
 export default function ArbitratorDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { getPendingDisputes, resolveDispute, loading } = useDisputes();
   const [disputes, setDisputes] = useState<any[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
@@ -30,8 +30,9 @@ export default function ArbitratorDashboard() {
   const [checkingAccess, setCheckingAccess] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
     checkAdminAccess();
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (hasAdminAccess) {
@@ -40,6 +41,7 @@ export default function ArbitratorDashboard() {
   }, [hasAdminAccess]);
 
   const checkAdminAccess = async () => {
+    if (authLoading) return;
     if (!user) {
       setCheckingAccess(false);
       navigate('/admin');
