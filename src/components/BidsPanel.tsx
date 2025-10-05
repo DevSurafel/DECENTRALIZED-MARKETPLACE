@@ -216,7 +216,7 @@ export function BidsPanel({ jobId, onBidAccepted }: BidsPanelProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Accept This Proposal?</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to accept {selectedBid?.freelancer?.display_name || 'this freelancer'}'s proposal for {selectedBid?.bid_amount_eth} ETH.
+              You are about to accept {selectedBid?.freelancer?.display_name || 'this freelancer'}'s proposal for {selectedBid?.bid_amount_usdc || (selectedBid?.bid_amount_eth * 2000).toFixed(2)} USDC.
               <br /><br />
               <strong>Next Steps:</strong>
               <ul className="list-disc list-inside mt-2 space-y-1">

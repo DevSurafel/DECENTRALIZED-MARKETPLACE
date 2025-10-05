@@ -210,6 +210,7 @@ export const useEscrow = () => {
         .from('jobs')
         .update({ 
           contract_address: receipt.hash,
+          escrow_address: ESCROW_CONTRACT_ADDRESS,
           status: 'in_progress'
         })
         .eq('id', jobId);

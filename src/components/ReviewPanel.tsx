@@ -157,7 +157,7 @@ export function ReviewPanel({ job, onApprove, onRequestRevision, onRaiseDispute 
           <AlertDialogHeader>
             <AlertDialogTitle>Approve and Release Payment?</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to approve this work and release <strong>{job.budget_eth} ETH</strong> to the freelancer.
+              You are about to approve this work and release <strong>{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</strong> to the freelancer.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -175,8 +175,8 @@ export function ReviewPanel({ job, onApprove, onRequestRevision, onRaiseDispute 
           <AlertDialogHeader>
             <AlertDialogTitle>Raise a Dispute?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will escalate the issue to an arbitrator. You'll need to deposit{" "}
-              <strong>{((job.budget_eth || 0) * (job.arbitration_deposit_percentage || 2) / 100).toFixed(4)} ETH</strong>{" "}
+              This will escalate the issue to an arbitrator. You'll need to deposit 
+              <strong>{(((job.budget_usdc || (job.budget_eth * 2000)) || 0) * (job.arbitration_deposit_percentage || 2) / 100).toFixed(2)} USDC</strong> 
               as arbitration fee.
               <br /><br />
               Only raise a dispute if you cannot resolve the issue with the freelancer directly.

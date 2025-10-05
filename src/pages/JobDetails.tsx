@@ -37,11 +37,12 @@ import {
   AlertCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
+import { useEscrow } from "@/hooks/useEscrow";
 const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { fundJob, approveJob } = useEscrow();
   const [job, setJob] = useState<any>(null);
   const [bidAmount, setBidAmount] = useState("");
   const [proposal, setProposal] = useState("");
@@ -214,32 +215,34 @@ const JobDetails = () => {
 
   const handleFundEscrow = async () => {
     if (!id || !job) return;
-    
-    // In a real implementation, this would interact with the smart contract
-    toast({
-      title: "Fund Escrow",
-      description: "In production, this will open your wallet to fund the escrow contract. For now, we'll simulate this.",
-    });
 
-    // Simulate escrow funding
-    try {
-      const { error } = await supabase
-        .from('jobs')
-        .update({
-          status: 'in_progress',
-          escrow_address: '0x' + Math.random().toString(16).substring(2, 42),
-        })
-        .eq('id', id);
+    const amountUSDC = String(job.budget_usdc || Number((job.budget_eth || 0) * 2000).toFixed(2));
+    const freelancerAddress = job.freelancer?.wallet_address;
+    if (!freelancerAddress) {
+      toast({
+        title: "Missing Wallet Address",
+        description: "The freelancer does not have a wallet address on file.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-      if (error) throw error;
+    const result = await fundJob(
+      id,
+      freelancerAddress,
+      amountUSDC,
+      job.requires_freelancer_stake || false,
+      job.allowed_revisions || 3
+    );
 
+    if (result.success) {
       // Notify freelancer via Telegram
       if (job.freelancer_id) {
         try {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.freelancer_id,
-              message: `🔒 Job "${job.title}" funded with ${job.budget_eth} ETH. You can start work!`,
+              message: `🔒 Job "${job.title}" funded with ${amountUSDC} USDC. You can start work!`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Details'
@@ -249,20 +252,7 @@ const JobDetails = () => {
           console.error('Error sending notification:', notifError);
         }
       }
-
-      toast({
-        title: "Escrow Funded",
-        description: "The escrow has been funded. The freelancer can now start working.",
-      });
-      
-      loadJob();
-    } catch (error) {
-      console.error('Error funding escrow:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fund escrow",
-        variant: "destructive"
-      });
+      await loadJob();
     }
   };
 
@@ -324,6 +314,9 @@ const JobDetails = () => {
   const handleApproveWork = async () => {
     if (!id || !job) return;
     
+    const result = await approveJob(id);
+    if (!result.success) return;
+    
     try {
       const { error: jobError } = await supabase
         .from('jobs')
@@ -339,7 +332,7 @@ const JobDetails = () => {
       try {
         await supabase.rpc('increment_completed_jobs', {
           freelancer_id: job.freelancer_id,
-          amount: job.budget_eth,
+          amount: job.budget_usdc || Number((job.budget_eth || 0) * 2000),
         } as any);
       } catch (profileError) {
         console.error('Error updating profile:', profileError);
@@ -351,7 +344,7 @@ const JobDetails = () => {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.freelancer_id,
-              message: `🎉 Payment released! You received ${job.budget_eth} ETH for "${job.title}". Congrats!`,
+              message: `🎉 Payment released! You received ${(job.budget_usdc || Number((job.budget_eth || 0) * 2000)).toString()} USDC for "${job.title}". Congrats!`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Job'
@@ -367,7 +360,7 @@ const JobDetails = () => {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.client_id,
-              message: `✅ Job "${job.title}" completed! ${job.budget_eth} ETH released to freelancer.`,
+              message: `✅ Job "${job.title}" completed! ${(job.budget_usdc || Number((job.budget_eth || 0) * 2000)).toString()} USDC released to freelancer.`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Job'
@@ -527,7 +520,7 @@ const JobDetails = () => {
                 <div className="mb-6 p-4 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">Escrow Amount</span>
-                    <span className="text-lg font-bold">{job.budget_eth} ETH</span>
+                    <span className="text-lg font-bold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Funds will be held in escrow until work is approved
@@ -650,7 +643,7 @@ const JobDetails = () => {
                   <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
                   <h2 className="text-2xl font-bold mb-2">Payment Received!</h2>
                   <p className="text-muted-foreground mb-4">
-                    You've received {job.budget_eth} ETH
+                    You've received {job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Please leave your reviews below
@@ -704,14 +697,14 @@ const JobDetails = () => {
                     <div className="space-y-4">
                       <div>
                         <label className="text-sm font-medium mb-2 block">
-                          Your Bid Amount (ETH)
+                          Your Bid Amount (USDC)
                         </label>
                         <Input
                           type="number"
-                          placeholder="e.g., 4.5"
+                          placeholder="e.g., 250.00"
                           value={bidAmount}
                           onChange={(e) => setBidAmount(e.target.value)}
-                          step="0.1"
+                          step="0.01"
                         />
                       </div>
 

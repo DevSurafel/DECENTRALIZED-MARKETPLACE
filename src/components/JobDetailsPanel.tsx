@@ -75,7 +75,7 @@ export function JobDetailsPanel({ job, onRequestRevision, onSubmitRevision, onRa
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Budget</p>
-              <p className="text-lg font-semibold">{job.budget_eth} ETH</p>
+              <p className="text-lg font-semibold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Revisions</p>
@@ -91,10 +91,10 @@ export function JobDetailsPanel({ job, onRequestRevision, onSubmitRevision, onRa
                 </p>
               </div>
             )}
-            {job.freelancer_stake_eth > 0 && (
+            {job.freelancer_stake_usdc > 0 && (
               <div>
                 <p className="text-sm text-muted-foreground">Freelancer Stake</p>
-                <p className="text-lg font-semibold">{job.freelancer_stake_eth} ETH</p>
+                <p className="text-lg font-semibold">{job.freelancer_stake_usdc} USDC</p>
               </div>
             )}
           </div>
