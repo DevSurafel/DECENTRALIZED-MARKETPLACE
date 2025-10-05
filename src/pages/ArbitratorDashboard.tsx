@@ -13,7 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Gavel, FileText, ExternalLink, Clock } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function ArbitratorDashboard() {
   const navigate = useNavigate();
@@ -28,6 +29,8 @@ export default function ArbitratorDashboard() {
   const [slashStake, setSlashStake] = useState(false);
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
+  const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
+  const [selectedEvidence, setSelectedEvidence] = useState<any>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -193,7 +196,15 @@ export default function ArbitratorDashboard() {
                       </div>
                       <div className="p-4 border rounded-lg bg-muted/50">
                         <p className="text-sm font-medium mb-2">Evidence Bundle</p>
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => {
+                            setSelectedEvidence(dispute.evidence_bundle);
+                            setEvidenceDialogOpen(true);
+                          }}
+                        >
                           <FileText className="h-4 w-4 mr-2" />
                           View Evidence
                         </Button>
@@ -294,6 +305,60 @@ export default function ArbitratorDashboard() {
             ))
           )}
         </div>
+
+        {/* Evidence Dialog */}
+        <Dialog open={evidenceDialogOpen} onOpenChange={setEvidenceDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>Evidence Bundle</DialogTitle>
+              <DialogDescription>
+                Review all submitted evidence for this dispute
+              </DialogDescription>
+            </DialogHeader>
+            
+            <ScrollArea className="h-[60vh] pr-4">
+              {selectedEvidence ? (
+                <div className="space-y-4">
+                  {Object.entries(selectedEvidence).map(([key, value]: [string, any]) => (
+                    <div key={key} className="p-4 border rounded-lg">
+                      <h3 className="font-semibold mb-2 capitalize">{key.replace(/_/g, ' ')}</h3>
+                      {typeof value === 'string' ? (
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{value}</p>
+                      ) : Array.isArray(value) ? (
+                        <div className="space-y-2">
+                          {value.map((item, index) => (
+                            <div key={index} className="p-2 bg-muted rounded">
+                              {typeof item === 'string' ? (
+                                <p className="text-sm">{item}</p>
+                              ) : (
+                                <pre className="text-xs overflow-auto">{JSON.stringify(item, null, 2)}</pre>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <pre className="text-xs bg-muted p-2 rounded overflow-auto">
+                          {JSON.stringify(value, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No evidence submitted yet</p>
+                </div>
+              )}
+            </ScrollArea>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEvidenceDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
