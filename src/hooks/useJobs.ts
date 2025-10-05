@@ -8,7 +8,7 @@ export const useJobs = () => {
   const createJob = async (jobData: {
     title: string;
     description: string;
-    budget_eth: number;
+    budget_usdc: number;
     skills_required: string[];
     duration_weeks?: number;
   }) => {
@@ -27,7 +27,12 @@ export const useJobs = () => {
       const { data, error } = await supabase
         .from('jobs')
         .insert([{
-          ...jobData,
+          title: jobData.title,
+          description: jobData.description,
+          budget_usdc: jobData.budget_usdc,
+          budget_eth: jobData.budget_usdc / 2000, // Convert for backward compatibility
+          skills_required: jobData.skills_required,
+          duration_weeks: jobData.duration_weeks,
           client_id: user.id,
           status: 'open'
         }])

@@ -156,7 +156,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Total Earnings</p>
                 <h3 className="text-3xl font-bold mt-1 bg-gradient-to-br from-accent to-primary bg-clip-text text-transparent">
-                  {stats.totalEarnings.toFixed(4)} ETH
+                  {(stats.totalEarnings * 2000).toFixed(2)} USDC
                 </h3>
                 <p className="text-xs text-success mt-1">+15% from last month</p>
               </div>
@@ -231,7 +231,7 @@ const Dashboard = () => {
                       <div className="flex flex-wrap gap-4 text-sm">
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <DollarSign className="h-4 w-4" />
-                          {job.budget_eth} ETH
+                          {job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC
                         </span>
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <Clock className="h-4 w-4" />

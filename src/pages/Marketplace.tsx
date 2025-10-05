@@ -257,7 +257,7 @@ const Marketplace = () => {
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground">Budget</div>
-                        <div className="font-semibold text-success">{job.budget_eth} ETH</div>
+                        <div className="font-semibold text-success">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

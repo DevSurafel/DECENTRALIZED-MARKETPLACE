@@ -156,7 +156,7 @@ const JobDetails = () => {
 
     const result = await createBid({
       job_id: id,
-      bid_amount_eth: parseFloat(bidAmount),
+      bid_amount_usdc: parseFloat(bidAmount),
       estimated_duration_weeks: parseInt(estimatedDuration),
       proposal_text: proposal
     });
@@ -470,7 +470,7 @@ const JobDetails = () => {
                   <DollarSign className="h-5 w-5 text-primary" />
                   <div>
                     <p className="text-sm text-muted-foreground">Budget</p>
-                    <p className="font-semibold">{job.budget_eth} ETH</p>
+                    <p className="font-semibold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

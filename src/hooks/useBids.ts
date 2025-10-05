@@ -7,7 +7,7 @@ export const useBids = () => {
 
   const createBid = async (bidData: {
     job_id: string;
-    bid_amount_eth: number;
+    bid_amount_usdc: number;
     estimated_duration_weeks: number;
     proposal_text: string;
   }) => {
@@ -26,7 +26,11 @@ export const useBids = () => {
       const { data, error } = await supabase
         .from('bids')
         .insert([{
-          ...bidData,
+          job_id: bidData.job_id,
+          bid_amount_usdc: bidData.bid_amount_usdc,
+          bid_amount_eth: bidData.bid_amount_usdc / 2000, // Convert for backward compatibility
+          estimated_duration_weeks: bidData.estimated_duration_weeks,
+          proposal_text: bidData.proposal_text,
           freelancer_id: user.id,
           status: 'pending'
         }])
@@ -114,7 +118,7 @@ export const useBids = () => {
         .from('bids')
         .select(`
           *,
-          job:jobs(title, budget_eth, status)
+          job:jobs(title, budget_usdc, budget_eth, status)
         `)
         .eq('freelancer_id', user.id)
         .order('created_at', { ascending: false });

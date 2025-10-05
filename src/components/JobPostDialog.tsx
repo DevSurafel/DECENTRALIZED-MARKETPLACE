@@ -40,7 +40,7 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
     const result = await createJob({
       title,
       description,
-      budget_eth: parseFloat(budget),
+      budget_usdc: parseFloat(budget),
       skills_required: skills,
       duration_weeks: duration ? parseInt(duration) : undefined
     });
@@ -96,14 +96,14 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="budget">Budget (ETH)</Label>
+              <Label htmlFor="budget">Budget (USDC)</Label>
               <Input
                 id="budget"
                 type="number"
                 step="0.01"
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
-                placeholder="1.5"
+                placeholder="1000"
                 required
               />
             </div>

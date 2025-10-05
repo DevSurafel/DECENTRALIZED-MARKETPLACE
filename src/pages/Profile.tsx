@@ -443,13 +443,13 @@ const Profile = () => {
                           />
                         </div>
                         <div>
-                          <Label>Hourly Rate (ETH)</Label>
+                          <Label>Hourly Rate (USDC)</Label>
                           <Input 
                             type="number"
                             step="0.01"
                             value={editForm.hourly_rate}
                             onChange={(e) => setEditForm({...editForm, hourly_rate: e.target.value})}
-                            placeholder="0.05"
+                            placeholder="50"
                           />
                         </div>
                         <div>

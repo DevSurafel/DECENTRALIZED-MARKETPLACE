@@ -175,7 +175,7 @@ export function BidsPanel({ jobId, onBidAccepted }: BidsPanelProps) {
               <div className="flex gap-6 text-sm">
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-success" />
-                  <span><strong>{bid.bid_amount_eth} ETH</strong></span>
+                  <span><strong>{bid.bid_amount_usdc || (bid.bid_amount_eth * 2000).toFixed(2)} USDC</strong></span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-primary" />

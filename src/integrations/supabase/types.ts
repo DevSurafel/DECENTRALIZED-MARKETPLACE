@@ -17,6 +17,7 @@ export type Database = {
       bids: {
         Row: {
           bid_amount_eth: number
+          bid_amount_usdc: number
           created_at: string | null
           estimated_duration_weeks: number | null
           freelancer_id: string
@@ -29,6 +30,7 @@ export type Database = {
         }
         Insert: {
           bid_amount_eth: number
+          bid_amount_usdc?: number
           created_at?: string | null
           estimated_duration_weeks?: number | null
           freelancer_id: string
@@ -41,6 +43,7 @@ export type Database = {
         }
         Update: {
           bid_amount_eth?: number
+          bid_amount_usdc?: number
           created_at?: string | null
           estimated_duration_weeks?: number | null
           freelancer_id?: string
@@ -120,9 +123,12 @@ export type Database = {
       disputes: {
         Row: {
           arbitration_deposit_eth: number
+          arbitration_deposit_usdc: number | null
           client_amount_eth: number | null
+          client_amount_usdc: number | null
           evidence_bundle: Json | null
           freelancer_amount_eth: number | null
+          freelancer_amount_usdc: number | null
           id: string
           job_id: string
           raised_at: string | null
@@ -134,9 +140,12 @@ export type Database = {
         }
         Insert: {
           arbitration_deposit_eth: number
+          arbitration_deposit_usdc?: number | null
           client_amount_eth?: number | null
+          client_amount_usdc?: number | null
           evidence_bundle?: Json | null
           freelancer_amount_eth?: number | null
+          freelancer_amount_usdc?: number | null
           id?: string
           job_id: string
           raised_at?: string | null
@@ -148,9 +157,12 @@ export type Database = {
         }
         Update: {
           arbitration_deposit_eth?: number
+          arbitration_deposit_usdc?: number | null
           client_amount_eth?: number | null
+          client_amount_usdc?: number | null
           evidence_bundle?: Json | null
           freelancer_amount_eth?: number | null
+          freelancer_amount_usdc?: number | null
           id?: string
           job_id?: string
           raised_at?: string | null
@@ -173,6 +185,7 @@ export type Database = {
       job_milestones: {
         Row: {
           amount_eth: number
+          amount_usdc: number | null
           completed_at: string | null
           created_at: string | null
           description: string | null
@@ -187,6 +200,7 @@ export type Database = {
         }
         Insert: {
           amount_eth: number
+          amount_usdc?: number | null
           completed_at?: string | null
           created_at?: string | null
           description?: string | null
@@ -201,6 +215,7 @@ export type Database = {
         }
         Update: {
           amount_eth?: number
+          amount_usdc?: number | null
           completed_at?: string | null
           created_at?: string | null
           description?: string | null
@@ -272,6 +287,7 @@ export type Database = {
           auto_release_enabled: boolean | null
           budget_eth: number
           budget_usd: number | null
+          budget_usdc: number
           client_id: string
           completed_at: string | null
           contract_address: string | null
@@ -284,6 +300,7 @@ export type Database = {
           escrow_address: string | null
           freelancer_id: string | null
           freelancer_stake_eth: number | null
+          freelancer_stake_usdc: number | null
           git_commit_hash: string | null
           id: string
           ipfs_hash: string | null
@@ -303,6 +320,7 @@ export type Database = {
           auto_release_enabled?: boolean | null
           budget_eth: number
           budget_usd?: number | null
+          budget_usdc?: number
           client_id: string
           completed_at?: string | null
           contract_address?: string | null
@@ -315,6 +333,7 @@ export type Database = {
           escrow_address?: string | null
           freelancer_id?: string | null
           freelancer_stake_eth?: number | null
+          freelancer_stake_usdc?: number | null
           git_commit_hash?: string | null
           id?: string
           ipfs_hash?: string | null
@@ -334,6 +353,7 @@ export type Database = {
           auto_release_enabled?: boolean | null
           budget_eth?: number
           budget_usd?: number | null
+          budget_usdc?: number
           client_id?: string
           completed_at?: string | null
           contract_address?: string | null
@@ -346,6 +366,7 @@ export type Database = {
           escrow_address?: string | null
           freelancer_id?: string | null
           freelancer_stake_eth?: number | null
+          freelancer_stake_usdc?: number | null
           git_commit_hash?: string | null
           id?: string
           ipfs_hash?: string | null
@@ -486,6 +507,7 @@ export type Database = {
           telegram_chat_id: string | null
           telegram_username: string | null
           total_earnings: number | null
+          total_earnings_usdc: number | null
           updated_at: string | null
           user_type: Database["public"]["Enums"]["user_type"] | null
           wallet_address: string
@@ -513,6 +535,7 @@ export type Database = {
           telegram_chat_id?: string | null
           telegram_username?: string | null
           total_earnings?: number | null
+          total_earnings_usdc?: number | null
           updated_at?: string | null
           user_type?: Database["public"]["Enums"]["user_type"] | null
           wallet_address: string
@@ -540,6 +563,7 @@ export type Database = {
           telegram_chat_id?: string | null
           telegram_username?: string | null
           total_earnings?: number | null
+          total_earnings_usdc?: number | null
           updated_at?: string | null
           user_type?: Database["public"]["Enums"]["user_type"] | null
           wallet_address?: string
