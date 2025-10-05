@@ -5,11 +5,36 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
+const truncateAddress = (address: string) => {
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
+
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string>('');
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      fetchWalletAddress();
+    }
+  }, [user]);
+
+  const fetchWalletAddress = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('wallet_address')
+      .eq('id', user.id)
+      .single();
+    
+    if (data?.wallet_address) {
+      setWalletAddress(data.wallet_address);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -96,9 +121,12 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
-                <span className="text-sm text-muted-foreground">
-                  {user.email}
-                </span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-mono font-medium">
+                    {truncateAddress(walletAddress)}
+                  </span>
+                </div>
                 <Button 
                   onClick={signOut}
                   variant="outline"
