@@ -19,9 +19,12 @@ const AdminAuth = () => {
   useEffect(() => {
     // Check if user is already logged in and has admin role
     if (user && !loading) {
-      checkAdminRole();
+      const timer = setTimeout(() => {
+        checkAdminRole();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [user, loading]);
+  }, [user]);
 
   const checkAdminRole = async () => {
     try {
@@ -49,9 +52,6 @@ const AdminAuth = () => {
     setLoading(true);
 
     try {
-      // Ensure we start from a clean session so the admin can switch accounts
-      await supabase.auth.signOut();
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -74,6 +74,7 @@ const AdminAuth = () => {
           description: "You don't have admin privileges",
           variant: "destructive"
         });
+        setLoading(false);
         return;
       }
 
@@ -89,7 +90,6 @@ const AdminAuth = () => {
         description: error.message,
         variant: "destructive"
       });
-    } finally {
       setLoading(false);
     }
   };
