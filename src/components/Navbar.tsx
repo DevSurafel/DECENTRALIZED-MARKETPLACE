@@ -4,6 +4,7 @@ import { Wallet, Menu, X, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const truncateAddress = (address: string) => {
   if (!address) return '';
@@ -85,20 +86,28 @@ const Navbar = () => {
 
   const connectWallet = async () => {
     if (!window.ethereum) {
-      alert('Please install MetaMask to connect your wallet');
+      toast.error('Please install MetaMask to connect your wallet');
       return;
     }
 
     try {
-      // Request accounts - this will open MetaMask
+      // Clear the disconnected flag first
+      localStorage.removeItem('wallet_disconnected');
+      
+      // Request accounts - this connects to the currently selected account in MetaMask
       const accounts = await window.ethereum.request({ 
         method: 'eth_requestAccounts' 
       });
-      setConnectedWallet(accounts[0]);
-      // Clear the disconnected flag
-      localStorage.removeItem('wallet_disconnected');
+      
+      if (accounts.length > 0) {
+        setConnectedWallet(accounts[0]);
+        toast.success('Wallet connected successfully', {
+          description: 'To switch accounts, change the account in MetaMask extension and it will update automatically'
+        });
+      }
     } catch (error) {
       console.error('Failed to connect wallet:', error);
+      toast.error('Failed to connect wallet');
     }
   };
 
@@ -106,6 +115,7 @@ const Navbar = () => {
     setConnectedWallet('');
     // Set a flag to remember user disconnected
     localStorage.setItem('wallet_disconnected', 'true');
+    toast.success('Wallet disconnected');
   };
 
   // Check if wallet is already connected on mount
@@ -125,16 +135,19 @@ const Navbar = () => {
 
       // Listen for account changes
       const handleAccountsChanged = (accounts: string[]) => {
-        // Only auto-connect if user hasn't explicitly disconnected
         const wasDisconnected = localStorage.getItem('wallet_disconnected');
-        if (!wasDisconnected) {
-          if (accounts.length > 0) {
-            setConnectedWallet(accounts[0]);
-          } else {
-            setConnectedWallet('');
+        
+        if (accounts.length > 0) {
+          // Always update if there's a new account, even if previously disconnected
+          // This allows users to switch accounts in MetaMask
+          setConnectedWallet(accounts[0]);
+          if (wasDisconnected) {
+            localStorage.removeItem('wallet_disconnected');
+            toast.info('Account switched in MetaMask', {
+              description: `Connected to ${accounts[0].substring(0, 6)}...${accounts[0].substring(38)}`
+            });
           }
-        } else if (accounts.length === 0) {
-          // If no accounts available, clear the state
+        } else {
           setConnectedWallet('');
         }
       };
