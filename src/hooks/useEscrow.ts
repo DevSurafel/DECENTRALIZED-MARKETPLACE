@@ -3,8 +3,9 @@ import { ethers } from 'ethers';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-// Polygon Amoy Testnet USDC address (Official Circle USDC)
-const USDC_CONTRACT_ADDRESS = '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582'; // Polygon Amoy Testnet
+// Polygon Amoy Testnet USDC address (PoS Bridge Test Token - no blacklist)
+const USDC_CONTRACT_ADDRESS = '0x9999f7Fea5938fD3b1E26A12c3f2fb024e194f97'; // Polygon Amoy Testnet
+// This is a permissive test token without blacklist functionality
 // For Polygon Mainnet use: 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
 
 // Your deployed escrow contract address - MUST BE SET
