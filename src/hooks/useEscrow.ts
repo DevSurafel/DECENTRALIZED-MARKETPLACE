@@ -3,26 +3,24 @@ import { ethers } from 'ethers';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-// Polygon Mumbai Testnet USDC address
-const USDC_CONTRACT_ADDRESS = '0x9999f7Fea5938fD3b1E26A12c3f2fb024e194f97'; // Polygon Mumbai Testnet
+// Polygon Amoy Testnet USDC address
+const USDC_CONTRACT_ADDRESS = '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582'; // Polygon Amoy Testnet
 // For Polygon Mainnet use: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-// For Arbitrum Sepolia use: 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d
 
 // Your deployed escrow contract address - MUST BE SET
 const ESCROW_CONTRACT_ADDRESS = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || '';
 
 // Network configuration
-const POLYGON_MUMBAI_CHAIN_ID = 80001n;
+const POLYGON_AMOY_CHAIN_ID = 80002n;
 const POLYGON_MAINNET_CHAIN_ID = 137n;
-const ARBITRUM_SEPOLIA_CHAIN_ID = 421614n;
 
 // Use testnet for development
 const NETWORK_CONFIG = {
-  chainId: POLYGON_MUMBAI_CHAIN_ID,
-  chainIdHex: '0x13881',
-  networkName: 'Polygon Mumbai Testnet',
-  rpcUrl: 'https://rpc-mumbai.maticvigil.com',
-  blockExplorer: 'https://mumbai.polygonscan.com',
+  chainId: POLYGON_AMOY_CHAIN_ID,
+  chainIdHex: '0x13882',
+  networkName: 'Polygon Amoy Testnet',
+  rpcUrl: 'https://rpc-amoy.polygon.technology',
+  blockExplorer: 'https://amoy.polygonscan.com',
   nativeCurrency: {
     name: 'MATIC',
     symbol: 'MATIC',
