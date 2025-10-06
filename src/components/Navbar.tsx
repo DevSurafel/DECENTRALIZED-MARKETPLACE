@@ -90,10 +90,13 @@ const Navbar = () => {
     }
 
     try {
+      // Request accounts - this will open MetaMask
       const accounts = await window.ethereum.request({ 
         method: 'eth_requestAccounts' 
       });
       setConnectedWallet(accounts[0]);
+      // Clear the disconnected flag
+      localStorage.removeItem('wallet_disconnected');
     } catch (error) {
       console.error('Failed to connect wallet:', error);
     }
@@ -101,23 +104,37 @@ const Navbar = () => {
 
   const disconnectWallet = () => {
     setConnectedWallet('');
+    // Set a flag to remember user disconnected
+    localStorage.setItem('wallet_disconnected', 'true');
   };
 
   // Check if wallet is already connected on mount
   useEffect(() => {
     if (window.ethereum) {
-      window.ethereum.request({ method: 'eth_accounts' })
-        .then((accounts: string[]) => {
-          if (accounts.length > 0) {
-            setConnectedWallet(accounts[0]);
-          }
-        });
+      // Check if user explicitly disconnected
+      const wasDisconnected = localStorage.getItem('wallet_disconnected');
+      
+      if (!wasDisconnected) {
+        window.ethereum.request({ method: 'eth_accounts' })
+          .then((accounts: string[]) => {
+            if (accounts.length > 0) {
+              setConnectedWallet(accounts[0]);
+            }
+          });
+      }
 
       // Listen for account changes
       const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setConnectedWallet(accounts[0]);
-        } else {
+        // Only auto-connect if user hasn't explicitly disconnected
+        const wasDisconnected = localStorage.getItem('wallet_disconnected');
+        if (!wasDisconnected) {
+          if (accounts.length > 0) {
+            setConnectedWallet(accounts[0]);
+          } else {
+            setConnectedWallet('');
+          }
+        } else if (accounts.length === 0) {
+          // If no accounts available, clear the state
           setConnectedWallet('');
         }
       };
