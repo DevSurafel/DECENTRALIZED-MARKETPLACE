@@ -89,6 +89,38 @@ export const useEscrow = () => {
     try {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       await provider.send("eth_requestAccounts", []);
+      
+      // Verify the connected wallet matches the user's profile
+      const signer = await provider.getSigner();
+      const walletAddress = await signer.getAddress();
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('wallet_address')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.wallet_address && profile.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
+          toast({
+            title: "Wrong Wallet Connected",
+            description: `This account requires wallet ${profile.wallet_address.substring(0, 6)}...${profile.wallet_address.substring(38)}. Please switch in MetaMask.`,
+            variant: "destructive",
+            duration: 10000
+          });
+          return null;
+        }
+
+        // Update profile with wallet address if not set
+        if (!profile?.wallet_address) {
+          await supabase
+            .from('profiles')
+            .update({ wallet_address: walletAddress })
+            .eq('id', user.id);
+        }
+      }
+      
       return provider;
     } catch (error) {
       console.error('Error connecting to wallet:', error);
@@ -401,13 +433,39 @@ export const useEscrow = () => {
           return { success: false };
         }
 
+        // Estimate gas with buffer to avoid out-of-gas errors
+        let gasEstimate: bigint;
+        try {
+          gasEstimate = await escrowContract.fundJob.estimateGas(
+            numericJobId,
+            freelancerAddress,
+            USDC_CONTRACT_ADDRESS,
+            amount,
+            requiresStake,
+            allowedRevisions
+          );
+          console.log('Gas estimate for fundJob:', gasEstimate.toString());
+        } catch (gasErr: any) {
+          console.error('Gas estimation failed:', gasErr);
+          toast({
+            title: "Gas Estimation Failed",
+            description: "Transaction may fail. Please ensure sufficient MATIC for gas.",
+            variant: "destructive"
+          });
+          return { success: false };
+        }
+
+        // Add 30% buffer to gas limit
+        const gasLimit = (gasEstimate * 130n) / 100n;
+
         fundTx = await escrowContract.fundJob(
           numericJobId,
           freelancerAddress,
           USDC_CONTRACT_ADDRESS,
           amount,
           requiresStake,
-          allowedRevisions
+          allowedRevisions,
+          { gasLimit }
         );
       } catch (fundError: any) {
         console.error('Fund transaction error:', fundError);
@@ -567,10 +625,43 @@ export const useEscrow = () => {
 
       await checkNetwork(provider);
       const signer = await provider.getSigner();
+      const userAddress = await signer.getAddress();
       const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
       // Convert UUID to numeric ID
       const numericJobId = uuidToNumericId(jobId);
+
+      // Verify the current wallet matches the client on-chain
+      try {
+        const jobData = await contract.getJob(numericJobId);
+        if (!jobData.exists) {
+          toast({
+            title: "Job Not Found",
+            description: "This job has not been funded on the blockchain yet.",
+            variant: "destructive"
+          });
+          return { success: false };
+        }
+
+        const clientOnChain = jobData.client;
+        if (clientOnChain.toLowerCase() !== userAddress.toLowerCase()) {
+          toast({
+            title: "Wrong Wallet",
+            description: `You must use the client's wallet (${clientOnChain.substring(0, 6)}...${clientOnChain.substring(38)}) to approve. Currently connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`,
+            variant: "destructive",
+            duration: 10000
+          });
+          return { success: false };
+        }
+      } catch (verifyError: any) {
+        console.error('Error verifying client address:', verifyError);
+        toast({
+          title: "Verification Failed",
+          description: "Could not verify client address on-chain.",
+          variant: "destructive"
+        });
+        return { success: false };
+      }
 
       toast({
         title: "Approving Job...",
