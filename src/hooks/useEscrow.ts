@@ -39,6 +39,7 @@ const ESCROW_ABI = [
   'function reclaimFunds(uint256 jobId) external',
   'function requestRevision(uint256 jobId, string notes) external',
   'function getJob(uint256 jobId) external view returns (tuple(address client, address freelancer, address token, uint256 amount, uint256 platformFee, uint256 freelancerStake, uint256 arbitrationDeposit, uint256 submissionDeadline, uint256 reviewDeadline, uint256 approvalDeadline, string ipfsHash, string gitCommitHash, uint256 currentRevisionNumber, uint256 allowedRevisions, bool autoReleaseEnabled, uint8 status, bool exists))',
+  'function defaultStakePercentage() view returns (uint256)',
   'event JobFunded(uint256 indexed jobId, address indexed token, uint256 amount, uint256 stake)',
   'event WorkSubmitted(uint256 indexed jobId, string ipfsHash, string gitCommitHash)',
   'event RevisionRequested(uint256 indexed jobId, string notes)',
@@ -277,7 +278,74 @@ export const useEscrow = () => {
           requiresStake,
           allowedRevisions
         });
-        
+
+        // Validate freelancer address
+        if (!ethers.isAddress(freelancerAddress)) {
+          toast({
+            title: "Invalid Address",
+            description: "Freelancer wallet address is invalid.",
+            variant: "destructive"
+          });
+          return { success: false };
+        }
+
+        // If stake is required, ensure freelancer has balance and allowance
+        if (requiresStake) {
+          try {
+            const stakeBps: bigint = await escrowContract.defaultStakePercentage();
+            const stakeAmount: bigint = (amount * stakeBps) / 10000n;
+            const freelancerBal: bigint = await usdcContract.balanceOf(freelancerAddress);
+            const freelancerAllowance: bigint = await usdcContract.allowance(freelancerAddress, ESCROW_CONTRACT_ADDRESS);
+
+            if (freelancerBal < stakeAmount) {
+              toast({
+                title: "Freelancer Stake Missing",
+                description: `Freelancer needs ${ethers.formatUnits(stakeAmount, 6)} USDC balance for the stake.`,
+                variant: "destructive"
+              });
+              return { success: false };
+            }
+            if (freelancerAllowance < stakeAmount) {
+              toast({
+                title: "Freelancer Approval Required",
+                description: `Freelancer must approve ${ethers.formatUnits(stakeAmount, 6)} USDC to the escrow before funding.`,
+                variant: "destructive"
+              });
+              return { success: false };
+            }
+          } catch (stakeCheckErr) {
+            console.warn('Stake precheck failed:', stakeCheckErr);
+          }
+        }
+
+        // Static call to catch revert reasons before sending the transaction
+        try {
+          await escrowContract.fundJob.staticCall(
+            numericJobId,
+            freelancerAddress,
+            USDC_CONTRACT_ADDRESS,
+            amount,
+            requiresStake,
+            allowedRevisions
+          );
+        } catch (preflightError: any) {
+          console.error('Preflight fundJob failed:', preflightError);
+          let reason = preflightError.shortMessage || preflightError.reason || preflightError.message || "Transaction would revert";
+          if (reason.includes('Stake transfer failed')) {
+            reason = 'Freelancer stake transfer would fail. Ensure freelancer has sufficient USDC and has approved the escrow.';
+          } else if (reason.includes('Transfer failed')) {
+            reason = 'USDC transfer from client would fail. Check your USDC balance and allowance.';
+          } else if (reason.includes('Job already exists')) {
+            reason = 'This job is already funded on-chain.';
+          } else if (reason.includes('Invalid freelancer')) {
+            reason = 'Freelancer address is invalid.';
+          } else if (reason.includes('Must allow at least 1 revision')) {
+            reason = 'Allowed revisions must be at least 1.';
+          }
+          toast({ title: "Funding Would Fail", description: reason, variant: "destructive" });
+          return { success: false };
+        }
+
         fundTx = await escrowContract.fundJob(
           numericJobId,
           freelancerAddress,
