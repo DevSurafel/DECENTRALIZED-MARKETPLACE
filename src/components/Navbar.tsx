@@ -44,7 +44,7 @@ const Navbar = () => {
       // Subscribe to new messages
       const channel = supabase
         .channel('unread-messages')
-.on(
+        .on(
           'postgres_changes',
           {
             event: '*',
@@ -94,7 +94,14 @@ const Navbar = () => {
       // Clear the disconnected flag first
       localStorage.removeItem('wallet_disconnected');
       
-      // Request accounts - this connects to the currently selected account in MetaMask
+      // Request wallet_requestPermissions to force MetaMask popup
+      // This allows users to select which account to connect
+      await window.ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [{ eth_accounts: {} }],
+      });
+      
+      // After permission is granted, request accounts
       const accounts = await window.ethereum.request({ 
         method: 'eth_requestAccounts' 
       });
@@ -102,12 +109,20 @@ const Navbar = () => {
       if (accounts.length > 0) {
         setConnectedWallet(accounts[0]);
         toast.success('Wallet connected successfully', {
-          description: 'To switch accounts, change the account in MetaMask extension and it will update automatically'
+          description: `Connected to ${accounts[0].substring(0, 6)}...${accounts[0].substring(38)}`
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to connect wallet:', error);
-      toast.error('Failed to connect wallet');
+      
+      // Handle user rejection
+      if (error.code === 4001) {
+        toast.error('Connection cancelled', {
+          description: 'You rejected the connection request'
+        });
+      } else {
+        toast.error('Failed to connect wallet');
+      }
     }
   };
 
