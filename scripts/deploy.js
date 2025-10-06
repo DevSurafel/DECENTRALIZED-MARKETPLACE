@@ -3,7 +3,7 @@ import hre from "hardhat";
 async function main() {
     console.log("Deploying DeFiLanceEscrow to Polygon Amoy...");
 
-    const USDC_ADDRESS = "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
+    const USDC_ADDRESS = "0x8b0180f2101c8260d49339abfee87927412494b4"; // Mock USDC from Polygon Amoy faucet
 
     const DeFiLanceEscrow = await hre.ethers.getContractFactory("DeFiLanceEscrow");
     const escrow = await DeFiLanceEscrow.deploy(USDC_ADDRESS);

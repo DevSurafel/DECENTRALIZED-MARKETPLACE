@@ -3,8 +3,8 @@ import { ethers } from 'ethers';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-// Polygon Amoy Testnet USDC address
-const USDC_CONTRACT_ADDRESS = '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582'; // Polygon Amoy Testnet
+// Polygon Amoy Testnet USDC address (Mock USDC from faucet)
+const USDC_CONTRACT_ADDRESS = '0x8b0180f2101c8260d49339abfee87927412494b4'; // Polygon Amoy Testnet
 // For Polygon Mainnet use: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
 
 // Your deployed escrow contract address - MUST BE SET
