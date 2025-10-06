@@ -14,6 +14,7 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>('');
+  const [connectedWallet, setConnectedWallet] = useState<string>('');
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -82,6 +83,57 @@ const Navbar = () => {
     setHasUnreadMessages(unreadMessages && unreadMessages.length > 0);
   };
 
+  const connectWallet = async () => {
+    if (!window.ethereum) {
+      alert('Please install MetaMask to connect your wallet');
+      return;
+    }
+
+    try {
+      const accounts = await window.ethereum.request({ 
+        method: 'eth_requestAccounts' 
+      });
+      setConnectedWallet(accounts[0]);
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+    }
+  };
+
+  const disconnectWallet = () => {
+    setConnectedWallet('');
+  };
+
+  // Check if wallet is already connected on mount
+  useEffect(() => {
+    if (window.ethereum) {
+      window.ethereum.request({ method: 'eth_accounts' })
+        .then((accounts: string[]) => {
+          if (accounts.length > 0) {
+            setConnectedWallet(accounts[0]);
+          }
+        });
+
+      // Listen for account changes
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setConnectedWallet(accounts[0]);
+        } else {
+          setConnectedWallet('');
+        }
+      };
+
+      if (window.ethereum.on) {
+        window.ethereum.on('accountsChanged', handleAccountsChanged);
+      }
+
+      return () => {
+        if (window.ethereum?.removeListener) {
+          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        }
+      };
+    }
+  }, []);
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b">
       <div className="container mx-auto px-4 py-4">
@@ -121,12 +173,34 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-                  <Wallet className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-mono font-medium">
-                    {truncateAddress(walletAddress)}
-                  </span>
-                </div>
+                {connectedWallet ? (
+                  <>
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                      <Wallet className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-mono font-medium">
+                        {truncateAddress(connectedWallet)}
+                      </span>
+                    </div>
+                    <Button 
+                      onClick={disconnectWallet}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                    >
+                      Connected
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    onClick={connectWallet}
+                    variant="default"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    Connect
+                  </Button>
+                )}
                 <Button 
                   onClick={signOut}
                   variant="outline"
