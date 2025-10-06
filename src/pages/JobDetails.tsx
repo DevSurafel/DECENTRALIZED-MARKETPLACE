@@ -42,7 +42,7 @@ const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { fundJob, approveJob } = useEscrow();
+  const { fundJob, approveJob, submitWork: submitWorkToBlockchain } = useEscrow();
   const [job, setJob] = useState<any>(null);
   const [bidAmount, setBidAmount] = useState("");
   const [proposal, setProposal] = useState("");
@@ -260,6 +260,24 @@ const JobDetails = () => {
     if (!id) return;
     
     try {
+      // First, submit work to blockchain
+      toast({
+        title: "Submitting to Blockchain",
+        description: "Please confirm the transaction in MetaMask",
+      });
+
+      const blockchainResult = await submitWorkToBlockchain(id, ipfsHash, gitHash);
+      
+      if (!blockchainResult.success) {
+        toast({
+          title: "Blockchain Submission Failed",
+          description: "Work must be submitted to blockchain before updating status",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Then update database
       const { error } = await supabase
         .from('jobs')
         .update({
@@ -267,6 +285,7 @@ const JobDetails = () => {
           ipfs_hash: ipfsHash,
           git_commit_hash: gitHash,
           review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
+          contract_address: blockchainResult.txHash,
         })
         .eq('id', id);
 
