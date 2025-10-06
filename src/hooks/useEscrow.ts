@@ -215,84 +215,89 @@ export const useEscrow = () => {
         return { success: false };
       }
 
-      toast({
-        title: "Approving USDC...",
-        description: "Please confirm the approval transaction in MetaMask",
-      });
-
-      // Approve USDC spending with better error handling and explicit gas estimation
+      // Check existing USDC allowance to skip redundant approvals
       try {
-        // First verify the USDC contract exists and we can call it
-        try {
-          const decimals = await usdcContract.decimals();
-          console.log('USDC contract verified, decimals:', decimals);
-        } catch (contractCheckError) {
-          console.error('USDC contract check failed:', contractCheckError);
+        const currentAllowance: bigint = await usdcContract.allowance(userAddress, ESCROW_CONTRACT_ADDRESS);
+        if (currentAllowance >= amount) {
+          console.log('USDC already approved. Allowance:', ethers.formatUnits(currentAllowance, 6));
           toast({
-            title: "Invalid USDC Contract",
-            description: "The USDC contract address is not valid on this network. Please contact support.",
-            variant: "destructive"
+            title: "USDC Already Approved",
+            description: "Allowance is sufficient. Skipping approval step.",
           });
-          return { success: false };
-        }
-
-        // Estimate gas for approval
-        let gasEstimate;
-        try {
-          gasEstimate = await usdcContract.approve.estimateGas(ESCROW_CONTRACT_ADDRESS, amount);
-          console.log('Estimated gas for approval:', gasEstimate.toString());
-        } catch (gasEstError: any) {
-          console.error('Gas estimation failed:', gasEstError);
-          toast({
-            title: "Gas Estimation Failed",
-            description: "Unable to estimate gas for USDC approval. You may not have enough MATIC for gas fees.",
-            variant: "destructive"
-          });
-          return { success: false };
-        }
-
-        // Add 20% buffer to gas estimate
-        const gasLimit = (gasEstimate * 120n) / 100n;
-
-        const approveTx = await usdcContract.approve(ESCROW_CONTRACT_ADDRESS, amount, {
-          gasLimit
-        });
-        
-        toast({
-          title: "Waiting for Confirmation...",
-          description: "USDC approval transaction submitted, waiting for confirmation",
-        });
-        
-        await approveTx.wait();
-        
-        console.log('USDC approval confirmed');
-      } catch (approveError: any) {
-        console.error('USDC approval error:', approveError);
-        
-        let errorMsg = "Failed to approve USDC. ";
-        
-        if (approveError.code === 'INSUFFICIENT_FUNDS') {
-          errorMsg += "You don't have enough MATIC for gas fees.";
-        } else if (approveError.message?.includes('insufficient funds')) {
-          errorMsg += "Insufficient MATIC for gas fees. Get testnet MATIC from Polygon faucet.";
-        } else if (approveError.code === 'ACTION_REJECTED') {
-          errorMsg = "Transaction rejected by user.";
-        } else if (approveError.code === -32603) {
-          errorMsg += "Network error occurred. Please check your wallet connection and try again.";
-        } else if (approveError.shortMessage) {
-          errorMsg += approveError.shortMessage;
-        } else if (approveError.reason) {
-          errorMsg += approveError.reason;
         } else {
-          errorMsg += approveError.message || "Unknown error occurred.";
+          toast({
+            title: "Approving USDC...",
+            description: "Please confirm the approval transaction in MetaMask",
+          });
+
+          // Approve USDC spending with better error handling and explicit gas estimation
+          try {
+            // Verify USDC contract exists
+            try {
+              const decimals = await usdcContract.decimals();
+              console.log('USDC contract verified, decimals:', decimals);
+            } catch (contractCheckError) {
+              console.error('USDC contract check failed:', contractCheckError);
+              toast({
+                title: "Invalid USDC Contract",
+                description: "The USDC contract address is not valid on this network. Please contact support.",
+                variant: "destructive"
+              });
+              return { success: false };
+            }
+
+            // Estimate gas for approval
+            let gasEstimate: bigint | undefined;
+            try {
+              gasEstimate = await usdcContract.approve.estimateGas(ESCROW_CONTRACT_ADDRESS, amount);
+              console.log('Estimated gas for approval:', gasEstimate.toString());
+            } catch (gasEstError: any) {
+              console.warn('Gas estimation failed (will try without override):', gasEstError);
+            }
+
+            // If we have an estimate, add 20% buffer
+            const overrides = gasEstimate ? { gasLimit: (gasEstimate * 120n) / 100n } : {};
+
+            // Try approval (with overrides if present)
+            let approveTx;
+            try {
+              approveTx = await usdcContract.approve(ESCROW_CONTRACT_ADDRESS, amount, overrides as any);
+            } catch (sendErr: any) {
+              // Retry without overrides if wallet/provider chokes on custom gas
+              console.warn('Approve with overrides failed, retrying without overrides:', sendErr);
+              approveTx = await usdcContract.approve(ESCROW_CONTRACT_ADDRESS, amount);
+            }
+
+            toast({
+              title: "Waiting for Confirmation...",
+              description: "USDC approval transaction submitted, waiting for confirmation",
+            });
+            await approveTx.wait();
+            console.log('USDC approval confirmed');
+          } catch (approveError: any) {
+            console.error('USDC approval error:', approveError);
+            let errorMsg = "Failed to approve USDC. ";
+            if (approveError.code === 'INSUFFICIENT_FUNDS') {
+              errorMsg += "You don't have enough MATIC for gas fees.";
+            } else if (approveError.message?.toLowerCase()?.includes('insufficient funds')) {
+              errorMsg += "Insufficient MATIC for gas fees. Get testnet MATIC from Polygon faucet.";
+            } else if (approveError.code === 'ACTION_REJECTED') {
+              errorMsg = "Transaction rejected by user.";
+            } else if (approveError.code === -32603 || approveError.message?.toLowerCase()?.includes('coalesce')) {
+              errorMsg += "Wallet RPC error (-32603). Please retry or reopen your wallet. Skipping approval might work if allowance already set.";
+            } else if (approveError.shortMessage) {
+              errorMsg += approveError.shortMessage;
+            } else if (approveError.reason) {
+              errorMsg += approveError.reason;
+            } else {
+              errorMsg += approveError.message || "Unknown error occurred.";
+            }
+            toast({ title: "Approval Failed", description: errorMsg, variant: "destructive" });
+            return { success: false };
+          }
         }
-        
-        toast({
-          title: "Approval Failed",
-          description: errorMsg,
-          variant: "destructive"
-        });
-        return { success: false };
+      } catch (allowanceErr) {
+        console.warn('Allowance check failed, continuing to approval flow:', allowanceErr);
       }
 
       // Check if job already exists in contract
