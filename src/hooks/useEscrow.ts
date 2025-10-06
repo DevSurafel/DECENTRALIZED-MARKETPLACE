@@ -166,6 +166,7 @@ export const useEscrow = () => {
 
       await checkNetwork(provider);
       const signer = await provider.getSigner();
+      const userAddress = await signer.getAddress();
 
       // Convert UUID to numeric ID for smart contract
       const numericJobId = uuidToNumericId(jobId);
@@ -177,20 +178,37 @@ export const useEscrow = () => {
       const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, USDC_ABI, signer);
       const escrowContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
-      // Check USDC balance with error handling
-      let balance;
-      try {
-        balance = await usdcContract.balanceOf(await signer.getAddress());
-      } catch (balanceError: any) {
-        console.warn('Could not check USDC balance, proceeding anyway:', balanceError);
-        // Continue without balance check if RPC has issues
-        balance = amount; // Assume they have enough to avoid blocking
-      }
+      // Check MATIC balance for gas fees
+      const maticBalance = await provider.getBalance(userAddress);
+      const minMatic = ethers.parseEther("0.01"); // Minimum 0.01 MATIC for gas
       
-      if (balance < amount) {
+      if (maticBalance < minMatic) {
         toast({
-          title: "Insufficient Balance",
-          description: `You need ${amountUSDC} USDC to fund this job. Get testnet USDC from Circle faucet.`,
+          title: "Insufficient MATIC",
+          description: `You need at least 0.01 MATIC for gas fees. Get testnet MATIC from Polygon faucet.`,
+          variant: "destructive"
+        });
+        return { success: false };
+      }
+
+      // Check USDC balance
+      try {
+        const balance = await usdcContract.balanceOf(userAddress);
+        console.log(`USDC Balance: ${ethers.formatUnits(balance, 6)} USDC`);
+        
+        if (balance < amount) {
+          toast({
+            title: "Insufficient USDC",
+            description: `You need ${amountUSDC} USDC but have ${ethers.formatUnits(balance, 6)} USDC. Get testnet USDC from Circle faucet.`,
+            variant: "destructive"
+          });
+          return { success: false };
+        }
+      } catch (balanceError: any) {
+        console.error('Error checking USDC balance:', balanceError);
+        toast({
+          title: "Balance Check Failed",
+          description: "Could not verify USDC balance. The USDC contract might not be deployed on this network.",
           variant: "destructive"
         });
         return { success: false };
@@ -201,9 +219,32 @@ export const useEscrow = () => {
         description: "Please confirm the approval transaction in MetaMask",
       });
 
-      // Approve USDC spending
-      const approveTx = await usdcContract.approve(ESCROW_CONTRACT_ADDRESS, amount);
-      await approveTx.wait();
+      // Approve USDC spending with better error handling
+      try {
+        const approveTx = await usdcContract.approve(ESCROW_CONTRACT_ADDRESS, amount);
+        await approveTx.wait();
+      } catch (approveError: any) {
+        console.error('USDC approval error:', approveError);
+        
+        let errorMsg = "Failed to approve USDC. ";
+        
+        if (approveError.code === 'INSUFFICIENT_FUNDS') {
+          errorMsg += "You don't have enough MATIC for gas fees.";
+        } else if (approveError.message?.includes('insufficient funds')) {
+          errorMsg += "Insufficient MATIC for gas fees. Get testnet MATIC from Polygon faucet.";
+        } else if (approveError.code === 'ACTION_REJECTED') {
+          errorMsg = "Transaction rejected by user.";
+        } else {
+          errorMsg += approveError.reason || approveError.message || "Unknown error occurred.";
+        }
+        
+        toast({
+          title: "Approval Failed",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        return { success: false };
+      }
 
       toast({
         title: "Funding Escrow...",
