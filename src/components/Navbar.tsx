@@ -91,35 +91,36 @@ const Navbar = () => {
     }
 
     try {
-      // Clear the disconnected flag first
-      localStorage.removeItem('wallet_disconnected');
-      
-      // Request wallet_requestPermissions to force MetaMask popup
-      // This allows users to select which account to connect
+      // Force MetaMask account selection
       await window.ethereum.request({
         method: 'wallet_requestPermissions',
         params: [{ eth_accounts: {} }],
       });
-      
-      // After permission is granted, request accounts
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-      
-      if (accounts.length > 0) {
-        setConnectedWallet(accounts[0]);
-        toast.success('Wallet connected successfully', {
-          description: `Connected to ${accounts[0].substring(0, 6)}...${accounts[0].substring(38)}`
+
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      if (accounts.length === 0) return;
+
+      const selected = accounts[0];
+      // If this user has a bound wallet in their profile, enforce it
+      if (walletAddress && walletAddress.toLowerCase() !== selected.toLowerCase()) {
+        toast.error('Wrong wallet for this account', {
+          description: `This profile is bound to ${truncateAddress(walletAddress)}. Please switch in MetaMask.`,
         });
+        setConnectedWallet('');
+        return;
       }
+
+      setConnectedWallet(selected);
+      if (user?.id) {
+        localStorage.setItem(`wallet:connected:${user.id}`, selected);
+      }
+      toast.success('Wallet connected successfully', {
+        description: `Connected to ${truncateAddress(selected)}`
+      });
     } catch (error: any) {
       console.error('Failed to connect wallet:', error);
-      
-      // Handle user rejection
-      if (error.code === 4001) {
-        toast.error('Connection cancelled', {
-          description: 'You rejected the connection request'
-        });
+      if (error?.code === 4001) {
+        toast.error('Connection cancelled', { description: 'You rejected the connection request' });
       } else {
         toast.error('Failed to connect wallet');
       }
@@ -128,56 +129,72 @@ const Navbar = () => {
 
   const disconnectWallet = () => {
     setConnectedWallet('');
-    // Set a flag to remember user disconnected
-    localStorage.setItem('wallet_disconnected', 'true');
+    if (user?.id) {
+      localStorage.removeItem(`wallet:connected:${user.id}`);
+    }
     toast.success('Wallet disconnected');
   };
 
-  // Check if wallet is already connected on mount
+  // Manage wallet connection per authenticated user
   useEffect(() => {
-    if (window.ethereum) {
-      // Check if user explicitly disconnected
-      const wasDisconnected = localStorage.getItem('wallet_disconnected');
-      
-      if (!wasDisconnected) {
-        window.ethereum.request({ method: 'eth_accounts' })
-          .then((accounts: string[]) => {
-            if (accounts.length > 0) {
-              setConnectedWallet(accounts[0]);
-            }
-          });
+    if (!window.ethereum) return;
+
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (!user?.id) {
+        setConnectedWallet('');
+        return;
       }
 
-      // Listen for account changes
-      const handleAccountsChanged = (accounts: string[]) => {
-        const wasDisconnected = localStorage.getItem('wallet_disconnected');
-        
-        if (accounts.length > 0) {
-          // Always update if there's a new account, even if previously disconnected
-          // This allows users to switch accounts in MetaMask
-          setConnectedWallet(accounts[0]);
-          if (wasDisconnected) {
-            localStorage.removeItem('wallet_disconnected');
-            toast.info('Account switched in MetaMask', {
-              description: `Connected to ${accounts[0].substring(0, 6)}...${accounts[0].substring(38)}`
-            });
+      const current = accounts[0];
+
+      if (!current) {
+        setConnectedWallet('');
+        localStorage.removeItem(`wallet:connected:${user.id}`);
+        return;
+      }
+
+      // If profile has a bound wallet, enforce it
+      if (walletAddress && walletAddress.toLowerCase() !== current.toLowerCase()) {
+        setConnectedWallet('');
+        localStorage.removeItem(`wallet:connected:${user.id}`);
+        toast.error('Wrong wallet for this account', {
+          description: `This profile is bound to ${truncateAddress(walletAddress)}. Please switch in MetaMask.`,
+        });
+        return;
+      }
+
+      // Store and show the connected wallet for this user
+      setConnectedWallet(current);
+      localStorage.setItem(`wallet:connected:${user.id}`, current);
+    };
+
+    // Initial sync: prefer the previously stored wallet for this user
+    window.ethereum
+      .request({ method: 'eth_accounts' })
+      .then((accounts: string[]) => {
+        if (!user?.id) return;
+        const stored = localStorage.getItem(`wallet:connected:${user.id}`);
+        if (stored && accounts.map(a => a.toLowerCase()).includes(stored.toLowerCase())) {
+          // Respect stored choice if still available and matches profile (checked in handler)
+          if (!walletAddress || walletAddress.toLowerCase() === stored.toLowerCase()) {
+            setConnectedWallet(stored);
+            return;
           }
-        } else {
-          setConnectedWallet('');
         }
-      };
+        handleAccountsChanged(accounts);
+      });
 
-      if (window.ethereum.on) {
-        window.ethereum.on('accountsChanged', handleAccountsChanged);
-      }
-
-      return () => {
-        if (window.ethereum?.removeListener) {
-          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        }
-      };
+    // Listen for account switches in MetaMask
+    if (window.ethereum.on) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
     }
-  }, []);
+
+    return () => {
+      if (window.ethereum?.removeListener) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      }
+    };
+  }, [user?.id, walletAddress]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b">

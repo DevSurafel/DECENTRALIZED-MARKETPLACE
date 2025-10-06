@@ -63,8 +63,15 @@ export const useAuth = () => {
   }, []);
 
   const signOut = async () => {
-    // Clear wallet connection state on logout
-    localStorage.removeItem('walletConnected');
+    // Clear wallet connection state on logout (per-user key)
+    try {
+      const currentUserId = user?.id;
+      if (currentUserId) {
+        localStorage.removeItem(`wallet:connected:${currentUserId}`);
+      }
+      localStorage.removeItem('walletConnected');
+    } catch {}
+
     await supabase.auth.signOut();
     
     toast({
