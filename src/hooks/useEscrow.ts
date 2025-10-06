@@ -136,6 +136,13 @@ export const useEscrow = () => {
     }
   };
 
+  // Convert UUID to numeric ID for blockchain
+  const uuidToNumericId = (uuid: string): bigint => {
+    // Remove dashes and take first 16 hex characters (64 bits)
+    const hex = uuid.replace(/-/g, '').slice(0, 16);
+    return BigInt('0x' + hex);
+  };
+
   const fundJob = async (
     jobId: string,
     freelancerAddress: string,
@@ -160,6 +167,9 @@ export const useEscrow = () => {
       await checkNetwork(provider);
       const signer = await provider.getSigner();
 
+      // Convert UUID to numeric ID for smart contract
+      const numericJobId = uuidToNumericId(jobId);
+      
       // USDC uses 6 decimals on Polygon
       const amount = ethers.parseUnits(amountUSDC, 6);
 
@@ -200,9 +210,9 @@ export const useEscrow = () => {
         description: "Please confirm the funding transaction in MetaMask",
       });
 
-      // Fund the escrow with new parameters
+      // Fund the escrow with new parameters - use numeric job ID
       const fundTx = await escrowContract.fundJob(
-        jobId,
+        numericJobId,
         freelancerAddress,
         USDC_CONTRACT_ADDRESS,
         amount,
@@ -260,12 +270,15 @@ export const useEscrow = () => {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
+      // Convert UUID to numeric ID
+      const numericJobId = uuidToNumericId(jobId);
+
       toast({
         title: "Submitting Work to Blockchain...",
         description: "Please confirm the transaction in MetaMask",
       });
 
-      const tx = await contract.submitWork(jobId, ipfsHash, gitCommitHash);
+      const tx = await contract.submitWork(numericJobId, ipfsHash, gitCommitHash);
       const receipt = await tx.wait();
 
       // Store transaction hash
@@ -311,12 +324,15 @@ export const useEscrow = () => {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
+      // Convert UUID to numeric ID
+      const numericJobId = uuidToNumericId(jobId);
+
       toast({
         title: "Approving Job...",
         description: "Please confirm the transaction in MetaMask. Payment will be released to freelancer.",
       });
 
-      const tx = await contract.approveJob(jobId);
+      const tx = await contract.approveJob(numericJobId);
       const receipt = await tx.wait();
 
       // Store transaction hash
@@ -364,12 +380,15 @@ export const useEscrow = () => {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
+      // Convert UUID to numeric ID
+      const numericJobId = uuidToNumericId(jobId);
+
       toast({
         title: "Raising Dispute...",
         description: "Please confirm the transaction in MetaMask",
       });
 
-      const tx = await contract.raiseDispute(jobId);
+      const tx = await contract.raiseDispute(numericJobId);
       const receipt = await tx.wait();
 
       // Store transaction hash
@@ -443,7 +462,10 @@ export const useEscrow = () => {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
-      const job = await contract.getJob(jobId);
+      // Convert UUID to numeric ID
+      const numericJobId = uuidToNumericId(jobId);
+
+      const job = await contract.getJob(numericJobId);
       
       return {
         client: job.client,
