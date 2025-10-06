@@ -3,11 +3,10 @@ import { ethers } from 'ethers';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-// Polygon Amoy Testnet USDC address (Official Circle USDC)
-const USDC_CONTRACT_ADDRESS = '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582'; // Polygon Amoy Testnet
-// Note: This is Circle's official test USDC which may have blacklist restrictions
+// IMPORTANT: Deploy your own MockUSDC contract (see MOCK_USDC_SETUP.md)
+// After deploying, add VITE_USDC_CONTRACT_ADDRESS to your .env file
+const USDC_CONTRACT_ADDRESS = import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '';
 // For Polygon Mainnet use: 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
-// If you encounter blacklist errors, use fresh wallet addresses or deploy your own test token
 
 // Your deployed escrow contract address - MUST BE SET
 const ESCROW_CONTRACT_ADDRESS = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || '';
@@ -158,7 +157,16 @@ export const useEscrow = () => {
       if (!ESCROW_CONTRACT_ADDRESS) {
         toast({
           title: "Configuration Error",
-          description: "Escrow contract address not configured. Please contact support.",
+          description: "Escrow contract address not configured. Please deploy the contract first.",
+          variant: "destructive"
+        });
+        return { success: false };
+      }
+
+      if (!USDC_CONTRACT_ADDRESS) {
+        toast({
+          title: "Configuration Error",
+          description: "USDC contract address not configured. Please deploy MockUSDC first. See MOCK_USDC_SETUP.md",
           variant: "destructive"
         });
         return { success: false };
