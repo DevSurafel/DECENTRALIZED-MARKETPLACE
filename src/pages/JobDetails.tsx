@@ -269,11 +269,7 @@ const JobDetails = () => {
       const blockchainResult = await submitWorkToBlockchain(id, ipfsHash, gitHash);
       
       if (!blockchainResult.success) {
-        toast({
-          title: "Blockchain Submission Failed",
-          description: "Work must be submitted to blockchain before updating status",
-          variant: "destructive"
-        });
+        // Detailed error toasts are already shown by submitWorkToBlockchain
         return;
       }
 
