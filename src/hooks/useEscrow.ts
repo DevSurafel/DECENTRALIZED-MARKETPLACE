@@ -246,20 +246,69 @@ export const useEscrow = () => {
         return { success: false };
       }
 
+      // Check if job already exists in contract
+      try {
+        const existingJob = await escrowContract.getJob(numericJobId);
+        if (existingJob.exists) {
+          toast({
+            title: "Job Already Funded",
+            description: "This job has already been funded in the escrow contract.",
+            variant: "destructive"
+          });
+          return { success: false };
+        }
+      } catch (checkError) {
+        console.log('Job does not exist yet, proceeding with funding');
+      }
+
       toast({
         title: "Funding Escrow...",
         description: "Please confirm the funding transaction in MetaMask",
       });
 
       // Fund the escrow with new parameters - use numeric job ID
-      const fundTx = await escrowContract.fundJob(
-        numericJobId,
-        freelancerAddress,
-        USDC_CONTRACT_ADDRESS,
-        amount,
-        requiresStake,
-        allowedRevisions
-      );
+      let fundTx;
+      try {
+        console.log('Funding job with params:', {
+          jobId: numericJobId.toString(),
+          freelancer: freelancerAddress,
+          token: USDC_CONTRACT_ADDRESS,
+          amount: amount.toString(),
+          requiresStake,
+          allowedRevisions
+        });
+        
+        fundTx = await escrowContract.fundJob(
+          numericJobId,
+          freelancerAddress,
+          USDC_CONTRACT_ADDRESS,
+          amount,
+          requiresStake,
+          allowedRevisions
+        );
+      } catch (fundError: any) {
+        console.error('Fund transaction error:', fundError);
+        
+        let errorMsg = "Failed to fund escrow. ";
+        
+        if (fundError.code === 'ACTION_REJECTED') {
+          errorMsg = "Transaction rejected by user.";
+        } else if (fundError.reason) {
+          errorMsg += fundError.reason;
+        } else if (fundError.message?.includes('execution reverted')) {
+          errorMsg += "Contract execution reverted. The contract may have validation rules that failed.";
+        } else {
+          errorMsg += fundError.message || "Unknown error occurred.";
+        }
+        
+        toast({
+          title: "Funding Failed",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        return { success: false };
+      }
+      
       const receipt = await fundTx.wait();
 
       // Store transaction hash in database
