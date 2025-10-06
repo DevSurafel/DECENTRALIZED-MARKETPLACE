@@ -479,10 +479,42 @@ export const useEscrow = () => {
 
       await checkNetwork(provider);
       const signer = await provider.getSigner();
+      const userAddress = await signer.getAddress();
       const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 
       // Convert UUID to numeric ID
       const numericJobId = uuidToNumericId(jobId);
+
+      // Verify the current wallet matches the freelancer on-chain
+      try {
+        const jobData = await contract.getJob(numericJobId);
+        if (!jobData.exists) {
+          toast({
+            title: "Job Not Found",
+            description: "This job has not been funded on the blockchain yet.",
+            variant: "destructive"
+          });
+          return { success: false };
+        }
+
+        const freelancerOnChain = jobData.freelancer;
+        if (freelancerOnChain.toLowerCase() !== userAddress.toLowerCase()) {
+          toast({
+            title: "Wrong Wallet",
+            description: `You must use the freelancer's wallet (${freelancerOnChain.substring(0, 6)}...${freelancerOnChain.substring(38)}) to submit work. Currently connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`,
+            variant: "destructive"
+          });
+          return { success: false };
+        }
+      } catch (verifyError: any) {
+        console.error('Error verifying freelancer address:', verifyError);
+        toast({
+          title: "Verification Failed",
+          description: "Could not verify freelancer address on-chain.",
+          variant: "destructive"
+        });
+        return { success: false };
+      }
 
       toast({
         title: "Submitting Work to Blockchain...",
