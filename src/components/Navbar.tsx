@@ -71,7 +71,7 @@ const Navbar = () => {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'messages'
         },
@@ -138,24 +138,31 @@ const Navbar = () => {
 
   // Manage wallet connection per authenticated user
   useEffect(() => {
-    if (!window.ethereum) return;
+    if (!window.ethereum || !user?.id) return;
+
+    // Reset to disconnected on user switch; we'll restore from stored if valid
+    setConnectedWallet('');
 
     const handleAccountsChanged = (accounts: string[]) => {
-      if (!user?.id) {
+      const stored = localStorage.getItem(`wallet:connected:${user.id}`);
+      const lowerAccounts = accounts.map((a) => a?.toLowerCase());
+      const current = accounts[0];
+
+      // If no stored connection for this user, keep disconnected without warnings
+      if (!stored) {
         setConnectedWallet('');
         return;
       }
 
-      const current = accounts[0];
-
-      if (!current) {
+      // If stored account not available anymore, clear silently
+      if (!current || !lowerAccounts.includes(stored.toLowerCase())) {
         setConnectedWallet('');
         localStorage.removeItem(`wallet:connected:${user.id}`);
         return;
       }
 
-      // If profile has a bound wallet, enforce it
-      if (walletAddress && walletAddress.toLowerCase() !== current.toLowerCase()) {
+      // Enforce profile-bound wallet only if one is set
+      if (walletAddress && walletAddress.toLowerCase() !== stored.toLowerCase()) {
         setConnectedWallet('');
         localStorage.removeItem(`wallet:connected:${user.id}`);
         toast.error('Wrong wallet for this account', {
@@ -164,24 +171,14 @@ const Navbar = () => {
         return;
       }
 
-      // Store and show the connected wallet for this user
-      setConnectedWallet(current);
-      localStorage.setItem(`wallet:connected:${user.id}`, current);
+      // Restore stored connection
+      setConnectedWallet(stored);
     };
 
-    // Initial sync: prefer the previously stored wallet for this user
+    // Initial sync: only restore from stored; never auto-connect current MetaMask account
     window.ethereum
       .request({ method: 'eth_accounts' })
       .then((accounts: string[]) => {
-        if (!user?.id) return;
-        const stored = localStorage.getItem(`wallet:connected:${user.id}`);
-        if (stored && accounts.map(a => a.toLowerCase()).includes(stored.toLowerCase())) {
-          // Respect stored choice if still available and matches profile (checked in handler)
-          if (!walletAddress || walletAddress.toLowerCase() === stored.toLowerCase()) {
-            setConnectedWallet(stored);
-            return;
-          }
-        }
         handleAccountsChanged(accounts);
       });
 

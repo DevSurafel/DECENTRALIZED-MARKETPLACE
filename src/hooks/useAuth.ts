@@ -21,10 +21,13 @@ export const useAuth = () => {
         // When user logs in, disconnect wallet to force re-connection with correct address
         if (event === 'SIGNED_IN' && typeof window !== 'undefined' && (window as any).ethereum) {
           try {
-            // Clear any cached wallet connections
+            // Clear any cached wallet connections (legacy key)
             localStorage.removeItem('walletConnected');
+
+            // Only check for mismatch if this user had a previously stored connection
+            const stored = session?.user ? localStorage.getItem(`wallet:connected:${session.user.id}`) : null;
+            if (!stored) return;
             
-            // If there's an active wallet connection, prompt user to verify it matches their profile
             if (session?.user) {
               const { data: profile } = await supabase
                 .from('profiles')
@@ -35,12 +38,13 @@ export const useAuth = () => {
               if (profile?.wallet_address) {
                 // Check if current MetaMask account matches profile
                 const accounts = await (window as any).ethereum.request({ method: 'eth_accounts' });
-                if (accounts && accounts.length > 0 && accounts[0].toLowerCase() !== profile.wallet_address.toLowerCase()) {
+                const current = accounts && accounts.length > 0 ? accounts[0].toLowerCase() : '';
+                if (current && current !== profile.wallet_address.toLowerCase()) {
                   toast({
-                    title: "Wallet Mismatch",
-                    description: `Please switch to wallet ${profile.wallet_address.substring(0, 6)}...${profile.wallet_address.substring(38)} in MetaMask`,
+                    title: "Wrong wallet connected",
+                    description: `Please switch to ${profile.wallet_address.substring(0, 6)}...${profile.wallet_address.substring(38)} in MetaMask`,
                     variant: "destructive",
-                    duration: 8000
+                    duration: 6000
                   });
                 }
               }
