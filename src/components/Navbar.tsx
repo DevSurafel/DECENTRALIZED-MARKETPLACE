@@ -138,48 +138,58 @@ const Navbar = () => {
 
   // Manage wallet connection per authenticated user
   useEffect(() => {
-    if (!window.ethereum || !user?.id) return;
+    if (!window.ethereum || !user?.id) {
+      setConnectedWallet('');
+      return;
+    }
 
-    // Reset to disconnected on user switch; we'll restore from stored if valid
-    setConnectedWallet('');
+    let isMounted = true;
 
     const handleAccountsChanged = (accounts: string[]) => {
-      const stored = localStorage.getItem(`wallet:connected:${user.id}`);
-      const lowerAccounts = accounts.map((a) => a?.toLowerCase());
-      const current = accounts[0];
-
-      // If no stored connection for this user, keep disconnected without warnings
-      if (!stored) {
-        setConnectedWallet('');
-        return;
-      }
-
-      // If stored account not available anymore, clear silently
-      if (!current || !lowerAccounts.includes(stored.toLowerCase())) {
+      if (!isMounted) return;
+      
+      const current = accounts[0]?.toLowerCase();
+      
+      if (!current) {
         setConnectedWallet('');
         localStorage.removeItem(`wallet:connected:${user.id}`);
         return;
       }
 
-      // Enforce profile-bound wallet only if one is set
-      if (walletAddress && walletAddress.toLowerCase() !== stored.toLowerCase()) {
+      // If profile has bound wallet, enforce it
+      if (walletAddress && walletAddress.toLowerCase() !== current) {
         setConnectedWallet('');
         localStorage.removeItem(`wallet:connected:${user.id}`);
-        toast.error('Wrong wallet for this account', {
-          description: `This profile is bound to ${truncateAddress(walletAddress)}. Please switch in MetaMask.`,
-        });
         return;
       }
 
-      // Restore stored connection
-      setConnectedWallet(stored);
+      // Auto-connect if matches profile or no profile wallet set
+      setConnectedWallet(current);
+      localStorage.setItem(`wallet:connected:${user.id}`, current);
     };
 
-    // Initial sync: only restore from stored; never auto-connect current MetaMask account
+    // Initial sync: auto-connect if current MetaMask account matches profile
     window.ethereum
       .request({ method: 'eth_accounts' })
       .then((accounts: string[]) => {
-        handleAccountsChanged(accounts);
+        if (!isMounted) return;
+        
+        const current = accounts[0]?.toLowerCase();
+        if (!current) {
+          setConnectedWallet('');
+          return;
+        }
+
+        // Auto-connect if matches profile wallet or no profile wallet set
+        if (!walletAddress || walletAddress.toLowerCase() === current) {
+          setConnectedWallet(current);
+          localStorage.setItem(`wallet:connected:${user.id}`, current);
+        } else {
+          setConnectedWallet('');
+        }
+      })
+      .catch(() => {
+        if (isMounted) setConnectedWallet('');
       });
 
     // Listen for account switches in MetaMask
@@ -188,6 +198,7 @@ const Navbar = () => {
     }
 
     return () => {
+      isMounted = false;
       if (window.ethereum?.removeListener) {
         window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
       }

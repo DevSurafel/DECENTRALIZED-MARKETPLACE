@@ -306,8 +306,24 @@ export const useEscrow = () => {
               title: "Waiting for Confirmation...",
               description: "USDC approval transaction submitted, waiting for confirmation",
             });
-            await approveTx.wait();
+            const approvalReceipt = await approveTx.wait();
             console.log('USDC approval confirmed');
+            
+            if (!approvalReceipt || approvalReceipt.status !== 1) {
+              toast({
+                title: "Approval Failed",
+                description: "USDC approval transaction failed.",
+                variant: "destructive"
+              });
+              return { success: false };
+            }
+            
+            // Wait for network to settle after approval
+            toast({
+              title: "Approval Confirmed",
+              description: "Waiting for network to settle before funding...",
+            });
+            await new Promise(resolve => setTimeout(resolve, 3000));
           } catch (approveError: any) {
             console.error('USDC approval error:', approveError);
             let errorMsg = "Failed to approve USDC. ";
@@ -472,8 +488,12 @@ export const useEscrow = () => {
         
         let errorMsg = "Failed to fund escrow. ";
         
-        if (fundError.code === 'ACTION_REJECTED') {
+        if (fundError.code === 'ACTION_REJECTED' || fundError.code === 4001) {
           errorMsg = "Transaction rejected by user.";
+        } else if (fundError.code === -32603 || fundError.message?.toLowerCase()?.includes('internal json-rpc')) {
+          errorMsg = "Network error. The approval may still be processing. Please wait a moment and try again.";
+        } else if (fundError.message?.includes('nonce')) {
+          errorMsg = "Transaction nonce error. Please wait a moment and try again.";
         } else if (fundError.reason) {
           errorMsg += fundError.reason;
         } else if (fundError.message?.includes('execution reverted')) {
