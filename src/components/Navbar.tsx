@@ -20,69 +20,70 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      fetchWalletAddress();
-    }
-  }, [user]);
+    const fetchWalletAddress = async () => {
+      if (!user?.id) {
+        setWalletAddress('');
+        return;
+      }
+      const { data } = await supabase
+        .from('profiles')
+        .select('wallet_address')
+        .eq('id', user.id)
+        .single();
+      
+      if (data?.wallet_address) {
+        setWalletAddress(data.wallet_address);
+      }
+    };
 
-  const fetchWalletAddress = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('wallet_address')
-      .eq('id', user.id)
-      .single();
-    
-    if (data?.wallet_address) {
-      setWalletAddress(data.wallet_address);
-    }
-  };
+    fetchWalletAddress();
+  }, [user?.id]);
 
   useEffect(() => {
-    if (user) {
-      checkUnreadMessages();
-      // Subscribe to new messages
-      const channel = supabase
-        .channel('unread-messages')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'messages'
-          },
-          () => checkUnreadMessages()
-        )
-        .subscribe();
+    if (!user?.id) return;
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [user]);
+    const checkUnreadMessages = async () => {
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id')
+        .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`);
 
-  const checkUnreadMessages = async () => {
-    if (!user) return;
+      if (!conversations || conversations.length === 0) return;
+
+      const conversationIds = conversations.map(c => c.id);
+      
+      const { data: unreadMessages } = await supabase
+        .from('messages')
+        .select('id')
+        .in('conversation_id', conversationIds)
+        .neq('sender_id', user.id)
+        .eq('is_read', false)
+        .limit(1);
+
+      setHasUnreadMessages(unreadMessages && unreadMessages.length > 0);
+    };
+
+    checkUnreadMessages();
     
-    const { data: conversations } = await supabase
-      .from('conversations')
-      .select('id')
-      .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`);
+    // Subscribe to new messages
+    const channel = supabase
+      .channel('unread-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages'
+        },
+        () => checkUnreadMessages()
+      )
+      .subscribe();
 
-    if (!conversations) return;
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
-    const conversationIds = conversations.map(c => c.id);
-    
-    const { data: unreadMessages } = await supabase
-      .from('messages')
-      .select('id')
-      .in('conversation_id', conversationIds)
-      .neq('sender_id', user.id)
-      .eq('is_read', false)
-      .limit(1);
-
-    setHasUnreadMessages(unreadMessages && unreadMessages.length > 0);
-  };
 
   const connectWallet = async () => {
     if (!window.ethereum) {
