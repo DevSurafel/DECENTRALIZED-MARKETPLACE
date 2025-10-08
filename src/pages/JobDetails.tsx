@@ -103,7 +103,7 @@ const JobDetails = () => {
   const loadJob = async () => {
     const data = await getJobById(id!);
     setJob(data);
-    await fetchReviewFlags();
+    fetchReviewFlags();
   };
 
   // Real-time subscription for job updates

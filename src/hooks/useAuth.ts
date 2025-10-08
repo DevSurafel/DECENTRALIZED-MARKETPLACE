@@ -13,45 +13,45 @@ export const useAuth = () => {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // When user logs in, disconnect wallet to force re-connection with correct address
-        if (event === 'SIGNED_IN' && typeof window !== 'undefined' && (window as any).ethereum) {
-          try {
-            // Clear any cached wallet connections (legacy key)
-            localStorage.removeItem('walletConnected');
+        // Defer any wallet/profile checks to avoid deadlocks in auth callback
+        if (event === 'SIGNED_IN' && typeof window !== 'undefined' && (window as any).ethereum && session?.user) {
+          setTimeout(async () => {
+            try {
+              // Clear any cached wallet connections (legacy key)
+              localStorage.removeItem('walletConnected');
 
-            // Only check for mismatch if this user had a previously stored connection
-            const stored = session?.user ? localStorage.getItem(`wallet:connected:${session.user.id}`) : null;
-            if (!stored) return;
-            
-            if (session?.user) {
+              const stored = localStorage.getItem(`wallet:connected:${session.user!.id}`);
+              if (!stored) return;
+
               const { data: profile } = await supabase
                 .from('profiles')
                 .select('wallet_address')
-                .eq('id', session.user.id)
+                .eq('id', session.user!.id)
                 .single();
 
               if (profile?.wallet_address) {
-                // Check if current MetaMask account matches profile
-                const accounts = await (window as any).ethereum.request({ method: 'eth_accounts' });
-                const current = accounts && accounts.length > 0 ? accounts[0].toLowerCase() : '';
-                if (current && current !== profile.wallet_address.toLowerCase()) {
-                  toast({
-                    title: "Wrong wallet connected",
-                    description: `Please switch to ${profile.wallet_address.substring(0, 6)}...${profile.wallet_address.substring(38)} in MetaMask`,
-                    variant: "destructive",
-                    duration: 6000
-                  });
-                }
+                try {
+                  const accounts: string[] = await (window as any).ethereum.request({ method: 'eth_accounts' });
+                  const current = accounts && accounts.length > 0 ? accounts[0].toLowerCase() : '';
+                  if (current && current !== profile.wallet_address.toLowerCase()) {
+                    toast({
+                      title: "Wrong wallet connected",
+                      description: `Please switch to ${profile.wallet_address.substring(0, 6)}...${profile.wallet_address.substring(38)} in MetaMask`,
+                      variant: "destructive",
+                      duration: 6000
+                    });
+                  }
+                } catch {}
               }
+            } catch (error) {
+              console.log('Wallet check on login:', error);
             }
-          } catch (error) {
-            console.log('Wallet check on login:', error);
-          }
+          }, 0);
         }
       }
     );
