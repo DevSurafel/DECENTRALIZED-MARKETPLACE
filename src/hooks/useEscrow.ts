@@ -706,10 +706,28 @@ export const useEscrow = () => {
       return { success: true, txHash: receipt.hash };
     } catch (error: any) {
       console.error('Error approving job:', error);
+      
+      let errorTitle = "Approval Failed";
+      let errorMsg = "Failed to approve job. ";
+      
+      // Handle USDC blacklist error specifically
+      if (error.message?.includes('Blacklistable') || error.message?.includes('blacklisted') || 
+          error.data?.includes('Blacklistable') || error.reason?.includes('blacklisted')) {
+        errorTitle = "USDC Blacklist Error";
+        errorMsg = "One of the addresses involved (escrow contract, platform wallet, or freelancer wallet) is blacklisted by the USDC contract. This is a testnet limitation. Solution: Use a different test token or deploy a new escrow contract with fresh wallet addresses.";
+      } else if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+        errorMsg = "Transaction rejected by user.";
+      } else if (error.reason) {
+        errorMsg += error.reason;
+      } else {
+        errorMsg += error.message || "Unknown error occurred.";
+      }
+      
       toast({
-        title: "Approval Failed",
-        description: error.reason || error.message || "Failed to approve job",
-        variant: "destructive"
+        title: errorTitle,
+        description: errorMsg,
+        variant: "destructive",
+        duration: 10000,
       });
       return { success: false };
     } finally {
