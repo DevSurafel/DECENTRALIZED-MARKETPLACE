@@ -66,64 +66,72 @@ const getDealProcess = (platform: SocialMediaPlatform): string[] => {
   
   const processes: Record<SocialMediaPlatform, string[]> = {
     telegram: [
+      "⏱️ Estimated Transfer Time: 1-2 hours",
       "1. You fund the escrow contract with the purchase amount in USDC",
       "2. Seller transfers channel/group ownership to @defiescrow (escrow account)",
-      "3. Escrow verifies the transfer and account authenticity",
-      "4. Seller confirms transfer completion in the platform",
-      "5. Escrow transfers ownership to your provided username",
-      "6. You verify and confirm receipt of ownership",
-      "7. Funds are released to the seller automatically",
-      "8. If any dispute arises, an arbitrator will review the case"
+      "3. Escrow verifies the transfer and account authenticity (30 minutes)",
+      "4. Seller clicks 'Transferred Ownership' button in the platform to confirm",
+      "5. Escrow transfers ownership to your provided Telegram username",
+      "6. You verify and confirm receipt of ownership within 24 hours",
+      "7. Funds are automatically released to the seller after confirmation",
+      "8. If any dispute arises, an arbitrator will review evidence and make a final decision"
     ],
     instagram: [
+      "⏱️ Estimated Transfer Time: 2-4 hours",
       "1. You fund the escrow contract with the purchase amount in USDC",
-      "2. Seller adds escrow@defiescrow.com as admin/owner",
-      "3. Escrow verifies account access and authenticity",
-      "4. Seller confirms transfer in the platform",
-      "5. Escrow transfers ownership to your provided email",
-      "6. You verify and confirm receipt of access",
-      "7. Funds are released to the seller automatically",
-      "8. If any dispute arises, an arbitrator will review the case"
+      "2. Seller adds escrow@defiescrow.com as account admin with full permissions",
+      "3. Escrow verifies account access, authenticity, and follower count (1-2 hours)",
+      "4. Seller clicks 'Transferred Ownership' button in the platform to confirm",
+      "5. Escrow changes account email to your provided email and updates password",
+      "6. You receive new credentials and verify account access within 24 hours",
+      "7. Funds are automatically released to the seller after your confirmation",
+      "8. If any dispute arises (fake followers, account issues), an arbitrator will review the case"
     ],
     facebook: [
+      "⏱️ Estimated Transfer Time: 2-4 hours",
       "1. You fund the escrow contract with the purchase amount in USDC",
-      "2. Seller adds escrow@defiescrow.com as page/group admin",
-      "3. Escrow verifies admin access and page/group authenticity",
-      "4. Seller confirms transfer in the platform",
-      "5. Escrow adds your email as admin and transfers ownership",
-      "6. You verify and confirm receipt of admin access",
-      "7. Funds are released to the seller automatically",
-      "8. If any dispute arises, an arbitrator will review the case"
+      "2. Seller adds escrow@defiescrow.com as page/group admin with full permissions",
+      "3. Escrow verifies admin access, page authenticity, and engagement metrics (1-2 hours)",
+      "4. Seller clicks 'Transferred Ownership' button in the platform to confirm",
+      "5. Escrow adds your email as admin and transfers primary ownership role",
+      "6. You verify and confirm receipt of admin access within 24 hours",
+      "7. Funds are automatically released to the seller after your confirmation",
+      "8. If any dispute arises (page violations, fake likes), an arbitrator will review evidence"
     ],
     youtube: [
+      "⏱️ Estimated Transfer Time: 7-14 days (YouTube policy)",
       "1. You fund the escrow contract with the purchase amount in USDC",
-      "2. Seller adds escrow@defiescrow.com as channel owner",
-      "3. Escrow verifies channel ownership and authenticity",
-      "4. Seller confirms transfer in the platform",
-      "5. Escrow transfers ownership to your provided Google account",
-      "6. You verify and confirm receipt of channel ownership",
-      "7. Funds are released to the seller automatically",
-      "8. If any dispute arises, an arbitrator will review the case"
+      "2. Seller adds escrow@defiescrow.com as channel owner via YouTube Studio",
+      "3. Escrow verifies channel ownership and authenticity (1-2 hours)",
+      "4. Seller clicks 'Transferred Ownership' button in the platform to confirm",
+      "5. Escrow initiates ownership transfer to your Google account",
+      "⚠️ YouTube requires 7 days minimum for ownership transfer to complete",
+      "6. After 7 days, you verify and confirm receipt of full channel ownership",
+      "7. Funds are automatically released to the seller after your confirmation",
+      "8. If any dispute arises (copyright strikes, fake views), an arbitrator will review the case"
     ],
     tiktok: [
+      "⏱️ Estimated Transfer Time: 1-3 hours",
       "1. You fund the escrow contract with the purchase amount in USDC",
-      "2. Seller provides account credentials to escrow@defiescrow.com securely",
-      "3. Escrow verifies account access and authenticity",
-      "4. Seller confirms transfer in the platform",
-      "5. Escrow changes email to your provided email and updates password",
-      "6. You receive new credentials and verify account access",
-      "7. Funds are released to the seller automatically",
-      "8. If any dispute arises, an arbitrator will review the case"
+      "2. Seller provides account email and password to escrow@defiescrow.com securely",
+      "3. Escrow logs in, verifies account authenticity and engagement metrics (30 minutes)",
+      "4. Seller clicks 'Transferred Ownership' button in the platform to confirm",
+      "5. Escrow changes account email to your provided email and updates password",
+      "6. You receive new credentials via secure channel and verify account access",
+      "7. You confirm receipt of account access within 24 hours",
+      "8. Funds are automatically released to the seller after your confirmation",
+      "9. If any dispute arises (fake followers, shadowban), an arbitrator will review evidence"
     ],
     twitter: [
+      "⏱️ Estimated Transfer Time: 1-2 hours",
       "1. You fund the escrow contract with the purchase amount in USDC",
-      "2. Seller changes account email to escrow@defiescrow.com",
-      "3. Escrow verifies account access and authenticity",
-      "4. Seller confirms transfer in the platform",
-      "5. Escrow changes email to your provided email",
-      "6. You verify and confirm receipt of account access",
-      "7. Funds are released to the seller automatically",
-      "8. If any dispute arises, an arbitrator will review the case"
+      "2. Seller changes account email to escrow@defiescrow.com and provides password",
+      "3. Escrow verifies account access, authenticity, and engagement metrics (30 minutes)",
+      "4. Seller clicks 'Transferred Ownership' button in the platform to confirm",
+      "5. Escrow changes account email to your provided email and updates password",
+      "6. You receive new credentials and verify account access within 24 hours",
+      "7. Funds are automatically released to the seller after your confirmation",
+      "8. If any dispute arises (suspended account, fake followers), an arbitrator will review the case"
     ]
   };
   
@@ -297,16 +305,18 @@ export const SocialMediaPurchaseDialog = ({ open, onOpenChange, listing }: Socia
           </Alert>
 
           {/* Terms Acceptance */}
-          <div className="flex items-start space-x-3 p-4 border rounded-lg">
+          <div className="flex items-start space-x-3 p-4 border rounded-lg bg-muted/30">
             <Checkbox
               id="terms"
               checked={acceptedTerms}
-              onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+              onCheckedChange={(checked) => setAcceptedTerms(!!checked)}
+              className="mt-1"
             />
-            <Label htmlFor="terms" className="text-sm cursor-pointer leading-relaxed">
-              I have read and accept the deal process outlined above. I understand that this is a blockchain-secured 
-              transaction with escrow protection, and I agree to follow the steps as described.
-            </Label>
+            <label htmlFor="terms" className="text-sm cursor-pointer leading-relaxed flex-1">
+              <span className="font-semibold">I have read and accept the deal process outlined above.</span> I understand that this is a blockchain-secured 
+              transaction with escrow protection, and I agree to follow the steps as described. I acknowledge the platform-specific 
+              transfer timeframes and will complete verification within the required period.
+            </label>
           </div>
 
           {/* Action Buttons */}
