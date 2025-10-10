@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Heart, Users, CheckCircle2, TrendingUp, DollarSign, Calendar, Award } from 'lucide-react';
+import { ArrowLeft, Heart, Users, CheckCircle2, TrendingUp, DollarSign, Calendar, Award, ShoppingCart } from 'lucide-react';
 import { useSocialMedia as useFavorites } from '@/hooks/useSocialMedia';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages } from '@/hooks/useMessages';
 import { toast } from '@/hooks/use-toast';
+import { SocialMediaPurchaseDialog } from '@/components/SocialMediaPurchaseDialog';
 
 const SocialMediaListingDetail = () => {
   const { id } = useParams();
@@ -23,6 +24,7 @@ const SocialMediaListingDetail = () => {
   const [listing, setListing] = useState<SocialMediaListing | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
 
   useEffect(() => {
     const fetchListing = async () => {
@@ -325,31 +327,66 @@ const SocialMediaListingDetail = () => {
               </Card>
             )}
 
-            <Button 
-              className="w-full" 
-              size="lg"
-              onClick={async () => {
-                if (!user) {
-                  navigate('/auth');
-                  return;
-                }
-                try {
-                  const conversationId = await createConversation(listing.seller_id, undefined);
-                  if (conversationId) {
-                    navigate(`/chat?conversation=${conversationId}`);
+            <div className="space-y-3">
+              <Button 
+                className="w-full shadow-glow" 
+                size="lg"
+                onClick={() => {
+                  if (!user) {
+                    navigate('/auth');
+                    return;
                   }
-                } catch (error) {
-                  console.error('Error creating conversation:', error);
-                  toast({
-                    title: "Error",
-                    description: "Failed to start conversation",
-                    variant: "destructive"
-                  });
-                }
-              }}
-            >
-              Contact Seller
-            </Button>
+                  if (listing.seller_id === user.id) {
+                    toast({
+                      title: "Cannot Purchase",
+                      description: "You cannot purchase your own listing",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  setShowPurchaseDialog(true);
+                }}
+                disabled={listing.status !== 'available'}
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                {listing.status === 'available' ? 'Buy Now' : `Status: ${listing.status}`}
+              </Button>
+              
+              <Button 
+                variant="outline"
+                className="w-full" 
+                size="lg"
+                onClick={async () => {
+                  if (!user) {
+                    navigate('/auth');
+                    return;
+                  }
+                  try {
+                    const conversationId = await createConversation(listing.seller_id, undefined);
+                    if (conversationId) {
+                      navigate(`/chat?conversation=${conversationId}`);
+                    }
+                  } catch (error) {
+                    console.error('Error creating conversation:', error);
+                    toast({
+                      title: "Error",
+                      description: "Failed to start conversation",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+              >
+                Contact Seller
+              </Button>
+            </div>
+
+            {listing && (
+              <SocialMediaPurchaseDialog
+                open={showPurchaseDialog}
+                onOpenChange={setShowPurchaseDialog}
+                listing={listing}
+              />
+            )}
           </div>
         </div>
       </div>
