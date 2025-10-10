@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import Navbar from "@/components/Navbar";
 import { SocialMediaListingDialog } from "@/components/SocialMediaListingDialog";
 import { EditSocialMediaListingDialog } from "@/components/EditSocialMediaListingDialog";
+import { SocialMediaPurchaseDialog } from "@/components/SocialMediaPurchaseDialog";
 import { useSocialMedia, SocialMediaPlatform, SocialMediaListing } from "@/hooks/useSocialMedia";
 import { useAuth } from "@/hooks/useAuth";
 import { useMessages } from "@/hooks/useMessages";
@@ -62,11 +63,10 @@ const SocialMediaMarketplace = () => {
   const [filteredListings, setFilteredListings] = useState<SocialMediaListing[]>([]);
   const [selectedPlatform, setSelectedPlatform] = useState<string>("All Platforms");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [buyDialogOpen, setBuyDialogOpen] = useState(false);
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const [selectedListing, setSelectedListing] = useState<SocialMediaListing | null>(null);
   const [editingListing, setEditingListing] = useState<SocialMediaListing | null>(null);
   const [deletingListingId, setDeletingListingId] = useState<string | null>(null);
-  const [transferUsername, setTransferUsername] = useState("");
   const [platformCounts, setPlatformCounts] = useState({
     all: 0,
     facebook: 0,
@@ -164,25 +164,16 @@ const SocialMediaMarketplace = () => {
       navigate("/auth");
       return;
     }
-    setSelectedListing(listing);
-    setBuyDialogOpen(true);
-  };
-
-  const handleProceedToPurchase = () => {
-    if (!transferUsername.trim()) {
+    if (listing.seller_id === user.id) {
       toast({
-        title: "Username required",
-        description: "Please enter your username for account transfer",
+        title: "Cannot Purchase",
+        description: "You cannot purchase your own listing",
         variant: "destructive"
       });
       return;
     }
-    setBuyDialogOpen(false);
-    toast({
-      title: "Proceeding to payment",
-      description: `Redirecting to escrow funding for ${selectedListing?.account_name}...`
-    });
-    navigate(`/escrow?listing=${selectedListing?.id}&username=${transferUsername}`);
+    setSelectedListing(listing);
+    setShowPurchaseDialog(true);
   };
 
   const handleToggleFavorite = async (listingId: string) => {
@@ -567,45 +558,14 @@ const SocialMediaMarketplace = () => {
         </div>
       </div>
 
-      {/* Buy Dialog */}
-      <Dialog open={buyDialogOpen} onOpenChange={setBuyDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Purchase Account</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">
-                You're about to purchase: <strong>{selectedListing?.account_name}</strong>
-              </p>
-              <p className="text-lg font-bold text-success">
-                Price: {selectedListing?.price_usdc} USDC
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="transferUsername">Your Username for Transfer</Label>
-              <Input
-                id="transferUsername"
-                value={transferUsername}
-                onChange={(e) => setTransferUsername(e.target.value)}
-                placeholder="Enter your username or email for account transfer"
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                The seller will transfer the account to this username
-              </p>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setBuyDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleProceedToPurchase}>
-                Proceed to Payment
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Purchase Dialog */}
+      {selectedListing && (
+        <SocialMediaPurchaseDialog
+          open={showPurchaseDialog}
+          onOpenChange={setShowPurchaseDialog}
+          listing={selectedListing}
+        />
+      )}
 
       {editingListing && (
         <EditSocialMediaListingDialog
