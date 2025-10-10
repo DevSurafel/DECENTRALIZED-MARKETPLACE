@@ -24,16 +24,31 @@ const Chat = () => {
 
   useEffect(() => {
     if (user) {
-      loadConversations();
-    }
-  }, [user]);
+      const conversationId = searchParams.get('conversation');
+      loadConversations(conversationId);
 
-  useEffect(() => {
-    const conversationId = searchParams.get('conversation');
-    if (conversationId) {
-      setSelectedConversation(conversationId);
+      // Subscribe to conversation updates (last_message_at changes)
+      const conversationChannel = supabase
+        .channel('conversations-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'conversations',
+          },
+          () => {
+            // Reload conversations when any conversation is updated
+            loadConversations(selectedConversation);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(conversationChannel);
+      };
     }
-  }, [searchParams]);
+  }, [user, searchParams]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -80,7 +95,7 @@ const Chat = () => {
     
     if (!error) {
       // Reload conversations to update unread indicators
-      loadConversations();
+      loadConversations(selectedConversation);
     }
   };
 
@@ -92,10 +107,14 @@ const Chat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const loadConversations = async () => {
+  const loadConversations = async (priorityConversationId?: string | null) => {
     const data = await getConversations();
     setConversations(data);
-    if (data.length > 0 && !selectedConversation) {
+    
+    // Prioritize URL conversation parameter
+    if (priorityConversationId) {
+      setSelectedConversation(priorityConversationId);
+    } else if (data.length > 0 && !selectedConversation) {
       setSelectedConversation(data[0].id);
     }
   };
@@ -110,11 +129,11 @@ const Chat = () => {
   const handleSendMessage = async () => {
     if (!currentMessage.trim() || !selectedConversation) return;
     
-    const result = await sendMsg(selectedConversation, currentMessage);
-    if (result) {
-      setCurrentMessage("");
-      setMessages(prev => [...prev, result]);
-    }
+    const messageToSend = currentMessage;
+    setCurrentMessage(""); // Clear immediately
+    
+    await sendMsg(selectedConversation, messageToSend);
+    // Message will be added via real-time subscription
   };
 
   const selectedConv = selectedConversation 
@@ -268,7 +287,7 @@ const Chat = () => {
                         className={`max-w-[75%] px-5 py-3 rounded-3xl shadow-md transition-all hover:shadow-lg ${
                           isOwn
                             ? "bg-gradient-to-br from-primary via-primary to-accent text-primary-foreground rounded-br-md"
-                            : "bg-card/90 backdrop-blur-sm border border-primary/10 rounded-bl-md hover:border-primary/30"
+                            : "bg-muted text-foreground rounded-bl-md"
                         }`}
                       >
                         <p className="text-[15px] leading-relaxed break-words">{msg.content}</p>

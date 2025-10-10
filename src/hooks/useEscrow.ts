@@ -9,8 +9,8 @@ const USDC_CONTRACT_ADDRESS = '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582'; // P
 // For Polygon Mainnet use: 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
 // If you encounter blacklist errors, use fresh wallet addresses or deploy your own test token
 
-// Your deployed escrow contract address - MUST BE SET
-const ESCROW_CONTRACT_ADDRESS = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || '';
+// Your deployed escrow contract address on Polygon Amoy Testnet
+const ESCROW_CONTRACT_ADDRESS = '0x4B051D0384ABB7FBe250B0D083bE3fFe20536dA9';
 
 // Network configuration
 const POLYGON_AMOY_CHAIN_ID = 80002n;
@@ -89,11 +89,11 @@ export const useEscrow = () => {
     try {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       await provider.send("eth_requestAccounts", []);
-      
+
       // Verify the connected wallet matches the user's profile
       const signer = await provider.getSigner();
       const walletAddress = await signer.getAddress();
-      
+
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
@@ -120,7 +120,7 @@ export const useEscrow = () => {
             .eq('id', user.id);
         }
       }
-      
+
       return provider;
     } catch (error) {
       console.error('Error connecting to wallet:', error);
@@ -135,7 +135,7 @@ export const useEscrow = () => {
 
   const checkNetwork = async (provider: ethers.BrowserProvider) => {
     const network = await provider.getNetwork();
-    
+
     if (network.chainId !== NETWORK_CONFIG.chainId) {
       try {
         await (window as any).ethereum.request({
@@ -203,9 +203,21 @@ export const useEscrow = () => {
       const signer = await provider.getSigner();
       const userAddress = await signer.getAddress();
 
+      // Verify the escrow contract is deployed
+      const contractCode = await provider.getCode(ESCROW_CONTRACT_ADDRESS);
+      if (contractCode === '0x' || contractCode === '0x0') {
+        toast({
+          title: "Contract Not Deployed",
+          description: `The escrow contract at ${ESCROW_CONTRACT_ADDRESS} is not deployed on Polygon Amoy testnet. Please deploy the contract first using: npx hardhat run scripts/deploy.js --network amoy`,
+          variant: "destructive",
+          duration: 10000
+        });
+        return { success: false };
+      }
+
       // Convert UUID to numeric ID for smart contract
       const numericJobId = uuidToNumericId(jobId);
-      
+
       // USDC uses 6 decimals on Polygon
       const amount = ethers.parseUnits(amountUSDC, 6);
 
@@ -216,7 +228,7 @@ export const useEscrow = () => {
       // Check MATIC balance for gas fees
       const maticBalance = await provider.getBalance(userAddress);
       const minMatic = ethers.parseEther("0.01"); // Minimum 0.01 MATIC for gas
-      
+
       if (maticBalance < minMatic) {
         toast({
           title: "Insufficient MATIC",
@@ -230,7 +242,7 @@ export const useEscrow = () => {
       try {
         const balance = await usdcContract.balanceOf(userAddress);
         console.log(`USDC Balance: ${ethers.formatUnits(balance, 6)} USDC`);
-        
+
         if (balance < amount) {
           toast({
             title: "Insufficient USDC",
@@ -308,7 +320,7 @@ export const useEscrow = () => {
             });
             const approvalReceipt = await approveTx.wait();
             console.log('USDC approval confirmed');
-            
+
             if (!approvalReceipt || approvalReceipt.status !== 1) {
               toast({
                 title: "Approval Failed",
@@ -317,7 +329,7 @@ export const useEscrow = () => {
               });
               return { success: false };
             }
-            
+
             // Wait for network to settle after approval
             toast({
               title: "Approval Confirmed",
@@ -485,9 +497,9 @@ export const useEscrow = () => {
         );
       } catch (fundError: any) {
         console.error('Fund transaction error:', fundError);
-        
+
         let errorMsg = "Failed to fund escrow. ";
-        
+
         if (fundError.code === 'ACTION_REJECTED' || fundError.code === 4001) {
           errorMsg = "Transaction rejected by user.";
         } else if (fundError.code === -32603 || fundError.message?.toLowerCase()?.includes('internal json-rpc')) {
@@ -501,7 +513,7 @@ export const useEscrow = () => {
         } else {
           errorMsg += fundError.message || "Unknown error occurred.";
         }
-        
+
         toast({
           title: "Funding Failed",
           description: errorMsg,
@@ -509,18 +521,33 @@ export const useEscrow = () => {
         });
         return { success: false };
       }
-      
+
       const receipt = await fundTx.wait();
 
-      // Store transaction hash in database
-      await supabase
+      console.log('Transaction receipt:', receipt);
+      console.log('Attempting to update job status to in_progress for job:', jobId);
+
+      // Update job status in Supabase database
+      const { error: updateError } = await supabase
         .from('jobs')
-        .update({ 
+        .update({
           contract_address: receipt.hash,
-          escrow_address: ESCROW_CONTRACT_ADDRESS,
           status: 'in_progress'
         })
         .eq('id', jobId);
+
+      if (updateError) {
+        console.error('Failed to update job status:', updateError);
+        toast({
+          title: "Escrow Funded!",
+          description: "Transaction successful but status update failed. Refreshing page...",
+        });
+        // Force page reload to fetch latest data
+        setTimeout(() => window.location.reload(), 2000);
+        return { success: true, txHash: receipt.hash };
+      }
+      
+      console.log('Job status updated successfully to in_progress');
 
       toast({
         title: "Escrow Funded Successfully",
@@ -706,13 +733,13 @@ export const useEscrow = () => {
       return { success: true, txHash: receipt.hash };
     } catch (error: any) {
       console.error('Error approving job:', error);
-      
+
       let errorTitle = "Approval Failed";
       let errorMsg = "Failed to approve job. ";
-      
+
       // Handle USDC blacklist error specifically
-      if (error.message?.includes('Blacklistable') || error.message?.includes('blacklisted') || 
-          error.data?.includes('Blacklistable') || error.reason?.includes('blacklisted')) {
+      if (error.message?.includes('Blacklistable') || error.message?.includes('blacklisted') ||
+        error.data?.includes('Blacklistable') || error.reason?.includes('blacklisted')) {
         errorTitle = "USDC Blacklist Error";
         errorMsg = "One of the addresses involved (escrow contract, platform wallet, or freelancer wallet) is blacklisted by the USDC contract. This is a testnet limitation. Solution: Use a different test token or deploy a new escrow contract with fresh wallet addresses.";
       } else if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
@@ -722,7 +749,7 @@ export const useEscrow = () => {
       } else {
         errorMsg += error.message || "Unknown error occurred.";
       }
-      
+
       toast({
         title: errorTitle,
         description: errorMsg,
@@ -792,7 +819,7 @@ export const useEscrow = () => {
   // Listen to real-time contract events
   const subscribeToEvents = (jobId: string, onEvent: (event: string, data: any) => void) => {
     if (!ESCROW_CONTRACT_ADDRESS || typeof window === 'undefined' || !(window as any).ethereum) {
-      return () => {};
+      return () => { };
     }
 
     const provider = new ethers.BrowserProvider((window as any).ethereum);
@@ -840,7 +867,7 @@ export const useEscrow = () => {
       const numericJobId = uuidToNumericId(jobId);
 
       const job = await contract.getJob(numericJobId);
-      
+
       return {
         client: job.client,
         freelancer: job.freelancer,

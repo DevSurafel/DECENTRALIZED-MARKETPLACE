@@ -67,7 +67,8 @@ serve(async (req) => {
             console.error('Error fetching profile by id:', byIdErr);
             await sendTelegramMessage(chat.id, '❌ Database error. Please try again later.');
           } else if (!profileById) {
-            await sendTelegramMessage(chat.id, '⚠️ Account not found for this link. Please open your Profile in the app and try again.');
+            console.log('Profile not found for user ID:', payloadUserId);
+            await sendTelegramMessage(chat.id, '⚠️ Account not found for this link. Please ensure you are signed in to the app, then go to Profile > Connect Bot and try again.');
           } else {
             await supabase
               .from('profiles')
@@ -240,6 +241,12 @@ serve(async (req) => {
       }
 
       // Save message to database with cleaned content
+      console.log("Attempting to insert message:", {
+        conversation_id: conversationId,
+        sender_id: profile.id,
+        content: cleanedText
+      });
+
       const { error: messageError } = await supabase
         .from("messages")
         .insert({
@@ -251,9 +258,10 @@ serve(async (req) => {
 
       if (messageError) {
         console.error("Error saving message:", messageError);
+        console.error("Message error details:", JSON.stringify(messageError));
         await sendTelegramMessage(
           chat.id,
-          "Failed to send message. Please try again."
+          `❌ Failed to send message: ${messageError.message || 'Unknown error'}\n\nPlease try again or start a conversation on the platform first.`
         );
       } else {
         // Update conversation last message time

@@ -5,6 +5,7 @@ async function main() {
 
     const USDC_ADDRESS = "0x8b0180f2101c8260d49339abfee87927412494b4"; // Mock USDC from Polygon Amoy faucet
 
+    // Access ethers through hre
     const DeFiLanceEscrow = await hre.ethers.getContractFactory("DeFiLanceEscrow");
     const escrow = await DeFiLanceEscrow.deploy(USDC_ADDRESS);
 

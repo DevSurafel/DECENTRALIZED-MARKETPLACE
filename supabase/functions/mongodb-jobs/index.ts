@@ -24,6 +24,19 @@ serve(async (req) => {
     console.log(`MongoDB Jobs API - Action: ${action}`);
     
     switch (action) {
+      case 'updateStatus':
+        // Update job status (called after escrow funding)
+        console.log(`Updating job ${jobId} status`);
+        const { status, contract_address } = await req.json();
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: `Job ${jobId} status updated to ${status}`,
+            contract_address 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
       case 'create':
         // Mock job creation
         const newJob = {

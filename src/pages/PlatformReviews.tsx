@@ -47,33 +47,29 @@ const loadReviews = async () => {
       .select(`
         id,
         rating,
-        comment,
+        review_text,
         created_at,
-        reviewer_id,
-        job_id
+        user_id
       `)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     const reviewsWithDetails = await Promise.all(
-      (data || []).map(async (review) => {
+      ((data || []) as any[]).map(async (review) => {
         const { data: reviewer } = await supabase
           .from('profiles')
-          .select('id, display_name, avatar_url, user_type')
-          .eq('id', review.reviewer_id)
-          .single();
-
-        const { data: job } = await supabase
-          .from('jobs')
-          .select('title')
-          .eq('id', review.job_id)
-          .single();
+          .select('id, display_name, avatar_url')
+          .eq('id', review.user_id)
+          .maybeSingle();
 
         return {
-          ...review,
-          reviewer: reviewer || { id: review.reviewer_id, display_name: null, avatar_url: null, user_type: 'both' },
-          job: job || { title: 'Unknown Job' }
+          id: review.id,
+          rating: review.rating,
+          comment: review.review_text,
+          created_at: review.created_at,
+          reviewer: reviewer || { id: review.user_id, display_name: null, avatar_url: null, user_type: 'both' },
+          job: { title: 'Platform Review' }
         } as PlatformReview;
       })
     );

@@ -88,6 +88,7 @@ const Dashboard = () => {
       const bids = await getUserBids();
       
       const active = jobs.filter((j: any) => 
+        j.status === 'assigned' ||
         j.status === 'in_progress' || 
         j.status === 'under_review' || 
         j.status === 'revision_requested'
@@ -239,14 +240,25 @@ const Dashboard = () => {
                         </span>
                       </div>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="hover-scale"
-                      onClick={() => window.location.href = `/jobs/${job.id}`}
-                    >
-                      View Details
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="hover-scale"
+                        onClick={() => window.location.href = `/jobs/${job.id}`}
+                      >
+                        View Details
+                      </Button>
+                      {job.status === 'assigned' && job.client_id === user?.id && !job.escrow_address && (
+                        <Button 
+                          size="sm" 
+                          className="shadow-glow"
+                          onClick={() => window.location.href = `/jobs/${job.id}`}
+                        >
+                          Fund Escrow Now
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </Card>
               ))}

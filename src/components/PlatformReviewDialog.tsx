@@ -46,10 +46,9 @@ export function PlatformReviewDialog({ jobId, trigger, onSuccess }: PlatformRevi
       const { error } = await supabase
         .from('platform_reviews')
         .insert({
-          job_id: jobId,
-          reviewer_id: user.id,
+          user_id: user.id,
           rating,
-          comment: comment.trim() || null,
+          review_text: comment.trim() || null,
         });
 
       if (error) throw error;

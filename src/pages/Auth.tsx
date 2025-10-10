@@ -25,6 +25,7 @@ const Auth = () => {
   const [displayName, setDisplayName] = useState("");
   const [telegramUsername, setTelegramUsername] = useState("");
   const [showTelegramInstructions, setShowTelegramInstructions] = useState(false);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,41 +71,31 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+      const redirectUrl = `${window.location.origin}/`;
+      
       // Sign up user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: signupEmail,
         password: signupPassword,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            wallet_address: walletAddress,
+            display_name: displayName || signupEmail.split("@")[0],
+            telegram_username: telegramUsername || null,
+          }
+        }
       });
 
       if (authError) throw authError;
 
-      if (authData.user) {
-        // Create profile
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            id: authData.user.id,
-            wallet_address: walletAddress,
-            display_name: displayName || signupEmail.split("@")[0],
-            telegram_username: telegramUsername || null,
-          });
-
-        if (profileError) throw profileError;
-
-        toast({
-          title: "Account created!",
-          description: telegramUsername 
-            ? "Now start your Telegram bot to receive notifications!" 
-            : "Welcome to DeFiLance. You can now start browsing jobs.",
-        });
-
-        if (telegramUsername) {
-          setShowTelegramInstructions(true);
-          setTimeout(() => navigate("/dashboard"), 5000);
-        } else {
-          navigate("/dashboard");
-        }
+      // Show email confirmation message
+      setShowEmailConfirmation(true);
+      
+      if (telegramUsername) {
+        setShowTelegramInstructions(true);
       }
+
     } catch (error: any) {
       toast({
         title: "Signup failed",
@@ -198,98 +189,137 @@ const Auth = () => {
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div>
-                  <Label htmlFor="wallet">Wallet Address</Label>
-                  <div className="flex gap-2">
+              {!showEmailConfirmation ? (
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div>
+                    <Label htmlFor="wallet">Wallet Address</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="wallet"
+                        type="text"
+                        placeholder="0x..."
+                        value={walletAddress}
+                        onChange={(e) => setWalletAddress(e.target.value)}
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={connectMetaMask}
+                      >
+                        <Wallet className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="display-name">Display Name</Label>
                     <Input
-                      id="wallet"
+                      id="display-name"
                       type="text"
-                      placeholder="0x..."
-                      value={walletAddress}
-                      onChange={(e) => setWalletAddress(e.target.value)}
+                      placeholder="Your name"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
                       required
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={connectMetaMask}
-                    >
-                      <Wallet className="w-4 h-4" />
-                    </Button>
                   </div>
-                </div>
 
-                <div>
-                  <Label htmlFor="display-name">Display Name</Label>
-                  <Input
-                    id="display-name"
-                    type="text"
-                    placeholder="Your name"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={signupEmail}
-                    onChange={(e) => setSignupEmail(e.target.value)}
-                    required
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="telegram-username">Telegram Username (Optional)</Label>
+                    <Input
+                      id="telegram-username"
+                      type="text"
+                      placeholder="@yourusername"
+                      value={telegramUsername}
+                      onChange={(e) => setTelegramUsername(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Get real-time notifications in Telegram
+                    </p>
+                  </div>
 
-                <div>
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={signupPassword}
-                    onChange={(e) => setSignupPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Creating account..." : "Sign Up"}
+                  </Button>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-6 border rounded-lg bg-primary/5 border-primary/20">
+                    <div className="text-center mb-4">
+                      <div className="w-16 h-16 bg-primary/10 rounded-full mx-auto flex items-center justify-center mb-4">
+                        <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-semibold mb-2">Check Your Email!</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        We've sent a confirmation email to
+                      </p>
+                      <p className="font-medium text-primary">{signupEmail}</p>
+                    </div>
+                    
+                    <div className="space-y-3 text-sm text-muted-foreground">
+                      <p className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">1.</span>
+                        <span>Check your inbox (and spam folder just in case)</span>
+                      </p>
+                      <p className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">2.</span>
+                        <span>Click the confirmation link in the email</span>
+                      </p>
+                      <p className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">3.</span>
+                        <span>You'll be redirected back and can start using DeFiLance</span>
+                      </p>
+                    </div>
+                  </div>
 
-                <div>
-                  <Label htmlFor="telegram-username">Telegram Username (Optional)</Label>
-                  <Input
-                    id="telegram-username"
-                    type="text"
-                    placeholder="@yourusername"
-                    value={telegramUsername}
-                    onChange={(e) => setTelegramUsername(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Get real-time notifications in Telegram
-                  </p>
-                </div>
+                  {showTelegramInstructions && (
+                    <div className="p-4 border rounded-lg bg-muted/50">
+                      <h3 className="font-semibold mb-2">🤖 Setup Telegram Bot</h3>
+                      <ol className="text-sm space-y-2">
+                        <li>1. Open Telegram and search for your bot</li>
+                        <li>2. Click "Start" or send /start message</li>
+                        <li>3. You'll receive notifications instantly!</li>
+                      </ol>
+                    </div>
+                  )}
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Creating account..." : "Sign Up"}
-                </Button>
-              </form>
-
-              {showTelegramInstructions && (
-                <div className="mt-4 p-4 border rounded-lg bg-muted/50">
-                  <h3 className="font-semibold mb-2">🤖 Setup Telegram Bot</h3>
-                  <ol className="text-sm space-y-2">
-                    <li>1. Open Telegram and search for your bot</li>
-                    <li>2. Click "Start" or send /start message</li>
-                    <li>3. You'll receive notifications instantly!</li>
-                  </ol>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Redirecting to dashboard in 5 seconds...
-                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setShowEmailConfirmation(false)}
+                  >
+                    Back to Sign Up
+                  </Button>
                 </div>
               )}
             </TabsContent>

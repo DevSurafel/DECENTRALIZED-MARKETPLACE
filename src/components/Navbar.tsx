@@ -114,6 +114,20 @@ const Navbar = () => {
       setConnectedWallet(selected);
       if (user?.id) {
         localStorage.setItem(`wallet:connected:${user.id}`, selected);
+        
+        // Save wallet address to database if not already set
+        if (!walletAddress) {
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ wallet_address: selected })
+            .eq('id', user.id);
+          
+          if (updateError) {
+            console.error('Failed to save wallet address:', updateError);
+          } else {
+            setWalletAddress(selected);
+          }
+        }
       }
       toast.success('Wallet connected successfully', {
         description: `Connected to ${truncateAddress(selected)}`
@@ -145,7 +159,7 @@ const Navbar = () => {
 
     let isMounted = true;
 
-    const handleAccountsChanged = (accounts: string[]) => {
+    const handleAccountsChanged = async (accounts: string[]) => {
       if (!isMounted) return;
       
       const current = accounts[0]?.toLowerCase();
@@ -160,12 +174,27 @@ const Navbar = () => {
       if (walletAddress && walletAddress.toLowerCase() !== current) {
         setConnectedWallet('');
         localStorage.removeItem(`wallet:connected:${user.id}`);
+        toast.error('Wrong wallet connected', {
+          description: `Please switch to ${truncateAddress(walletAddress)} in MetaMask`,
+        });
         return;
       }
 
       // Auto-connect if matches profile or no profile wallet set
       setConnectedWallet(current);
       localStorage.setItem(`wallet:connected:${user.id}`, current);
+      
+      // Save wallet address to database if not already set
+      if (!walletAddress) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ wallet_address: current })
+          .eq('id', user.id);
+        
+        if (!updateError) {
+          setWalletAddress(current);
+        }
+      }
     };
 
     // Initial sync: auto-connect if current MetaMask account matches profile

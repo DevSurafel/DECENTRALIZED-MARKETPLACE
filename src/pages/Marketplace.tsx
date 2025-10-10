@@ -4,12 +4,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import Navbar from "@/components/Navbar";
 import { JobPostDialog } from "@/components/JobPostDialog";
+import { EditJobDialog } from "@/components/EditJobDialog";
 import { useJobs } from "@/hooks/useJobs";
 import { useAuth } from "@/hooks/useAuth";
 import { useMessages } from "@/hooks/useMessages";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Search,
   Filter,
@@ -20,7 +23,9 @@ import {
   Briefcase,
   Sparkles,
   Star,
-  MessageSquare
+  MessageSquare,
+  Edit,
+  Trash2
 } from "lucide-react";
 
 const Marketplace = () => {
@@ -32,6 +37,8 @@ const Marketplace = () => {
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("All Jobs");
   const [showJobDialog, setShowJobDialog] = useState(false);
+  const [editingJob, setEditingJob] = useState<any>(null);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [jobCounts, setJobCounts] = useState({
     all: 0,
     smartContracts: 0,
@@ -129,11 +136,38 @@ const Marketplace = () => {
     }
   };
 
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', jobId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Job deleted successfully"
+      });
+      
+      loadJobs();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setDeletingJobId(null);
+    }
+  };
+
   const categories = [
     { name: "All Jobs", count: jobCounts.all, icon: Briefcase },
     { name: "Smart Contracts", count: jobCounts.smartContracts, icon: Sparkles },
     { name: "Frontend", count: jobCounts.frontend, icon: TrendingUp },
     { name: "Design", count: jobCounts.design, icon: Star },
+    { name: "Buy/Sell Social Media", count: 0, icon: Users, isLink: true, link: "/social-media" },
   ];
 
   return (
@@ -163,17 +197,25 @@ const Marketplace = () => {
           </div>
 
           {/* Categories */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {categories.map((category, index) => {
               const Icon = category.icon;
               const isSelected = selectedCategory === category.name;
+              const isLinkCategory = 'isLink' in category && category.isLink;
+              
               return (
                 <Card 
                   key={index}
                   className={`p-4 glass-card shadow-card hover:shadow-glow transition-smooth cursor-pointer group ${
                     isSelected ? 'border-primary/50 bg-primary/5' : 'border-primary/10 hover:border-primary/30'
                   }`}
-                  onClick={() => setSelectedCategory(category.name)}
+                  onClick={() => {
+                    if (isLinkCategory && 'link' in category) {
+                      navigate(category.link);
+                    } else {
+                      setSelectedCategory(category.name);
+                    }
+                  }}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center group-hover:scale-110 transition-smooth">
@@ -181,7 +223,9 @@ const Marketplace = () => {
                     </div>
                     <div>
                       <div className="font-semibold text-sm">{category.name}</div>
-                      <div className="text-xs text-muted-foreground">{category.count} jobs</div>
+                      <div className="text-xs text-muted-foreground">
+                        {isLinkCategory ? 'View' : `${category.count} jobs`}
+                      </div>
                     </div>
                   </div>
                 </Card>
@@ -287,6 +331,32 @@ const Marketplace = () => {
                   </div>
                   
                    <div className="flex gap-3">
+                    {user?.id === job.client_id && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          className="hover:scale-105 transition-smooth border-primary/20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingJob(job);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          className="hover:scale-105 transition-smooth border-destructive/20 hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingJobId(job.id);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </>
+                    )}
                     <Button 
                       variant="outline" 
                       className="hover:scale-105 transition-smooth border-primary/20 gap-2"
@@ -302,12 +372,14 @@ const Marketplace = () => {
                     >
                       View Details
                     </Button>
-                    <Button 
-                      className="shadow-glow hover:scale-105 transition-smooth"
-                      onClick={() => navigate(`/jobs/${job.id}`)}
-                    >
-                      Submit Proposal
-                    </Button>
+                    {user?.id !== job.client_id && (
+                      <Button 
+                        className="shadow-glow hover:scale-105 transition-smooth"
+                        onClick={() => navigate(`/jobs/${job.id}`)}
+                      >
+                        Submit Proposal
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -315,6 +387,32 @@ const Marketplace = () => {
           </div>
         </div>
       </div>
+
+      {editingJob && (
+        <EditJobDialog
+          job={editingJob}
+          open={!!editingJob}
+          onOpenChange={(open) => !open && setEditingJob(null)}
+          onSuccess={loadJobs}
+        />
+      )}
+
+      <AlertDialog open={!!deletingJobId} onOpenChange={() => setDeletingJobId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Job</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this job? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deletingJobId && handleDeleteJob(deletingJobId)} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

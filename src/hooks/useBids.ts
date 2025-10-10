@@ -28,12 +28,10 @@ export const useBids = () => {
         .insert([{
           job_id: bidData.job_id,
           bid_amount_usdc: bidData.bid_amount_usdc,
-          bid_amount_eth: bidData.bid_amount_usdc / 2000, // Convert for backward compatibility
-          estimated_duration_weeks: bidData.estimated_duration_weeks,
           proposal_text: bidData.proposal_text,
           freelancer_id: user.id,
           status: 'pending'
-        }])
+        } as any])
         .select()
         .single();
 
@@ -118,7 +116,7 @@ export const useBids = () => {
         .from('bids')
         .select(`
           *,
-          job:jobs(title, budget_usdc, budget_eth, status)
+          job:jobs!bids_job_id_fkey(title, budget_usdc, budget_eth, status)
         `)
         .eq('freelancer_id', user.id)
         .order('created_at', { ascending: false });

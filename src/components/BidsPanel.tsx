@@ -53,13 +53,13 @@ export function BidsPanel({ jobId, onBidAccepted }: BidsPanelProps) {
 
       if (bidError) throw bidError;
 
-      // Update job with freelancer and status
+      // Update job with freelancer and status to 'assigned' (waiting for funding)
       const { error: jobError } = await supabase
         .from('jobs')
         .update({
           freelancer_id: selectedBid.freelancer_id,
           accepted_bid_id: selectedBid.id,
-          status: 'in_progress',
+          status: 'assigned',
           started_at: new Date().toISOString(),
         })
         .eq('id', jobId);

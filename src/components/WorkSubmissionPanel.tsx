@@ -10,12 +10,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface WorkSubmissionPanelProps {
   jobId: string;
-  onSubmit: (ipfsHash: string, gitHash: string, notes: string) => Promise<void>;
+  onSubmit: (ipfsHash: string, gitHash: string, repositoryUrl: string, notes: string) => Promise<void>;
 }
 
 export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProps) {
   const [ipfsHash, setIpfsHash] = useState("");
   const [gitHash, setGitHash] = useState("");
+  const [repositoryUrl, setRepositoryUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -33,9 +34,10 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
 
     setSubmitting(true);
     try {
-      await onSubmit(ipfsHash, gitHash, notes);
+      await onSubmit(ipfsHash, gitHash, repositoryUrl, notes);
       setIpfsHash("");
       setGitHash("");
+      setRepositoryUrl("");
       setNotes("");
       setSelectedFile(null);
     } finally {
@@ -125,6 +127,22 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
           />
           <p className="text-xs text-muted-foreground mt-1">
             Provide the commit hash from your repository
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="repository" className="flex items-center gap-2 mb-2">
+            <GitBranch className="h-4 w-4" />
+            Repository URL
+          </Label>
+          <Input
+            id="repository"
+            placeholder="https://github.com/username/repo"
+            value={repositoryUrl}
+            onChange={(e) => setRepositoryUrl(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Link to your GitHub/GitLab repository (optional but recommended)
           </p>
         </div>
 

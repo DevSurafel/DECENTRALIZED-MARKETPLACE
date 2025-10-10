@@ -17,6 +17,9 @@ import ArbitratorDashboard from "./pages/ArbitratorDashboard";
 import AdminAuth from "./pages/AdminAuth";
 import PlatformReviews from "./pages/PlatformReviews";
 import AssignAdmin from "./pages/AssignAdmin";
+import SocialMediaMarketplace from "./pages/SocialMediaMarketplace";
+import SocialMediaFavorites from "./pages/SocialMediaFavorites";
+import SocialMediaListingDetail from "./pages/SocialMediaListingDetail";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +43,9 @@ const App = () => (
           <Route path="/assign-admin" element={<AssignAdmin />} />
           <Route path="/arbitrator" element={<ArbitratorDashboard />} />
           <Route path="/reviews" element={<PlatformReviews />} />
+          <Route path="/social-media" element={<SocialMediaMarketplace />} />
+          <Route path="/social-media/:id" element={<SocialMediaListingDetail />} />
+          <Route path="/social-media/favorites" element={<SocialMediaFavorites />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

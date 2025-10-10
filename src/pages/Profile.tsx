@@ -12,6 +12,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { useMessages } from "@/hooks/useMessages";
+import { useJobs } from "@/hooks/useJobs";
+import { useSocialMedia, SocialMediaListing } from "@/hooks/useSocialMedia";
 import {
   MapPin,
   Star,
@@ -24,6 +27,16 @@ import {
   Camera,
   Upload,
   MessageSquare,
+  DollarSign,
+  Clock,
+  Users,
+  Facebook,
+  Send,
+  Youtube,
+  Music2,
+  Twitter,
+  Instagram,
+  CheckCircle2,
 } from "lucide-react";
 
 interface Profile {
@@ -76,7 +89,12 @@ const Profile = () => {
   const [reviews, setReviews] = useState<any[]>([]);
   const [portfolioDialog, setPortfolioDialog] = useState(false);
   const [editProfileDialog, setEditProfileDialog] = useState(false);
+  const [userJobs, setUserJobs] = useState<any[]>([]);
+  const [userListings, setUserListings] = useState<SocialMediaListing[]>([]);
   const isOwnProfile = !profileId || profileId === user?.id;
+  const { createConversation } = useMessages();
+  const { getJobs } = useJobs();
+  const { getListings } = useSocialMedia();
   const [newPortfolio, setNewPortfolio] = useState({
     title: "",
     description: "",
@@ -110,13 +128,30 @@ const Profile = () => {
       const targetUserId = profileId || user?.id;
       if (!targetUserId) return;
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", targetUserId)
         .single();
 
-      if (error) throw error;
+      // If profile doesn't exist and it's the current user, create it
+      if (error && error.code === 'PGRST116' && isOwnProfile && user) {
+        const { data: newProfile, error: createError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            username: user.email?.split('@')[0] || 'user',
+            full_name: user.user_metadata?.display_name || '',
+          })
+          .select()
+          .single();
+        
+        if (createError) throw createError;
+        data = newProfile;
+      } else if (error) {
+        throw error;
+      }
+
       setProfile(data);
       
       // Initialize edit form only for own profile
@@ -143,6 +178,16 @@ const Profile = () => {
         .limit(5);
       
       setReviews(reviewsData || []);
+      
+      // Fetch user's jobs (posted by this user)
+      const jobsData = await getJobs();
+      const profileJobs = jobsData?.filter((job: any) => job.client_id === targetUserId) || [];
+      setUserJobs(profileJobs);
+      
+      // Fetch user's social media listings
+      const listingsData = await getListings();
+      const profileListings = listingsData?.filter((listing: any) => listing.seller_id === targetUserId) || [];
+      setUserListings(profileListings);
     } catch (error) {
       console.error("Error fetching profile:", error);
       toast({
@@ -261,8 +306,52 @@ const Profile = () => {
 
   const handleConnectBot = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('telegram-connect', { method: 'GET' as any });
-      if ((error as any)) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({ title: 'Error', description: 'Please log in first', variant: 'destructive' });
+        return;
+      }
+
+      // Ensure profile exists before generating bot link
+      if (!profile) {
+        toast({ title: 'Error', description: 'Profile not found. Please refresh the page.', variant: 'destructive' });
+        return;
+      }
+
+      // Ensure user has a profile record (create if missing)
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user?.id)
+        .single();
+
+      if (!existingProfile && user) {
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            username: user.email?.split('@')[0] || 'user',
+            full_name: user.user_metadata?.display_name || '',
+          });
+        
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          toast({ title: 'Error', description: 'Failed to create profile', variant: 'destructive' });
+          return;
+        }
+      }
+
+      const { data, error } = await supabase.functions.invoke('telegram-connect', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      
+      if (error) {
+        console.error('telegram-connect error:', error);
+        throw error;
+      }
+      
       const link = (data as any)?.link;
       if (link) {
         window.open(link, '_blank');
@@ -270,9 +359,62 @@ const Profile = () => {
       } else {
         toast({ title: 'Error', description: 'Could not generate bot link', variant: 'destructive' });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('connect-bot error:', e);
-      toast({ title: 'Error', description: 'Failed to connect bot', variant: 'destructive' });
+      const errorMsg = e?.message || 'Failed to connect bot';
+      toast({ title: 'Error', description: errorMsg, variant: 'destructive' });
+    }
+  };
+
+  const handleDisconnectBot = async () => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          telegram_chat_id: null
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Disconnect error details:', error);
+        throw error;
+      }
+
+      toast({ 
+        title: 'Success', 
+        description: 'Telegram bot disconnected successfully' 
+      });
+      
+      fetchProfile();
+    } catch (e: any) {
+      console.error('disconnect-bot error:', e);
+      const errorMsg = e?.message || e?.error_description || 'Failed to disconnect bot';
+      toast({ 
+        title: 'Error', 
+        description: errorMsg, 
+        variant: 'destructive' 
+      });
+    }
+  };
+
+  const handleContactUser = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to contact this user",
+        variant: "destructive"
+      });
+      navigate("/auth");
+      return;
+    }
+
+    if (!profileId) return;
+
+    const conversationId = await createConversation(profileId);
+    if (conversationId) {
+      navigate(`/chat?conversation=${conversationId}`);
     }
   };
 
@@ -323,6 +465,9 @@ const Profile = () => {
 
   const displayName = profile.display_name || user?.email?.split('@')[0] || "User";
   const initials = displayName.substring(0, 2).toUpperCase();
+  const averageRating = reviews.length > 0
+    ? parseFloat(((reviews.reduce((sum, r) => sum + (r.rating || 0), 0)) / reviews.length).toFixed(1))
+    : (typeof profile.average_rating === 'number' ? profile.average_rating : 0);
 
   return (
     <div className="min-h-screen">
@@ -331,7 +476,7 @@ const Profile = () => {
       <div className="pt-24 pb-12 px-4">
         <div className="container mx-auto">
           {/* Welcome Banner */}
-          <Card className="p-6 mb-8 gradient-hero border-0 shadow-glow">
+          <Card className="p-6 mb-8 gradient-secondary border-0 shadow-glow">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-background/20 backdrop-blur-sm flex items-center justify-center">
                 <span className="text-2xl">👋</span>
@@ -383,11 +528,16 @@ const Profile = () => {
                   )}
                 </div>
                 {isOwnProfile && (
-                  <div className="mt-2 flex flex-col gap-2 w-full">
+                  <div className="mt-2 mb-4 flex flex-col gap-2 w-full">
                     {profile.telegram_chat_id ? (
-                      <Button variant="outline" size="sm" disabled className="w-full bg-green-50 border-green-200 text-green-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleDisconnectBot}
+                        className="w-full bg-green-50 border-green-200 text-green-700 hover:bg-red-50 hover:border-red-200 hover:text-red-700 dark:bg-green-950/20 dark:border-green-900 dark:text-green-400 dark:hover:bg-red-950/20 dark:hover:border-red-900 dark:hover:text-red-400"
+                      >
                         <MessageSquare className="mr-2 h-4 w-4" />
-                        Verified
+                        Bot Connected
                       </Button>
                     ) : (
                       <Button variant="secondary" onClick={handleConnectBot} className="w-full">
@@ -480,14 +630,21 @@ const Profile = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <Star className="w-5 h-5 fill-warning text-warning" />
-                    <span className="text-2xl font-bold">{profile.average_rating.toFixed(1)}</span>
-                    <span className="text-muted-foreground">({profile.completed_jobs} reviews)</span>
+                    <span className="text-2xl font-bold">{averageRating.toFixed(1)}</span>
+                    <span className="text-muted-foreground">({reviews.length} reviews)</span>
                   </div>
                 </div>
 
                 <p className="text-lg mb-6">
-                  {profile.bio || "No bio available. Click Edit Profile to add one."}
+                  {profile.bio || (isOwnProfile ? "No bio available. Click Edit Profile to add one." : "No bio available")}
                 </p>
+
+                {!isOwnProfile && (
+                  <Button onClick={handleContactUser} className="mb-6 gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    Contact
+                  </Button>
+                )}
 
                 <div className="flex flex-wrap gap-2 mb-6">
                   {profile.skills && profile.skills.length > 0 ? (
@@ -528,7 +685,7 @@ const Profile = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold">{profile.total_earnings.toFixed(2)}</div>
-                      <div className="text-sm text-muted-foreground">ETH Earned</div>
+                      <div className="text-sm text-muted-foreground">USDC Earned</div>
                     </div>
                   </div>
                 </div>
@@ -540,62 +697,64 @@ const Profile = () => {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">Portfolio</h2>
-              <Dialog open={portfolioDialog} onOpenChange={setPortfolioDialog}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    Add Portfolio Item
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Portfolio Item</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Title</Label>
-                      <Input 
-                        value={newPortfolio.title}
-                        onChange={(e) => setNewPortfolio({...newPortfolio, title: e.target.value})}
-                        placeholder="Project name"
-                      />
+              {isOwnProfile && (
+                <Dialog open={portfolioDialog} onOpenChange={setPortfolioDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2">
+                      <Plus className="w-4 h-4" />
+                      Add Portfolio Item
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Portfolio Item</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Title</Label>
+                        <Input 
+                          value={newPortfolio.title}
+                          onChange={(e) => setNewPortfolio({...newPortfolio, title: e.target.value})}
+                          placeholder="Project name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Description</Label>
+                        <Textarea 
+                          value={newPortfolio.description}
+                          onChange={(e) => setNewPortfolio({...newPortfolio, description: e.target.value})}
+                          placeholder="Brief description"
+                        />
+                      </div>
+                      <div>
+                        <Label>Emoji Icon</Label>
+                        <Input 
+                          value={newPortfolio.image}
+                          onChange={(e) => setNewPortfolio({...newPortfolio, image: e.target.value})}
+                          placeholder="🎨 (emoji)"
+                        />
+                      </div>
+                      <div>
+                        <Label>Tags (comma-separated)</Label>
+                        <Input 
+                          value={newPortfolio.tags}
+                          onChange={(e) => setNewPortfolio({...newPortfolio, tags: e.target.value})}
+                          placeholder="React, Web3, DeFi"
+                        />
+                      </div>
+                      <div>
+                        <Label>Project URL</Label>
+                        <Input 
+                          value={newPortfolio.url}
+                          onChange={(e) => setNewPortfolio({...newPortfolio, url: e.target.value})}
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <Button onClick={addPortfolioItem} className="w-full">Add Item</Button>
                     </div>
-                    <div>
-                      <Label>Description</Label>
-                      <Textarea 
-                        value={newPortfolio.description}
-                        onChange={(e) => setNewPortfolio({...newPortfolio, description: e.target.value})}
-                        placeholder="Brief description"
-                      />
-                    </div>
-                    <div>
-                      <Label>Emoji Icon</Label>
-                      <Input 
-                        value={newPortfolio.image}
-                        onChange={(e) => setNewPortfolio({...newPortfolio, image: e.target.value})}
-                        placeholder="🎨 (emoji)"
-                      />
-                    </div>
-                    <div>
-                      <Label>Tags (comma-separated)</Label>
-                      <Input 
-                        value={newPortfolio.tags}
-                        onChange={(e) => setNewPortfolio({...newPortfolio, tags: e.target.value})}
-                        placeholder="React, Web3, DeFi"
-                      />
-                    </div>
-                    <div>
-                      <Label>Project URL</Label>
-                      <Input 
-                        value={newPortfolio.url}
-                        onChange={(e) => setNewPortfolio({...newPortfolio, url: e.target.value})}
-                        placeholder="https://..."
-                      />
-                    </div>
-                    <Button onClick={addPortfolioItem} className="w-full">Add Item</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
             {profile.portfolio_items && profile.portfolio_items.length > 0 ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -630,10 +789,182 @@ const Profile = () => {
               </div>
             ) : (
               <Card className="p-8 glass-card shadow-card text-center">
-                <p className="text-muted-foreground">No portfolio items yet. Add your work to showcase your skills!</p>
+                <p className="text-muted-foreground">
+                  {isOwnProfile 
+                    ? "No portfolio items yet. Add your work to showcase your skills!" 
+                    : "No portfolio items yet"}
+                </p>
               </Card>
             )}
           </div>
+
+          {/* Posted Jobs Section */}
+          {userJobs.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold mb-6">Posted Jobs</h2>
+              <div className="grid md:grid-cols-2 gap-6">
+                {userJobs.map((job: any) => {
+                  const platformIcons: Record<string, any> = {
+                    facebook: Facebook,
+                    telegram: Send,
+                    youtube: Youtube,
+                    tiktok: Music2,
+                    twitter: Twitter,
+                    instagram: Instagram
+                  };
+                  return (
+                    <Card 
+                      key={job.id} 
+                      className="p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] cursor-pointer"
+                      onClick={() => navigate(`/jobs/${job.id}`)}
+                    >
+                      <h3 className="text-xl font-bold mb-2 hover:text-primary transition-smooth">{job.title}</h3>
+                      <p className="text-muted-foreground mb-4 line-clamp-2">{job.description}</p>
+                      
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {job.skills_required?.slice(0, 3).map((skill: string) => (
+                          <Badge key={skill} variant="secondary" className="text-xs">
+                            {skill}
+                          </Badge>
+                        ))}
+                        {job.skills_required?.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{job.skills_required.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                            <DollarSign className="w-4 h-4 text-success" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">Budget</div>
+                            <div className="font-semibold text-success">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">Duration</div>
+                            <div className="font-semibold">{job.duration_weeks ? `${job.duration_weeks}w` : 'Flex'}</div>
+                          </div>
+                        </div>
+                        <Badge variant={job.status === 'open' ? 'default' : 'secondary'} className="capitalize">
+                          {job.status}
+                        </Badge>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Social Media Listings Section */}
+          {userListings.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold mb-6">Social Media Listings</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userListings.map((listing: SocialMediaListing) => {
+                  const platformIcons: Record<string, any> = {
+                    facebook: Facebook,
+                    telegram: Send,
+                    youtube: Youtube,
+                    tiktok: Music2,
+                    twitter: Twitter,
+                    instagram: Instagram
+                  };
+                  const platformColors: Record<string, string> = {
+                    facebook: "bg-blue-500/10 text-blue-500",
+                    telegram: "bg-sky-500/10 text-sky-500",
+                    youtube: "bg-red-500/10 text-red-500",
+                    tiktok: "bg-pink-500/10 text-pink-500",
+                    twitter: "bg-blue-400/10 text-blue-400",
+                    instagram: "bg-purple-500/10 text-purple-500"
+                  };
+                  const PlatformIcon = platformIcons[listing.platform];
+                  const platformColor = platformColors[listing.platform];
+                  const firstScreenshot = listing.screenshot_urls && listing.screenshot_urls.length > 0 
+                    ? listing.screenshot_urls[0] 
+                    : listing.screenshot_url;
+                  
+                  return (
+                    <Card 
+                      key={listing.id} 
+                      className="p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] cursor-pointer"
+                      onClick={() => navigate(`/social-media/${listing.id}`)}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className={`w-12 h-12 rounded-xl ${platformColor} flex items-center justify-center`}>
+                          <PlatformIcon className="w-6 h-6" />
+                        </div>
+                        <div className="flex gap-2">
+                          {listing.verification_proof && (
+                            <Badge variant="secondary" className="gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Verified
+                            </Badge>
+                          )}
+                          <Badge variant={listing.status === 'available' ? 'default' : 'secondary'} className="capitalize">
+                            {listing.status}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {firstScreenshot && (
+                        <div className="mb-4 rounded-lg overflow-hidden">
+                          <img 
+                            src={firstScreenshot} 
+                            alt={listing.account_name}
+                            className="w-full h-32 object-cover"
+                          />
+                        </div>
+                      )}
+
+                      <h3 className="text-xl font-bold mb-2 hover:text-primary transition-smooth">
+                        {listing.account_name}
+                      </h3>
+                      
+                      <Badge variant="outline" className="mb-3 capitalize">
+                        {listing.platform}
+                      </Badge>
+
+                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                        {listing.description}
+                      </p>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Users className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">
+                              {listing.platform === 'youtube' ? 'Subs' : 'Followers'}
+                            </div>
+                            <div className="font-semibold">{listing.followers_count.toLocaleString()}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                            <DollarSign className="w-4 h-4 text-success" />
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">Price</div>
+                            <div className="font-semibold text-success">{listing.price_usdc} USDC</div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Reviews Section */}
           <div className="mt-12">

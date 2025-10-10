@@ -67,8 +67,8 @@ export const useDisputes = () => {
           job_id: jobId,
           raised_by: user.id,
           arbitration_deposit_eth: arbitrationDepositEth,
-          status: 'pending',
-          evidence_bundle: evidenceBundle
+          status: 'open',
+          reason: 'Dispute raised'
         });
 
       if (disputeError) throw disputeError;

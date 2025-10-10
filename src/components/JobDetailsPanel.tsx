@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FileText, GitCommit, Clock, AlertCircle } from 'lucide-react';
+import { FileText, GitCommit, Clock, AlertCircle, ExternalLink, GitBranch } from 'lucide-react';
 
 interface JobDetailsPanelProps {
   job: any;
@@ -100,17 +100,55 @@ export function JobDetailsPanel({ job, onRequestRevision, onSubmitRevision, onRa
           </div>
 
           {job.ipfs_hash && (
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Latest Submission
-              </p>
-              <p className="text-sm text-muted-foreground font-mono break-all">{job.ipfs_hash}</p>
-              {job.git_commit_hash && (
-                <p className="text-sm text-muted-foreground font-mono mt-2 flex items-center gap-2">
-                  <GitCommit className="h-4 w-4" />
-                  {job.git_commit_hash}
+            <div className="p-4 border rounded-lg bg-muted/50 space-y-3">
+              <div>
+                <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Latest Submission
                 </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground font-mono break-all flex-1">{job.ipfs_hash}</p>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => window.open(`https://ipfs.io/ipfs/${job.ipfs_hash}`, '_blank')}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    View on IPFS
+                  </Button>
+                </div>
+              </div>
+              {job.git_commit_hash && (
+                <div>
+                  <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <GitCommit className="h-4 w-4" />
+                    Git Commit
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground font-mono break-all flex-1">{job.git_commit_hash}</p>
+                    {job.repository_url && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => window.open(`${job.repository_url}/commit/${job.git_commit_hash}`, '_blank')}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        View Commit
+                      </Button>
+                    )}
+                  </div>
+                  {job.repository_url && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(job.repository_url, '_blank')}
+                      className="mt-2"
+                    >
+                      <GitBranch className="h-3 w-3 mr-1" />
+                      View Repository
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           )}

@@ -34,29 +34,31 @@ const Escrow = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch jobs where user is either client or freelancer (include disputed status)
+      // Fetch jobs where user is either client or freelancer (include assigned, in_progress, disputed status)
       const { data: jobs, error } = await supabase
         .from('jobs')
         .select(`
           *,
-          client:profiles!jobs_client_id_fkey(display_name, wallet_address),
-          freelancer:profiles!jobs_freelancer_id_fkey(display_name, wallet_address),
+          client:profiles!client_id(display_name, wallet_address),
+          freelancer:profiles!freelancer_id(display_name, wallet_address),
           milestones:job_milestones(*),
-          dispute:disputes!disputes_job_id_fkey(*)
+          dispute:disputes(*)
         `)
         .or(`client_id.eq.${user.id},freelancer_id.eq.${user.id}`)
-        .in('status', ['in_progress', 'under_review', 'completed', 'cancelled', 'refunded', 'disputed']);
+        .in('status', ['assigned', 'in_progress', 'under_review', 'completed', 'cancelled']);
 
       if (error) throw error;
 
       // Transform to escrow format
       const escrowData = (jobs || []).map(job => {
+        const isClient = job.client_id === user.id;
         // Check for any disputes (pending or resolved)
         const pendingDispute = job.dispute?.find((d: any) => d.status === 'pending');
         const resolvedDispute = job.dispute?.find((d: any) => d.status === 'resolved');
         
-        // Determine status - only show disputed in active if there's a pending dispute
-        let escrowStatus = job.status === 'in_progress' ? 'locked' : 
+        // Determine status - show 'awaiting_funding' for assigned jobs
+        let escrowStatus = job.status === 'assigned' ? 'awaiting_funding' :
+                           job.status === 'in_progress' ? 'locked' : 
                            job.status === 'under_review' ? 'locked' :
                            job.status === 'completed' ? 'completed' : 
                            job.status === 'cancelled' ? 'refunded' :
@@ -72,18 +74,20 @@ const Escrow = () => {
           jobId: job.id,
           jobTitle: job.title,
           amount: job.budget_eth,
+          amountUsdc: job.budget_usdc,
           status: escrowStatus,
           transactionHash: job.contract_address || 'N/A',
           createdAt: job.created_at,
           submissionDeadline: job.deadline,
           milestones: job.milestones,
           dispute: pendingDispute || resolvedDispute,
-          resolvedDispute: resolvedDispute
+          resolvedDispute: resolvedDispute,
+          isClient: isClient
         };
       });
 
       const active = escrowData.filter(e => 
-        ['locked', 'disputed'].includes(e.status)
+        ['awaiting_funding', 'locked', 'disputed'].includes(e.status)
       );
       const history = escrowData.filter(e => 
         ['completed', 'refunded'].includes(e.status)
@@ -117,6 +121,7 @@ const Escrow = () => {
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { color: string; icon: any; label: string }> = {
+      awaiting_funding: { color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20", icon: Clock, label: "AWAITING FUNDING" },
       locked: { color: "bg-blue-500/10 text-blue-500 border-blue-500/20", icon: Lock, label: "FUNDED & LOCKED" },
       disputed: { color: "bg-red-500/10 text-red-500 border-red-500/20", icon: AlertTriangle, label: "DISPUTED" },
       completed: { color: "bg-green-500/10 text-green-500 border-green-500/20", icon: CheckCircle2, label: "COMPLETED" },
@@ -142,23 +147,31 @@ const Escrow = () => {
           {getStatusBadge(escrow.status)}
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold text-primary">{escrow.amount} ETH</p>
-          <p className="text-sm text-muted-foreground">Escrow Amount</p>
+          <p className="text-sm font-bold">Amount</p>
+          <p className="text-xl font-bold text-primary">${escrow.amountUsdc} USDC</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b">
         <div>
           <p className="text-sm text-muted-foreground">Transaction Hash</p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <p className="font-mono text-sm truncate">{escrow.transactionHash}</p>
-            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+            {escrow.status !== 'awaiting_funding' && escrow.transactionHash !== 'N/A' && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => window.open(`https://amoy.polygonscan.com/tx/${escrow.transactionHash}`, '_blank')}
+              >
+                View
+              </Button>
+            )}
           </div>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Created</p>
           <p className="font-semibold">
-            {new Date(escrow.createdAt).toLocaleDateString()}
+            {new Date(escrow.createdAt).toLocaleDateString()} at {new Date(escrow.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
       </div>
@@ -172,6 +185,26 @@ const Escrow = () => {
               {new Date(escrow.submissionDeadline).toLocaleDateString()}
             </span>
           </div>
+        </div>
+      )}
+
+      {escrow.status === 'awaiting_funding' && (
+        <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+          <div className="flex items-center gap-2 text-yellow-500">
+            <Clock className="h-5 w-5" />
+            <span className="font-semibold">Awaiting Escrow Funding</span>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            The proposal has been accepted. {escrow.isClient ? 'Please fund the escrow to start the project.' : 'Waiting for client to fund the escrow.'}
+          </p>
+          {escrow.isClient && (
+            <Button 
+              onClick={() => navigate(`/jobs/${escrow.jobId}`)} 
+              className="mt-3 w-full"
+            >
+              Fund Escrow Now
+            </Button>
+          )}
         </div>
       )}
 

@@ -57,14 +57,19 @@ export function RatingDialog({ jobId, revieweeId, revieweeName, trigger, onSucce
 
       if (error) throw error;
 
-      // Update reviewee's average rating
+      // Update reviewee's average rating (including the new review)
       const { data: reviews } = await supabase
         .from('reviews')
         .select('rating')
-        .eq('reviewee_id', revieweeId);
+        .eq('reviewee_id', revieweeId)
+        .not('rating', 'is', null);
 
-      if (reviews) {
-        const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+      if (reviews && reviews.length > 0) {
+        const totalRating = reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
+        const avgRating = Math.round((totalRating / reviews.length) * 10) / 10;
+        
+        console.log('Rating calculation:', { totalRating, count: reviews.length, avgRating, ratings: reviews.map(r => r.rating) });
+        
         await supabase
           .from('profiles')
           .update({ average_rating: avgRating })

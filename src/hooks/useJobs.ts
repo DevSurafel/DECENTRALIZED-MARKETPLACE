@@ -66,8 +66,8 @@ export const useJobs = () => {
         .from('jobs')
         .select(`
           *,
-          client:profiles!jobs_client_id_fkey(display_name, wallet_address),
-          bids(count)
+          client:profiles!client_id(display_name, wallet_address),
+          bids!bids_job_id_fkey(count)
         `)
         .order('created_at', { ascending: false });
 
@@ -98,9 +98,9 @@ export const useJobs = () => {
         .from('jobs')
         .select(`
           *,
-          client:profiles!jobs_client_id_fkey(display_name, wallet_address, avatar_url),
-          freelancer:profiles!jobs_freelancer_id_fkey(display_name, wallet_address, avatar_url),
-          bids(count)
+          client:profiles!client_id(display_name, wallet_address, avatar_url),
+          freelancer:profiles!freelancer_id(display_name, wallet_address, avatar_url),
+          bids!bids_job_id_fkey(count)
         `)
         .eq('id', id)
         .single();

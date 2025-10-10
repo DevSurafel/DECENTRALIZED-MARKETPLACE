@@ -15,15 +15,27 @@ export const useMessages = () => {
         .from('conversations')
         .select(`
           *,
-          participant1:profiles!conversations_participant_1_id_fkey(id, display_name, avatar_url),
-          participant2:profiles!conversations_participant_2_id_fkey(id, display_name, avatar_url),
           messages(id, content, created_at, is_read, sender_id)
         `)
         .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
         .order('last_message_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+
+      // Fetch participant profiles client-side to avoid FK embed issues
+      const ids = Array.from(new Set((data || []).flatMap((c: any) => [c.participant_1_id, c.participant_2_id]).filter(Boolean)));
+      if (ids.length === 0) return data as any;
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', ids as string[]);
+      const map = new Map((profiles || []).map((p: any) => [p.id, p]));
+      const enriched = (data || []).map((c: any) => ({ 
+        ...c, 
+        participant1: map.get(c.participant_1_id) || null, 
+        participant2: map.get(c.participant_2_id) || null 
+      }));
+      return enriched;
     } catch (error) {
       console.error('Error fetching conversations:', error);
       return [];
@@ -37,10 +49,7 @@ export const useMessages = () => {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender:profiles!messages_sender_id_fkey(display_name, avatar_url)
-        `)
+        .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
 
@@ -147,14 +156,15 @@ export const useMessages = () => {
         return null;
       }
 
-      // Check if conversation already exists
-      const { data: existing } = await supabase
+      // Check if conversation already exists with these two participants
+      const { data: existingConvs } = await supabase
         .from('conversations')
         .select('id')
-        .or(`and(participant_1_id.eq.${user.id},participant_2_id.eq.${participantId}),and(participant_1_id.eq.${participantId},participant_2_id.eq.${user.id})`)
-        .maybeSingle();
+        .or(`and(participant_1_id.eq.${user.id},participant_2_id.eq.${participantId}),and(participant_1_id.eq.${participantId},participant_2_id.eq.${user.id})`);
 
-      if (existing) return existing.id;
+      if (existingConvs && existingConvs.length > 0) {
+        return existingConvs[0].id;
+      }
 
       const { data, error } = await supabase
         .from('conversations')
@@ -167,6 +177,7 @@ export const useMessages = () => {
         .single();
 
       if (error) throw error;
+      
       return data.id;
     } catch (error) {
       console.error('Error creating conversation:', error);

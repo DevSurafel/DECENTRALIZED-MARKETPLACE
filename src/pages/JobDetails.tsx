@@ -72,15 +72,9 @@ const JobDetails = () => {
   const fetchReviewFlags = async () => {
     if (!id || !user?.id) return;
     try {
-      const [{ data: userReview }, { data: platformReview }, { data: existingBid }] = await Promise.all([
+      const [{ data: userReview }, { data: existingBid }] = await Promise.all([
         supabase
           .from('reviews')
-          .select('id')
-          .eq('job_id', id)
-          .eq('reviewer_id', user.id)
-          .maybeSingle(),
-        supabase
-          .from('platform_reviews')
           .select('id')
           .eq('job_id', id)
           .eq('reviewer_id', user.id)
@@ -93,14 +87,18 @@ const JobDetails = () => {
           .maybeSingle(),
       ]);
       setHasLeftUserReview(!!userReview);
-      setHasLeftPlatformReview(!!platformReview);
+      setHasLeftPlatformReview(false); // Platform reviews are not job-specific
       setHasSubmittedBid(!!existingBid);
     } catch (e) {
       console.error('Error checking review flags', e);
     }
   };
 
-  const loadJob = async () => {
+  const loadJob = async (forceRefresh = false) => {
+    // Force fresh data from database
+    if (forceRefresh) {
+      setJob(null); // Clear current job to show loading state
+    }
     const data = await getJobById(id!);
     setJob(data);
     fetchReviewFlags();
@@ -252,11 +250,21 @@ const JobDetails = () => {
           console.error('Error sending notification:', notifError);
         }
       }
-      await loadJob();
+      
+      toast({
+        title: "Success!",
+        description: "Escrow funded successfully. The freelancer can now start working.",
+      });
+      
+      // Add a small delay to ensure database has updated
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Force reload the job data from database
+      await loadJob(true);
     }
   };
 
-  const handleSubmitWork = async (ipfsHash: string, gitHash: string, notes: string) => {
+  const handleSubmitWork = async (ipfsHash: string, gitHash: string, repositoryUrl: string, notes: string) => {
     if (!id) return;
     
     try {
@@ -280,6 +288,7 @@ const JobDetails = () => {
           status: 'under_review',
           ipfs_hash: ipfsHash,
           git_commit_hash: gitHash,
+          repository_url: repositoryUrl || null,
           review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
           contract_address: blockchainResult.txHash,
         })
@@ -526,7 +535,7 @@ const JobDetails = () => {
             )}
 
             {/* Client View - Fund Escrow */}
-            {getUserRole() === 'client' && job.status === 'in_progress' && !job.escrow_address && (
+            {getUserRole() === 'client' && job.status === 'assigned' && (
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-4">Fund Escrow</h2>
                 <p className="text-muted-foreground mb-6">
@@ -601,14 +610,14 @@ const JobDetails = () => {
             )}
 
             {/* Freelancer View - Submit Work */}
-            {getUserRole() === 'freelancer' && (job.status === 'in_progress' || job.status === 'revision_requested') && job.escrow_address && (
+            {getUserRole() === 'freelancer' && (job.status === 'in_progress' || job.status === 'revision_requested') && (
               <WorkSubmissionPanel
                 jobId={id!}
-                onSubmit={async (ipfs, git, notes) => {
+                onSubmit={async (ipfs, git, repoUrl, notes) => {
                   if (job.status === 'revision_requested') {
                     await handleSubmitRevision(ipfs, git);
                   } else {
-                    await handleSubmitWork(ipfs, git, notes);
+                    await handleSubmitWork(ipfs, git, repoUrl, notes);
                   }
                 }}
               />

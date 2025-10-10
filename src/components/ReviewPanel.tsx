@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Star, CheckCircle, AlertCircle, RotateCcw } from "lucide-react";
+import { Star, CheckCircle, AlertCircle, RotateCcw, FileText, GitBranch, ExternalLink } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,12 +71,22 @@ export function ReviewPanel({ job, onApprove, onRequestRevision, onRaiseDispute 
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-4">Review Submitted Work</h2>
         
-        <div className="mb-6 p-4 bg-muted/50 rounded-lg">
-          <div className="flex items-start gap-3 mb-3">
+        <div className="mb-6 p-4 bg-muted/50 rounded-lg space-y-3">
+          <div className="flex items-start gap-3">
             <FileText className="h-5 w-5 text-primary mt-0.5" />
             <div className="flex-1">
               <p className="font-semibold mb-1">IPFS Hash</p>
-              <p className="font-mono text-sm text-muted-foreground break-all">{job.ipfs_hash}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-mono text-sm text-muted-foreground break-all flex-1">{job.ipfs_hash}</p>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => window.open(`https://ipfs.io/ipfs/${job.ipfs_hash}`, '_blank')}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  View on IPFS
+                </Button>
+              </div>
             </div>
           </div>
           {job.git_commit_hash && (
@@ -84,7 +94,30 @@ export function ReviewPanel({ job, onApprove, onRequestRevision, onRaiseDispute 
               <GitBranch className="h-5 w-5 text-primary mt-0.5" />
               <div className="flex-1">
                 <p className="font-semibold mb-1">Git Commit</p>
-                <p className="font-mono text-sm text-muted-foreground break-all">{job.git_commit_hash}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-mono text-sm text-muted-foreground break-all flex-1">{job.git_commit_hash}</p>
+                  {job.repository_url && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => window.open(`${job.repository_url}/commit/${job.git_commit_hash}`, '_blank')}
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      View Commit
+                    </Button>
+                  )}
+                </div>
+                {job.repository_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(job.repository_url, '_blank')}
+                    className="mt-2"
+                  >
+                    <GitBranch className="h-3 w-3 mr-1" />
+                    View Repository
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -194,14 +227,3 @@ export function ReviewPanel({ job, onApprove, onRequestRevision, onRaiseDispute 
   );
 }
 
-const FileText = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);
-
-const GitBranch = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-  </svg>
-);
