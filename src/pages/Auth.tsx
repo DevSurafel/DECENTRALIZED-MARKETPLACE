@@ -96,6 +96,14 @@ const Auth = () => {
         setShowTelegramInstructions(true);
       }
 
+      // If auto-confirm is enabled, user will be immediately confirmed
+      // Redirect to dashboard after showing the message
+      if (authData?.user?.confirmed_at) {
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 2000);
+      }
+
     } catch (error: any) {
       toast({
         title: "Signup failed",

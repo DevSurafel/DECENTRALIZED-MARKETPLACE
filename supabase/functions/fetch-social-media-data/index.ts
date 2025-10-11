@@ -12,6 +12,7 @@ const corsHeaders = {
 interface FetchRequest {
   url: string;
   platform: string;
+  verificationCode?: string;
 }
 
 // Extract username from URL
@@ -77,7 +78,7 @@ function parseCount(text: string): number {
 }
 
 // Scrape Instagram (public data) - Enhanced parsing with multiple patterns
-async function scrapeInstagram(username: string) {
+async function scrapeInstagram(username: string, verificationCode?: string) {
   try {
     const url = `https://www.instagram.com/${username}/`;
     
@@ -99,6 +100,8 @@ async function scrapeInstagram(username: string) {
     let followers = 0;
     let accountName = username;
     let isVerified = false;
+    let biography = '';
+    let verificationCodeFound = false;
 
     // Pattern 1: Look for edge_followed_by in any JSON structure
     const edgeFollowMatch = html.match(/"edge_followed_by":\{"count":(\d+)\}/);
@@ -183,7 +186,19 @@ async function scrapeInstagram(username: string) {
     // Check verification status
     isVerified = isVerified || html.includes('"is_verified":true') || html.includes('verified');
 
-    console.log('Instagram final parsed data:', { accountName, followers, isVerified });
+    // Extract biography for verification
+    const bioMatch = html.match(/"biography":"(.*?)"/);
+    if (bioMatch) {
+      biography = bioMatch[1].replace(/\\n/g, ' ').replace(/\\"/g, '"');
+    }
+
+    // Check if verification code is in biography
+    if (verificationCode && biography) {
+      verificationCodeFound = biography.includes(verificationCode);
+      console.log('Verification check:', { verificationCode, found: verificationCodeFound, biography });
+    }
+
+    console.log('Instagram final parsed data:', { accountName, followers, isVerified, verificationCodeFound });
     
     return {
       success: followers > 0,
@@ -191,6 +206,7 @@ async function scrapeInstagram(username: string) {
         accountName: accountName,
         followers: followers,
         isVerified: isVerified,
+        verificationCodeFound: verificationCodeFound,
         accountExists: true
       }
     };
@@ -202,7 +218,7 @@ async function scrapeInstagram(username: string) {
 }
 
 // Scrape YouTube (public data) - Enhanced with improved pattern matching
-async function scrapeYouTube(handle: string) {
+async function scrapeYouTube(handle: string, verificationCode?: string) {
   try {
     const url = `https://www.youtube.com/@${handle}`;
     
@@ -225,6 +241,8 @@ async function scrapeYouTube(handle: string) {
     let videoCount = 0;
     let channelName = handle;
     let isVerified = false;
+    let description = '';
+    let verificationCodeFound = false;
 
     // Enhanced Pattern 1: Search for subscriber count with multiple formats
     const subscriberPatterns = [
@@ -384,7 +402,19 @@ async function scrapeYouTube(handle: string) {
       }
     }
 
-    console.log('YouTube final parsed data:', { channelName, subscriberCount, videoCount, isVerified });
+    // Extract channel description for verification
+    const descMatch = html.match(/"description":\{"simpleText":"(.*?)"\}/);
+    if (descMatch) {
+      description = descMatch[1].replace(/\\n/g, ' ').replace(/\\"/g, '"');
+    }
+
+    // Check if verification code is in description
+    if (verificationCode && description) {
+      verificationCodeFound = description.includes(verificationCode);
+      console.log('Verification check:', { verificationCode, found: verificationCodeFound });
+    }
+
+    console.log('YouTube final parsed data:', { channelName, subscriberCount, videoCount, isVerified, verificationCodeFound });
     
     return {
       success: subscriberCount > 0 || videoCount > 0,
@@ -393,6 +423,7 @@ async function scrapeYouTube(handle: string) {
         followers: subscriberCount,
         isVerified: isVerified,
         videoCount: videoCount,
+        verificationCodeFound: verificationCodeFound,
         accountExists: true
       },
       message: subscriberCount === 0 || videoCount === 0 ? 'Some data could not be auto-filled. Please enter manually.' : undefined
@@ -405,7 +436,7 @@ async function scrapeYouTube(handle: string) {
 }
 
 // Scrape TikTok (public data)
-async function scrapeTikTok(username: string) {
+async function scrapeTikTok(username: string, verificationCode?: string) {
   try {
     const url = `https://www.tiktok.com/@${username}`;
     
@@ -432,12 +463,16 @@ async function scrapeTikTok(username: string) {
         const stats = data.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo?.stats;
         
         if (userDetail) {
+          const bio = userDetail.signature || '';
+          const verificationCodeFound = verificationCode ? bio.includes(verificationCode) : false;
+          
           return {
             success: true,
             data: {
               accountName: userDetail.nickname || username,
               followers: stats?.followerCount || 0,
               isVerified: userDetail.verified || false,
+              verificationCodeFound: verificationCodeFound,
               accountExists: true
             }
           };
@@ -456,7 +491,7 @@ async function scrapeTikTok(username: string) {
 }
 
 // Scrape Twitter/X (public data) - Note: X requires login now for most data
-async function scrapeTwitter(username: string) {
+async function scrapeTwitter(username: string, verificationCode?: string) {
   try {
     const url = `https://twitter.com/${username}`;
     
@@ -472,6 +507,15 @@ async function scrapeTwitter(username: string) {
 
     const html = await response.text();
     
+    // Try to find bio in meta tags
+    let bio = '';
+    const bioMatch = html.match(/<meta property="og:description" content="(.*?)"/);
+    if (bioMatch) {
+      bio = bioMatch[1];
+    }
+    
+    const verificationCodeFound = verificationCode && bio ? bio.includes(verificationCode) : false;
+    
     // Twitter blocks scraping heavily, return limited info
     return {
       success: true,
@@ -479,6 +523,7 @@ async function scrapeTwitter(username: string) {
         accountName: username,
         followers: 0, // Requires API or login
         isVerified: false,
+        verificationCodeFound: verificationCodeFound,
         accountExists: true,
         message: 'Twitter requires manual entry due to anti-scraping measures'
       }
@@ -486,6 +531,102 @@ async function scrapeTwitter(username: string) {
 
   } catch (error) {
     return { success: false, error: 'Twitter scraping blocked' };
+  }
+}
+
+// NEW: Scrape Telegram (public data)
+async function scrapeTelegram(identifier: string, verificationCode?: string) {
+  try {
+    // Clean identifier
+    let cleanId = identifier.trim();
+    
+    // If it's a channel ID (starts with -100), we can't scrape public data
+    if (cleanId.startsWith('-100')) {
+      return { 
+        success: false, 
+        error: 'Private channel IDs cannot be automatically verified. Please provide manual data and screenshots.' 
+      };
+    }
+    
+    // Remove @ if present for URL construction
+    const username = cleanId.startsWith('@') ? cleanId.substring(1) : cleanId;
+    const url = `https://t.me/${username}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      }
+    });
+
+    if (!response.ok) {
+      return { success: false, error: 'Channel/Group not found or is private' };
+    }
+
+    const html = await response.text();
+    console.log('Telegram HTML length:', html.length);
+    
+    let members = 0;
+    let channelName = username;
+    let description = '';
+    let verificationCodeFound = false;
+
+    // Parse HTML for member count
+    const memberPatterns = [
+      /<div class="tgme_page_extra">([\d\s]+)\s+members?<\/div>/i,
+      /<div class="tgme_page_extra">([\d.KMB]+)\s+subscribers?<\/div>/i,
+      /members?[^\d]*([\d\s,KMB]+)/i,
+      /subscribers?[^\d]*([\d\s,KMB]+)/i,
+    ];
+
+    for (const pattern of memberPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        members = parseCount(match[1]);
+        if (members > 0) {
+          console.log('Found members via pattern:', members);
+          break;
+        }
+      }
+    }
+
+    // Get channel/group name
+    const nameMatch = html.match(/<div class="tgme_page_title"[^>]*><span[^>]*>(.*?)<\/span>/i) ||
+                      html.match(/<meta property="og:title" content="(.*?)"/);
+    if (nameMatch) {
+      channelName = nameMatch[1].replace(/<[^>]*>/g, '').trim();
+    }
+
+    // Get description
+    const descMatch = html.match(/<div class="tgme_page_description"[^>]*>(.*?)<\/div>/is) ||
+                      html.match(/<meta property="og:description" content="(.*?)"/);
+    if (descMatch) {
+      description = descMatch[1].replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    // Check if verification code is in description
+    if (verificationCode && description) {
+      verificationCodeFound = description.includes(verificationCode);
+      console.log('Telegram verification check:', { verificationCode, found: verificationCodeFound });
+    }
+
+    console.log('Telegram final parsed data:', { channelName, members, verificationCodeFound });
+    
+    return {
+      success: members > 0 || channelName !== username,
+      data: {
+        accountName: `@${username}`,
+        followers: members,
+        isVerified: false,
+        verificationCodeFound: verificationCodeFound,
+        accountExists: true
+      },
+      message: members === 0 ? 'Could not fetch member count. Please enter manually.' : undefined
+    };
+
+  } catch (error) {
+    console.error('Telegram scrape error:', error);
+    return { success: false, error: String(error instanceof Error ? error.message : error) };
   }
 }
 
@@ -500,7 +641,7 @@ serve(async (req) => {
   try {
     const body = await req.json();
     console.log('Request body:', body);
-    const { url, platform }: FetchRequest = body;
+    const { url, platform, verificationCode }: FetchRequest = body;
 
     if (!url || !platform) {
       return new Response(
@@ -509,7 +650,17 @@ serve(async (req) => {
       );
     }
 
-    const username = extractUsername(url, platform);
+    let username: string | null = null;
+    
+    // For Telegram, handle both username and direct identifier input
+    if (platform === 'telegram') {
+      // Direct identifier (username or channel ID)
+      username = url.trim();
+    } else {
+      // Extract username from URL for other platforms
+      username = extractUsername(url, platform);
+    }
+    
     console.log('Extracted username:', username, 'for platform:', platform);
     
     if (!username) {
@@ -521,31 +672,35 @@ serve(async (req) => {
     }
 
     let result;
-    console.log('Starting data fetch for platform:', platform);
+    console.log('Starting data fetch for platform:', platform, 'with verification code:', verificationCode);
 
     switch (platform) {
       case 'instagram':
         console.log('Calling scrapeInstagram');
-        result = await scrapeInstagram(username);
+        result = await scrapeInstagram(username, verificationCode);
         break;
       
       case 'youtube':
         console.log('Calling scrapeYouTube');
-        result = await scrapeYouTube(username);
+        result = await scrapeYouTube(username, verificationCode);
         break;
       
       case 'tiktok':
         console.log('Calling scrapeTikTok');
-        result = await scrapeTikTok(username);
+        result = await scrapeTikTok(username, verificationCode);
         break;
       
       case 'twitter':
         console.log('Calling scrapeTwitter');
-        result = await scrapeTwitter(username);
+        result = await scrapeTwitter(username, verificationCode);
+        break;
+      
+      case 'telegram':
+        console.log('Calling scrapeTelegram');
+        result = await scrapeTelegram(username, verificationCode);
         break;
       
       case 'facebook':
-      case 'telegram':
         console.log('Platform requires manual entry:', platform);
         result = { 
           success: false, 

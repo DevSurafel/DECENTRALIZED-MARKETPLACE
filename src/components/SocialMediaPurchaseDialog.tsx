@@ -197,12 +197,13 @@ export const SocialMediaPurchaseDialog = ({ open, onOpenChange, listing }: Socia
         .insert({
           client_id: user.id,
           freelancer_id: listing.seller_id,
+          listing_id: listing.id,
           title: `Social Media Purchase: ${listing.platform} - ${listing.account_name}`,
           description: `Purchase of ${listing.platform} account: ${listing.account_name}\n\nBuyer Contact: ${buyerInfo}\nContact Type: ${requirement.label}`,
           skills_required: [listing.platform],
           budget_usdc: listing.price_usdc,
           budget_eth: 0,
-          status: 'in_progress'
+          status: 'assigned'
         })
         .select()
         .single();

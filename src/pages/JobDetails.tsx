@@ -16,6 +16,7 @@ import { BidsPanel } from "@/components/BidsPanel";
 import { WorkSubmissionPanel } from "@/components/WorkSubmissionPanel";
 import { OwnershipTransferPanel } from "@/components/OwnershipTransferPanel";
 import { ReviewPanel } from "@/components/ReviewPanel";
+import { SocialMediaReviewPanel } from "@/components/SocialMediaReviewPanel";
 import { RatingDialog } from "@/components/RatingDialog";
 import { PlatformReviewDialog } from "@/components/PlatformReviewDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -241,7 +242,9 @@ const JobDetails = () => {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.freelancer_id,
-              message: `🔒 Job "${job.title}" funded with ${amountUSDC} USDC. You can start work!`,
+              message: isSocialMediaPurchase() 
+                ? `🔒 Purchase funded with ${amountUSDC} USDC. Please transfer account ownership to @defiescrow!`
+                : `🔒 Job "${job.title}" funded with ${amountUSDC} USDC. You can start work!`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Details'
@@ -254,7 +257,9 @@ const JobDetails = () => {
       
       toast({
         title: "Success!",
-        description: "Escrow funded successfully. The freelancer can now start working.",
+        description: isSocialMediaPurchase()
+          ? "Escrow funded successfully. The seller will now transfer the account."
+          : "Escrow funded successfully. The freelancer can now start working.",
       });
       
       // Add a small delay to ensure database has updated
@@ -321,8 +326,10 @@ const JobDetails = () => {
       }
 
       toast({
-        title: "Work Submitted",
-        description: "Your work has been submitted for review. The client has 7 days to review.",
+        title: isSocialMediaPurchase() ? "Ownership Transferred" : "Work Submitted",
+        description: isSocialMediaPurchase()
+          ? "Transfer confirmed. The buyer will verify and release payment within 24 hours."
+          : "Your work has been submitted for review. The client has 7 days to review.",
       });
 
       loadJob();
@@ -340,31 +347,108 @@ const JobDetails = () => {
     if (!id || !job) return;
     
     try {
-      // Update job status to under_review (buyer needs to verify)
+      // Check if it's a Telegram purchase
+      const isTelegramPurchase = job.title.toLowerCase().includes('telegram');
+      
+      // For Telegram: status -> awaiting_escrow_verification (escrow needs to handle transfer)
+      // For others: status -> under_review (buyer needs to verify)
+      const newStatus = isTelegramPurchase ? 'awaiting_escrow_verification' : 'under_review';
+      
       const { error } = await supabase
         .from('jobs')
         .update({
-          status: 'under_review',
-          review_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours for buyer to verify
+          status: newStatus as any,
+          review_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         })
         .eq('id', id);
 
       if (error) throw error;
 
-      // Notify buyer via Telegram
-      if (job.client_id) {
+      // For Telegram purchases, trigger automated transfer
+      if (isTelegramPurchase && job.listing_id) {
         try {
-          await supabase.functions.invoke('send-telegram-notification', {
-            body: {
-              recipient_id: job.client_id,
-              message: `✅ Seller confirmed ownership transfer for "${job.title}".\n\nEscrow is verifying the account. You will receive access credentials shortly. Please verify and confirm receipt within 24 hours.`,
-              sender_id: user?.id,
-              url: `${window.location.origin}/job-details/${id}`,
-              button_text: 'View Purchase Details'
+          // Get the channel/group username from the listing
+          const { data: listing } = await supabase
+            .from('social_media_listings')
+            .select('account_name')
+            .eq('id', job.listing_id)
+            .single();
+
+          if (listing?.account_name) {
+            // Trigger the automated Telegram transfer - let edge function handle everything
+            toast({
+              title: "Processing Transfer",
+              description: "Initiating automated Telegram ownership transfer...",
+            });
+
+            const { data: transferResult, error: transferError } = await supabase.functions.invoke(
+              'telegram-auto-transfer',
+              {
+                body: {
+                  jobId: id,
+                  channelUsername: '' // Let the edge function get it from the listing
+                }
+              }
+            );
+
+            if (transferError) {
+              console.error('Transfer error:', transferError);
+              toast({
+                title: "Transfer Error",
+                description: `Automated transfer failed: ${transferError.message}. Please check the logs.`,
+                variant: "destructive"
+              });
+            } else if (transferResult?.success) {
+              toast({
+                title: "Transfer Complete!",
+                description: "Ownership transferred to buyer and funds released to you.",
+              });
             }
+          }
+        } catch (transferError: any) {
+          console.error('Error in automated transfer:', transferError);
+          toast({
+            title: "Transfer Issue",
+            description: "Automated transfer encountered an issue. Admin will process manually.",
+            variant: "destructive"
           });
-        } catch (notifError) {
-          console.error('Error sending notification:', notifError);
+        }
+      }
+
+      // Send notifications
+      if (isTelegramPurchase) {
+        // Notify buyer that escrow is processing
+        if (job.client_id) {
+          try {
+            await supabase.functions.invoke('send-telegram-notification', {
+              body: {
+                recipient_id: job.client_id,
+                message: `✅ Seller has transferred ownership to escrow for "${job.title}".\n\nEscrow admin is verifying and will transfer ownership to you shortly. You'll be notified once complete.`,
+                sender_id: user?.id,
+                url: `${window.location.origin}/job-details/${id}`,
+                button_text: 'View Purchase Details'
+              }
+            });
+          } catch (notifError) {
+            console.error('Error sending notification:', notifError);
+          }
+        }
+      } else {
+        // Notify buyer to verify (non-Telegram platforms)
+        if (job.client_id) {
+          try {
+            await supabase.functions.invoke('send-telegram-notification', {
+              body: {
+                recipient_id: job.client_id,
+                message: `✅ Seller confirmed ownership transfer for "${job.title}".\n\nEscrow is verifying the account. You will receive access credentials shortly. Please verify and confirm receipt within 24 hours.`,
+                sender_id: user?.id,
+                url: `${window.location.origin}/job-details/${id}`,
+                button_text: 'View Purchase Details'
+              }
+            });
+          } catch (notifError) {
+            console.error('Error sending notification:', notifError);
+          }
         }
       }
 
@@ -436,8 +520,10 @@ const JobDetails = () => {
       }
 
       toast({
-        title: "Work Approved",
-        description: "Funds have been released to the freelancer.",
+        title: isSocialMediaPurchase() ? "Payment Released" : "Work Approved",
+        description: isSocialMediaPurchase()
+          ? "Payment has been released to the seller."
+          : "Funds have been released to the freelancer.",
       });
 
       loadJob();
@@ -452,6 +538,10 @@ const JobDetails = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const isSocialMediaPurchase = (): boolean => {
+    return job?.title?.startsWith('Social Media Purchase:') || false;
   };
 
   const getUserRole = (): 'client' | 'freelancer' | null => {
@@ -504,13 +594,13 @@ const JobDetails = () => {
           className="mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Jobs
+          {isSocialMediaPurchase() ? 'Back to Marketplace' : 'Back to Jobs'}
         </Button>
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Job Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Job Details Card - Show to everyone */}
+            {/* Job/Purchase Details Card - Show to everyone */}
             <Card className="p-6 bg-card/50 backdrop-blur">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -526,17 +616,19 @@ const JobDetails = () => {
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Budget</p>
+                    <p className="text-sm text-muted-foreground">{isSocialMediaPurchase() ? 'Price' : 'Budget'}</p>
                     <p className="font-semibold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Duration</p>
-                    <p className="font-semibold">{durationText}</p>
+                {!isSocialMediaPurchase() && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Duration</p>
+                      <p className="font-semibold">{durationText}</p>
+                    </div>
                   </div>
-                </div>
+                )}
                 {job.budget_usd && (
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-5 w-5 text-primary" />
@@ -549,13 +641,15 @@ const JobDetails = () => {
               </div>
 
               <div className="mb-6">
-                <h2 className="text-xl font-semibold mb-3">Description</h2>
+                <h2 className="text-xl font-semibold mb-3">
+                  {isSocialMediaPurchase() ? 'Purchase Details' : 'Description'}
+                </h2>
                 <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
                   {job.description}
                 </p>
               </div>
 
-              {skills.length > 0 && (
+              {!isSocialMediaPurchase() && skills.length > 0 && (
                 <div>
                   <h2 className="text-xl font-semibold mb-3">Required Skills</h2>
                   <div className="flex flex-wrap gap-2">
@@ -579,7 +673,9 @@ const JobDetails = () => {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-4">Fund Escrow</h2>
                 <p className="text-muted-foreground mb-6">
-                  You've accepted a proposal. Now fund the escrow to allow the freelancer to start working.
+                  {isSocialMediaPurchase() 
+                    ? "You've initiated the purchase. Fund the escrow to begin the account transfer process."
+                    : "You've accepted a proposal. Now fund the escrow to allow the freelancer to start working."}
                 </p>
                 <div className="mb-6 p-4 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
@@ -587,7 +683,9 @@ const JobDetails = () => {
                     <span className="text-lg font-bold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Funds will be held in escrow until work is approved
+                    {isSocialMediaPurchase()
+                      ? "Funds will be held in escrow until you confirm receipt of the account"
+                      : "Funds will be held in escrow until work is approved"}
                   </p>
                 </div>
                 <Button onClick={handleFundEscrow} className="w-full shadow-glow" size="lg">
@@ -597,14 +695,22 @@ const JobDetails = () => {
               </Card>
             )}
 
-            {/* Client View - Review Work */}
+            {/* Client View - Review Work / Verify Transfer */}
             {getUserRole() === 'client' && job.status === 'under_review' && (
-              <ReviewPanel
-                job={job}
-                onApprove={handleApproveWork}
-                onRequestRevision={handleRequestRevision}
-                onRaiseDispute={handleRaiseDispute}
-              />
+              isSocialMediaPurchase() ? (
+                <SocialMediaReviewPanel
+                  job={job}
+                  onApprove={handleApproveWork}
+                  onRaiseDispute={handleRaiseDispute}
+                />
+              ) : (
+                <ReviewPanel
+                  job={job}
+                  onApprove={handleApproveWork}
+                  onRequestRevision={handleRequestRevision}
+                  onRaiseDispute={handleRaiseDispute}
+                />
+              )
             )}
 
             {/* Client View - Completed */}
@@ -612,9 +718,13 @@ const JobDetails = () => {
               <Card className="p-6 bg-primary/5 border-primary/20">
                 <div className="text-center mb-6">
                   <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold mb-2">Project Completed!</h2>
+                  <h2 className="text-2xl font-bold mb-2">
+                    {isSocialMediaPurchase() ? 'Purchase Complete!' : 'Project Completed!'}
+                  </h2>
                   <p className="text-muted-foreground mb-4">
-                    Funds have been released to the freelancer
+                    {isSocialMediaPurchase()
+                      ? 'Payment has been released to the seller'
+                      : 'Funds have been released to the freelancer'}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Please leave your reviews below
@@ -625,10 +735,10 @@ const JobDetails = () => {
                     <RatingDialog
                       jobId={id!}
                       revieweeId={job.freelancer_id}
-                      revieweeName={job.freelancer?.display_name || 'Freelancer'}
+                      revieweeName={job.freelancer?.display_name || (isSocialMediaPurchase() ? 'Seller' : 'Freelancer')}
                       trigger={
                         <Button className="w-full shadow-glow" size="lg">
-                          Rate Freelancer
+                          {isSocialMediaPurchase() ? 'Rate Seller' : 'Rate Freelancer'}
                         </Button>
                       }
                       onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
@@ -649,13 +759,12 @@ const JobDetails = () => {
               </Card>
             )}
 
-            {/* Freelancer View - Submit Work */}
+            {/* Freelancer/Seller View - Submit Work / Transfer Ownership */}
             {getUserRole() === 'freelancer' && (job.status === 'in_progress' || job.status === 'revision_requested') && (
               (() => {
-                // Check if this is a social media purchase
-                const isSocialMediaPurchase = job.title?.startsWith('Social Media Purchase:');
+                const isSmPurchase = isSocialMediaPurchase();
                 
-                if (isSocialMediaPurchase && job.status === 'in_progress') {
+                if (isSmPurchase && job.status === 'in_progress') {
                   // Extract platform and account name from title
                   // Format: "Social Media Purchase: platform - account_name"
                   const titleParts = job.title.split(':')[1]?.trim().split(' - ') || [];
@@ -688,29 +797,37 @@ const JobDetails = () => {
               })()
             )}
 
-            {/* Freelancer View - Waiting for Review */}
+            {/* Freelancer/Seller View - Waiting for Review */}
             {getUserRole() === 'freelancer' && job.status === 'under_review' && (
               <Card className="p-6">
                 <div className="text-center">
                   <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold mb-2">Work Submitted ✓</h2>
+                  <h2 className="text-2xl font-bold mb-2">
+                    {isSocialMediaPurchase() ? 'Ownership Transferred ✓' : 'Work Submitted ✓'}
+                  </h2>
                   <p className="text-muted-foreground mb-4">
-                    Your work has been submitted and is under review by the client.
+                    {isSocialMediaPurchase()
+                      ? 'The ownership transfer has been confirmed. Waiting for buyer to verify and confirm receipt.'
+                      : 'Your work has been submitted and is under review by the client.'}
                   </p>
                   <div className="p-4 bg-muted/50 rounded-lg mb-4">
-                    <div className="flex items-start gap-3 mb-2">
-                      <div className="flex-1 text-left">
-                        <p className="font-semibold text-sm mb-1">IPFS Hash</p>
-                        <p className="font-mono text-xs text-muted-foreground break-all">{job.ipfs_hash}</p>
-                      </div>
-                    </div>
-                    {job.git_commit_hash && (
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 text-left">
-                          <p className="font-semibold text-sm mb-1">Git Commit</p>
-                          <p className="font-mono text-xs text-muted-foreground break-all">{job.git_commit_hash}</p>
+                    {!isSocialMediaPurchase() && (
+                      <>
+                        <div className="flex items-start gap-3 mb-2">
+                          <div className="flex-1 text-left">
+                            <p className="font-semibold text-sm mb-1">IPFS Hash</p>
+                            <p className="font-mono text-xs text-muted-foreground break-all">{job.ipfs_hash}</p>
+                          </div>
                         </div>
-                      </div>
+                        {job.git_commit_hash && (
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 text-left">
+                              <p className="font-semibold text-sm mb-1">Git Commit</p>
+                              <p className="font-mono text-xs text-muted-foreground break-all">{job.git_commit_hash}</p>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                   {job.review_deadline && (
@@ -725,7 +842,7 @@ const JobDetails = () => {
               </Card>
             )}
 
-            {/* Freelancer View - Completed */}
+            {/* Freelancer/Seller View - Completed */}
             {getUserRole() === 'freelancer' && job.status === 'completed' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
               <Card className="p-6 bg-primary/5 border-primary/20">
                 <div className="text-center mb-6">
@@ -743,10 +860,10 @@ const JobDetails = () => {
                     <RatingDialog
                       jobId={id!}
                       revieweeId={job.client_id}
-                      revieweeName={job.client?.display_name || 'Client'}
+                      revieweeName={job.client?.display_name || (isSocialMediaPurchase() ? 'Buyer' : 'Client')}
                       trigger={
                         <Button className="w-full shadow-glow" size="lg">
-                          Rate Client
+                          {isSocialMediaPurchase() ? 'Rate Buyer' : 'Rate Client'}
                         </Button>
                       }
                       onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
@@ -840,7 +957,9 @@ const JobDetails = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             <Card className="p-6 bg-card/50 backdrop-blur">
-              <h3 className="text-lg font-semibold mb-4">Job Information</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                {isSocialMediaPurchase() ? 'Purchase Information' : 'Job Information'}
+              </h3>
               
               <div className="space-y-4">
                 <div>
@@ -865,7 +984,9 @@ const JobDetails = () => {
                 )}
 
                 <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground mb-2">Posted by verified client</p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {isSocialMediaPurchase() ? 'Posted by verified seller' : 'Posted by verified client'}
+                  </p>
                   <Badge variant="secondary" className="bg-success/10 text-success">
                     ✓ Verified
                   </Badge>
@@ -873,27 +994,29 @@ const JobDetails = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-card/50 backdrop-blur">
-              <h3 className="text-lg font-semibold mb-3">Tips for Success</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  <span>Provide a detailed proposal explaining your approach</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  <span>Set a competitive bid based on your experience</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  <span>Include relevant portfolio samples</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  <span>Be realistic with your timeline estimate</span>
-                </li>
-              </ul>
-            </Card>
+            {!isSocialMediaPurchase() && (
+              <Card className="p-6 bg-card/50 backdrop-blur">
+                <h3 className="text-lg font-semibold mb-3">Tips for Success</h3>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Provide a detailed proposal explaining your approach</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Set a competitive bid based on your experience</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Include relevant portfolio samples</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Be realistic with your timeline estimate</span>
+                  </li>
+                </ul>
+              </Card>
+            )}
           </div>
         </div>
 

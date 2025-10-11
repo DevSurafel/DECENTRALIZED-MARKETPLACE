@@ -15,6 +15,9 @@ interface OwnershipTransferPanelProps {
 export function OwnershipTransferPanel({ jobId, platformName, accountName, onConfirmTransfer }: OwnershipTransferPanelProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  
+  const isTelegram = platformName === 'telegram';
+  const escrowAccount = '@defiescrow9';
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -23,7 +26,9 @@ export function OwnershipTransferPanel({ jobId, platformName, accountName, onCon
       setShowConfirmDialog(false);
       toast({
         title: "Transfer Confirmed",
-        description: "Buyer has been notified. They will verify and release the funds.",
+        description: isTelegram 
+          ? "Escrow admin has been notified and will verify the transfer, then complete the deal."
+          : "Buyer has been notified. They will verify and release the funds.",
       });
     } catch (error) {
       toast({
@@ -60,7 +65,7 @@ export function OwnershipTransferPanel({ jobId, platformName, accountName, onCon
             <ol className="space-y-2 text-sm text-muted-foreground">
               <li className="flex gap-2">
                 <span className="font-semibold text-foreground">1.</span>
-                <span>Transfer ownership of <strong className="text-foreground">{accountName}</strong> to the escrow account (<strong className="text-foreground">{platformName === 'telegram' ? '@defiescrow' : 'escrow@defiescrow.com'}</strong>)</span>
+                <span>Transfer ownership of <strong className="text-foreground">{accountName}</strong> to the escrow account (<strong className="text-foreground">{escrowAccount}</strong>)</span>
               </li>
               <li className="flex gap-2">
                 <span className="font-semibold text-foreground">2.</span>
@@ -100,17 +105,29 @@ export function OwnershipTransferPanel({ jobId, platformName, accountName, onCon
           Transferred Ownership
         </Button>
 
-        <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+          <div className="mt-6 p-4 bg-muted/50 rounded-lg">
           <h3 className="font-semibold mb-2 text-sm flex items-center gap-2">
             <span>⚡</span>
             What Happens Next?
           </h3>
           <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• Escrow verifies the account ownership and authenticity</li>
-            <li>• Escrow transfers ownership to the buyer's provided credentials</li>
-            <li>• Buyer verifies and confirms receipt within 24 hours</li>
-            <li>• Funds are automatically released to you upon buyer confirmation</li>
-            <li>• If any issues arise, an arbitrator will review the case</li>
+            {isTelegram ? (
+              <>
+                <li>• You transfer ownership of the {platformName} {accountName} to @defiescrow9</li>
+                <li>• Escrow admin verifies the account ownership and authenticity</li>
+                <li>• Escrow admin transfers ownership from @defiescrow9 to the buyer</li>
+                <li>• Escrow admin releases the funds to you automatically</li>
+                <li>• The deal completes once escrow processes the transfer</li>
+                <li>• If any issues arise, the admin will contact both parties</li>
+              </>
+            ) : (
+              <>
+                <li>• You transfer ownership directly to the buyer's email</li>
+                <li>• Buyer verifies and confirms receipt within 24 hours</li>
+                <li>• Funds are automatically released to you upon buyer confirmation</li>
+                <li>• If any issues arise, an arbitrator will review the case</li>
+              </>
+            )}
           </ul>
         </div>
       </Card>

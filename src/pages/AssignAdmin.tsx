@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Shield } from "lucide-react";
 
 const AssignAdmin = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("admin@gmail.com");
   const [loading, setLoading] = useState(false);
 
@@ -23,8 +25,13 @@ const AssignAdmin = () => {
 
       toast({
         title: "Success",
-        description: `Admin role assigned successfully`,
+        description: `Admin role assigned successfully. Redirecting to admin login...`,
       });
+      
+      // Redirect to admin login page after a short delay
+      setTimeout(() => {
+        navigate('/admin');
+      }, 1500);
     } catch (error: any) {
       toast({
         title: "Error",

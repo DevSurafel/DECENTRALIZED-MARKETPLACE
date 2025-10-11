@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Gavel, FileText, ExternalLink, Clock } from 'lucide-react';
+import { Gavel, FileText, ExternalLink, Clock, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -31,6 +31,10 @@ export default function ArbitratorDashboard() {
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
   const [selectedEvidence, setSelectedEvidence] = useState<any>(null);
+  const [telegramTransfers, setTelegramTransfers] = useState<any[]>([]);
+  const [processingTransfer, setProcessingTransfer] = useState<string | null>(null);
+  const [autoProcessed, setAutoProcessed] = useState<Record<string, 'pending' | 'success' | 'error'>>({});
+  const [transferLogs, setTransferLogs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (authLoading) return;
@@ -40,6 +44,7 @@ export default function ArbitratorDashboard() {
   useEffect(() => {
     if (hasAdminAccess) {
       fetchDisputes();
+      fetchTelegramTransfers();
     }
   }, [hasAdminAccess]);
 
@@ -82,6 +87,114 @@ export default function ArbitratorDashboard() {
   const fetchDisputes = async () => {
     const data = await getPendingDisputes();
     setDisputes(data);
+  };
+
+  const fetchTelegramTransfers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          client:profiles!jobs_client_id_fkey(id, display_name, wallet_address),
+          freelancer:profiles!jobs_freelancer_id_fkey(id, display_name, wallet_address)
+        `)
+        .eq('status', 'awaiting_escrow_verification' as any)
+        .ilike('title', '%telegram%');
+
+      if (error) throw error;
+      setTelegramTransfers(data || []);
+    } catch (error) {
+      console.error('Error fetching telegram transfers:', error);
+    }
+  };
+
+  // Auto-trigger Telegram transfers without manual clicks
+  useEffect(() => {
+    if (telegramTransfers.length === 0) return;
+    telegramTransfers.forEach((job: any) => {
+      if (!autoProcessed[job.id]) {
+        setAutoProcessed((prev) => ({ ...prev, [job.id]: 'pending' }));
+        handleCompleteTelegramTransfer(job.id).then((ok) => {
+          setAutoProcessed((prev) => ({ ...prev, [job.id]: ok ? 'success' : 'error' }));
+        });
+      }
+    });
+  }, [telegramTransfers]);
+  const handleCompleteTelegramTransfer = async (jobId: string): Promise<boolean> => {
+    setProcessingTransfer(jobId);
+    try {
+      const job = telegramTransfers.find(t => t.id === jobId);
+      
+      // Call the automated transfer function - let it handle everything
+      const { data, error: transferError } = await supabase.functions.invoke('telegram-auto-transfer', {
+        body: {
+          jobId: jobId,
+          channelUsername: '' // Let the edge function get it from the listing
+        }
+      });
+
+      if (transferError) {
+        throw new Error(`Transfer failed: ${transferError.message}`);
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Transfer failed');
+      }
+
+      // Notify both parties
+      if (job) {
+        try {
+          // Notify buyer
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.client_id,
+              message: `✅ Escrow has completed the transfer for "${job.title}"!\n\nYou now have full ownership of the Telegram account. Funds have been released to the seller.`,
+              url: `${window.location.origin}/job-details/${jobId}`,
+              button_text: 'View Details'
+            }
+          });
+
+          // Notify seller
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.freelancer_id,
+              message: `✅ Escrow has completed the transfer for "${job.title}"!\n\nFunds have been released to your wallet. Thank you for using our platform!`,
+              url: `${window.location.origin}/job-details/${jobId}`,
+              button_text: 'View Details'
+            }
+          });
+        } catch (notifError) {
+          console.error('Error sending notifications:', notifError);
+        }
+      }
+
+      toast({
+        title: "Transfer Completed",
+        description: "Ownership transferred to buyer and funds released to seller"
+      });
+
+      setTransferLogs((prev) => ({
+        ...prev,
+        [jobId]: `Success: Ownership transferred to buyer and funds released. Job ${jobId}`,
+      }));
+
+      fetchTelegramTransfers();
+      return true;
+    } catch (error: any) {
+      console.error('Error completing transfer:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to complete transfer",
+        variant: "destructive"
+      });
+      setTransferLogs((prev) => ({
+        ...prev,
+        [jobId]: `Error: ${error.message || 'Failed to complete transfer'}`,
+      }));
+      return false;
+    } finally {
+      setProcessingTransfer(null);
+    }
   };
 
   const handleResolve = async () => {
@@ -139,13 +252,17 @@ export default function ArbitratorDashboard() {
 
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Dispute Statistics</CardTitle>
+            <CardTitle>Admin Statistics</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="p-4 border rounded-lg">
                 <p className="text-sm text-muted-foreground">Pending Disputes</p>
                 <p className="text-3xl font-bold text-primary">{disputes.length}</p>
+              </div>
+              <div className="p-4 border rounded-lg">
+                <p className="text-sm text-muted-foreground">Telegram Transfers</p>
+                <p className="text-3xl font-bold text-primary">{telegramTransfers.length}</p>
               </div>
               <div className="p-4 border rounded-lg">
                 <p className="text-sm text-muted-foreground">Avg. Response Time</p>
@@ -158,6 +275,100 @@ export default function ArbitratorDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Telegram Transfers Section */}
+        {telegramTransfers.length > 0 && (
+          <div className="space-y-4 mb-8">
+            <h2 className="text-2xl font-semibold">Pending Telegram Transfers</h2>
+            <p className="text-muted-foreground text-sm">
+              These Telegram accounts have been transferred to @defiescrow9 by sellers. Verify ownership, transfer to buyers, and release funds.
+            </p>
+            
+            {telegramTransfers.map((job: any) => (
+              <Card key={job.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        📱 {job.title}
+                        <Badge variant="secondary">Awaiting Escrow</Badge>
+                      </CardTitle>
+                      <CardDescription className="mt-2">
+                        Transferred {new Date(job.updated_at).toLocaleDateString()} • ${job.budget_usdc} USDC
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 border rounded-lg bg-muted/50">
+                        <p className="text-sm font-medium mb-2">Buyer</p>
+                        <p className="text-sm font-semibold">{job.client?.display_name || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {job.client?.wallet_address?.substring(0, 8)}...
+                        </p>
+                      </div>
+                      <div className="p-4 border rounded-lg bg-muted/50">
+                        <p className="text-sm font-medium mb-2">Seller</p>
+                        <p className="text-sm font-semibold">{job.freelancer?.display_name || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {job.freelancer?.wallet_address?.substring(0, 8)}...
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-lg bg-primary/5">
+                      <h4 className="font-semibold mb-2 text-sm">Escrow Instructions:</h4>
+                      <ol className="text-sm space-y-1 text-muted-foreground">
+                        <li>1. Verify that @defiescrow9 has full admin access to the Telegram group/channel</li>
+                        <li>2. Check authenticity and member count match the listing</li>
+                        <li>3. Extract buyer's Telegram username from job description</li>
+                        <li>4. Transfer ownership from @defiescrow9 to buyer's Telegram account</li>
+                        <li>5. The system auto-transfers ownership to the buyer and releases funds once verified</li>
+                      </ol>
+                    </div>
+
+                    <div className="p-3 bg-muted/50 rounded text-sm">
+                      <p className="font-medium mb-1">Buyer Contact Info:</p>
+                      <p className="text-muted-foreground whitespace-pre-wrap">{job.description}</p>
+                    </div>
+
+                    {autoProcessed[job.id] === 'pending' && (
+                      <Button className="w-full" disabled>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Auto-processing transfer...
+                      </Button>
+                    )}
+                    {autoProcessed[job.id] === 'success' && (
+                      <div className="w-full p-3 border rounded text-sm bg-green-500/10 text-green-600">
+                        ✅ Transfer completed automatically. Funds released.
+                      </div>
+                    )}
+                    {autoProcessed[job.id] === 'error' && (
+                      <Button className="w-full" onClick={() => handleCompleteTelegramTransfer(job.id)}>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Retry Transfer
+                      </Button>
+                    )}
+                    {!autoProcessed[job.id] && (
+                      <Button className="w-full" disabled>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Waiting for seller transfer...
+                      </Button>
+                    )}
+
+                    {transferLogs[job.id] && (
+                      <div className="text-xs text-muted-foreground mt-2">
+                        {transferLogs[job.id]}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">Pending Disputes</h2>
