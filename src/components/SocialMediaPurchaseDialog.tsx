@@ -202,8 +202,7 @@ export const SocialMediaPurchaseDialog = ({ open, onOpenChange, listing }: Socia
           skills_required: [listing.platform],
           budget_usdc: listing.price_usdc,
           budget_eth: 0,
-          status: 'in_progress',
-          requires_freelancer_stake: false
+          status: 'in_progress'
         })
         .select()
         .single();
@@ -217,6 +216,22 @@ export const SocialMediaPurchaseDialog = ({ open, onOpenChange, listing }: Socia
         .from('social_media_listings')
         .update({ status: 'pending' })
         .eq('id', listing.id);
+
+      // Send telegram notification to seller
+      try {
+        await supabase.functions.invoke('send-telegram-notification', {
+          body: {
+            recipient_id: listing.seller_id,
+            message: `🛒 New Purchase Request!\n\n${listing.platform} - ${listing.account_name}\nPrice: $${listing.price_usdc} USDC\n\nBuyer is funding escrow. Once funded, please transfer ownership to @defiescrow and click "Transferred Ownership" button.`,
+            sender_id: user.id,
+            url: `${window.location.origin}/job-details/${job.id}`,
+            button_text: 'View Purchase Details'
+          }
+        });
+      } catch (notifError) {
+        console.log('Telegram notification failed:', notifError);
+        // Don't block the purchase if notification fails
+      }
 
       toast({
         title: "Purchase Initiated",
