@@ -14,19 +14,8 @@ const AssignAdmin = () => {
   const handleAssignAdmin = async () => {
     setLoading(true);
     try {
-      // First, get the user ID from the profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', email) // Assuming email is actually the user ID, or we need to query by wallet_address
-        .maybeSingle();
-
-      if (profileError || !profile) {
-        throw new Error("User not found. Make sure they have signed up first.");
-      }
-
       const { error } = await supabase.rpc('assign_admin_role', {
-        _user_id: profile.id
+        user_email: email
       });
 
       if (error) throw error;
