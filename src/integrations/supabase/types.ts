@@ -16,36 +16,52 @@ export type Database = {
     Tables: {
       bids: {
         Row: {
-          amount_usdc: number
+          bid_amount_eth: number
+          bid_amount_usdc: number
           created_at: string | null
+          estimated_duration_weeks: number | null
           freelancer_id: string
           id: string
+          ipfs_hash: string | null
           job_id: string
-          proposal: string
-          status: string
+          proposal_text: string
+          status: Database["public"]["Enums"]["bid_status"] | null
           updated_at: string | null
         }
         Insert: {
-          amount_usdc: number
+          bid_amount_eth: number
+          bid_amount_usdc?: number
           created_at?: string | null
+          estimated_duration_weeks?: number | null
           freelancer_id: string
           id?: string
+          ipfs_hash?: string | null
           job_id: string
-          proposal: string
-          status?: string
+          proposal_text: string
+          status?: Database["public"]["Enums"]["bid_status"] | null
           updated_at?: string | null
         }
         Update: {
-          amount_usdc?: number
+          bid_amount_eth?: number
+          bid_amount_usdc?: number
           created_at?: string | null
+          estimated_duration_weeks?: number | null
           freelancer_id?: string
           id?: string
+          ipfs_hash?: string | null
           job_id?: string
-          proposal?: string
-          status?: string
+          proposal_text?: string
+          status?: Database["public"]["Enums"]["bid_status"] | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bids_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bids_job_id_fkey"
             columns: ["job_id"]
@@ -88,50 +104,73 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "conversations_participant_1_id_fkey"
+            columns: ["participant_1_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_participant_2_id_fkey"
+            columns: ["participant_2_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       disputes: {
         Row: {
-          arbitration_deposit_eth: number | null
-          created_at: string | null
+          arbitration_deposit_eth: number
+          arbitration_deposit_usdc: number | null
+          client_amount_eth: number | null
+          client_amount_usdc: number | null
+          evidence_bundle: Json | null
+          freelancer_amount_eth: number | null
+          freelancer_amount_usdc: number | null
           id: string
           job_id: string
           raised_at: string | null
           raised_by: string
-          reason: string
-          resolution: string | null
+          resolution_notes: string | null
           resolved_at: string | null
           resolved_by: string | null
-          status: string
-          updated_at: string | null
+          status: string | null
         }
         Insert: {
-          arbitration_deposit_eth?: number | null
-          created_at?: string | null
+          arbitration_deposit_eth: number
+          arbitration_deposit_usdc?: number | null
+          client_amount_eth?: number | null
+          client_amount_usdc?: number | null
+          evidence_bundle?: Json | null
+          freelancer_amount_eth?: number | null
+          freelancer_amount_usdc?: number | null
           id?: string
           job_id: string
           raised_at?: string | null
           raised_by: string
-          reason: string
-          resolution?: string | null
+          resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
-          status?: string
-          updated_at?: string | null
+          status?: string | null
         }
         Update: {
-          arbitration_deposit_eth?: number | null
-          created_at?: string | null
+          arbitration_deposit_eth?: number
+          arbitration_deposit_usdc?: number | null
+          client_amount_eth?: number | null
+          client_amount_usdc?: number | null
+          evidence_bundle?: Json | null
+          freelancer_amount_eth?: number | null
+          freelancer_amount_usdc?: number | null
           id?: string
           job_id?: string
           raised_at?: string | null
           raised_by?: string
-          reason?: string
-          resolution?: string | null
+          resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
-          status?: string
-          updated_at?: string | null
+          status?: string | null
         }
         Relationships: [
           {
@@ -141,64 +180,94 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      job_milestones: {
+        Row: {
+          amount_eth: number
+          amount_usdc: number | null
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          ipfs_hash: string | null
+          is_completed: boolean | null
+          is_paid: boolean | null
+          job_id: string
+          order_index: number
+          paid_at: string | null
+          title: string
+        }
+        Insert: {
+          amount_eth: number
+          amount_usdc?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ipfs_hash?: string | null
+          is_completed?: boolean | null
+          is_paid?: boolean | null
+          job_id: string
+          order_index: number
+          paid_at?: string | null
+          title: string
+        }
+        Update: {
+          amount_eth?: number
+          amount_usdc?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ipfs_hash?: string | null
+          is_completed?: boolean | null
+          is_paid?: boolean | null
+          job_id?: string
+          order_index?: number
+          paid_at?: string | null
+          title?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "disputes_raised_by_fkey"
-            columns: ["raised_by"]
+            foreignKeyName: "job_milestones_job_id_fkey"
+            columns: ["job_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "disputes_resolved_by_fkey"
-            columns: ["resolved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
       }
       job_revisions: {
         Row: {
-          created_at: string | null
-          description: string | null
-          feedback: string | null
           git_commit_hash: string | null
           id: string
-          ipfs_hash: string | null
+          ipfs_hash: string
           job_id: string
-          revision_number: number | null
-          status: string
+          notes: string | null
+          revision_number: number
           submitted_at: string | null
           submitted_by: string
-          updated_at: string | null
         }
         Insert: {
-          created_at?: string | null
-          description?: string | null
-          feedback?: string | null
           git_commit_hash?: string | null
           id?: string
-          ipfs_hash?: string | null
+          ipfs_hash: string
           job_id: string
-          revision_number?: number | null
-          status?: string
+          notes?: string | null
+          revision_number: number
           submitted_at?: string | null
           submitted_by: string
-          updated_at?: string | null
         }
         Update: {
-          created_at?: string | null
-          description?: string | null
-          feedback?: string | null
           git_commit_hash?: string | null
           id?: string
-          ipfs_hash?: string | null
+          ipfs_hash?: string
           job_id?: string
-          revision_number?: number | null
-          status?: string
+          notes?: string | null
+          revision_number?: number
           submitted_at?: string | null
           submitted_by?: string
-          updated_at?: string | null
         }
         Relationships: [
           {
@@ -208,19 +277,16 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "job_revisions_submitted_by_fkey"
-            columns: ["submitted_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       jobs: {
         Row: {
+          accepted_bid_id: string | null
           allowed_revisions: number | null
-          budget_eth: number | null
+          arbitration_deposit_percentage: number | null
+          auto_release_enabled: boolean | null
+          budget_eth: number
+          budget_usd: number | null
           budget_usdc: number
           client_id: string
           completed_at: string | null
@@ -229,21 +295,32 @@ export type Database = {
           current_revision_number: number | null
           deadline: string | null
           description: string
+          dispute_id: string | null
           duration_weeks: number | null
+          escrow_address: string | null
           freelancer_id: string | null
+          freelancer_stake_eth: number | null
+          freelancer_stake_usdc: number | null
           git_commit_hash: string | null
           id: string
           ipfs_hash: string | null
+          requires_freelancer_stake: boolean | null
+          review_deadline: string | null
           skills_required: string[]
+          stake_percentage: number | null
           started_at: string | null
-          status: string
+          status: Database["public"]["Enums"]["job_status"] | null
           title: string
           updated_at: string | null
         }
         Insert: {
+          accepted_bid_id?: string | null
           allowed_revisions?: number | null
-          budget_eth?: number | null
-          budget_usdc: number
+          arbitration_deposit_percentage?: number | null
+          auto_release_enabled?: boolean | null
+          budget_eth: number
+          budget_usd?: number | null
+          budget_usdc?: number
           client_id: string
           completed_at?: string | null
           contract_address?: string | null
@@ -251,20 +328,31 @@ export type Database = {
           current_revision_number?: number | null
           deadline?: string | null
           description: string
+          dispute_id?: string | null
           duration_weeks?: number | null
+          escrow_address?: string | null
           freelancer_id?: string | null
+          freelancer_stake_eth?: number | null
+          freelancer_stake_usdc?: number | null
           git_commit_hash?: string | null
           id?: string
           ipfs_hash?: string | null
-          skills_required?: string[]
+          requires_freelancer_stake?: boolean | null
+          review_deadline?: string | null
+          skills_required: string[]
+          stake_percentage?: number | null
           started_at?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["job_status"] | null
           title: string
           updated_at?: string | null
         }
         Update: {
+          accepted_bid_id?: string | null
           allowed_revisions?: number | null
-          budget_eth?: number | null
+          arbitration_deposit_percentage?: number | null
+          auto_release_enabled?: boolean | null
+          budget_eth?: number
+          budget_usd?: number | null
           budget_usdc?: number
           client_id?: string
           completed_at?: string | null
@@ -273,14 +361,21 @@ export type Database = {
           current_revision_number?: number | null
           deadline?: string | null
           description?: string
+          dispute_id?: string | null
           duration_weeks?: number | null
+          escrow_address?: string | null
           freelancer_id?: string | null
+          freelancer_stake_eth?: number | null
+          freelancer_stake_usdc?: number | null
           git_commit_hash?: string | null
           id?: string
           ipfs_hash?: string | null
+          requires_freelancer_stake?: boolean | null
+          review_deadline?: string | null
           skills_required?: string[]
+          stake_percentage?: number | null
           started_at?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["job_status"] | null
           title?: string
           updated_at?: string | null
         }
@@ -290,6 +385,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: false
+            referencedRelation: "disputes"
             referencedColumns: ["id"]
           },
           {
@@ -309,6 +411,7 @@ export type Database = {
           id: string
           is_read: boolean | null
           sender_id: string
+          telegram_message_id: string | null
         }
         Insert: {
           content: string
@@ -317,6 +420,7 @@ export type Database = {
           id?: string
           is_read?: boolean | null
           sender_id: string
+          telegram_message_id?: string | null
         }
         Update: {
           content?: string
@@ -325,6 +429,7 @@ export type Database = {
           id?: string
           is_read?: boolean | null
           sender_id?: string
+          telegram_message_id?: string | null
         }
         Relationships: [
           {
@@ -334,6 +439,13 @@ export type Database = {
             referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       platform_reviews: {
@@ -341,29 +453,32 @@ export type Database = {
           comment: string | null
           created_at: string | null
           id: string
+          job_id: string
           rating: number
-          user_id: string
+          reviewer_id: string
         }
         Insert: {
           comment?: string | null
           created_at?: string | null
           id?: string
+          job_id: string
           rating: number
-          user_id: string
+          reviewer_id: string
         }
         Update: {
           comment?: string | null
           created_at?: string | null
           id?: string
+          job_id?: string
           rating?: number
-          user_id?: string
+          reviewer_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "platform_reviews_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "platform_reviews_job_id_fkey"
+            columns: ["job_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -380,17 +495,22 @@ export type Database = {
           failed_disputes: number | null
           hourly_rate: number | null
           id: string
+          is_banned: boolean | null
           last_notified_conversation_id: string | null
           location: string | null
           portfolio_items: Json | null
+          reputation_score: number | null
+          requires_kyc: boolean | null
           skills: string[] | null
           success_rate: number | null
           successful_disputes: number | null
           telegram_chat_id: string | null
           telegram_username: string | null
           total_earnings: number | null
+          total_earnings_usdc: number | null
           updated_at: string | null
-          wallet_address: string | null
+          user_type: Database["public"]["Enums"]["user_type"] | null
+          wallet_address: string
         }
         Insert: {
           avatar_url?: string | null
@@ -403,17 +523,22 @@ export type Database = {
           failed_disputes?: number | null
           hourly_rate?: number | null
           id: string
+          is_banned?: boolean | null
           last_notified_conversation_id?: string | null
           location?: string | null
           portfolio_items?: Json | null
+          reputation_score?: number | null
+          requires_kyc?: boolean | null
           skills?: string[] | null
           success_rate?: number | null
           successful_disputes?: number | null
           telegram_chat_id?: string | null
           telegram_username?: string | null
           total_earnings?: number | null
+          total_earnings_usdc?: number | null
           updated_at?: string | null
-          wallet_address?: string | null
+          user_type?: Database["public"]["Enums"]["user_type"] | null
+          wallet_address: string
         }
         Update: {
           avatar_url?: string | null
@@ -426,50 +551,66 @@ export type Database = {
           failed_disputes?: number | null
           hourly_rate?: number | null
           id?: string
+          is_banned?: boolean | null
           last_notified_conversation_id?: string | null
           location?: string | null
           portfolio_items?: Json | null
+          reputation_score?: number | null
+          requires_kyc?: boolean | null
           skills?: string[] | null
           success_rate?: number | null
           successful_disputes?: number | null
           telegram_chat_id?: string | null
           telegram_username?: string | null
           total_earnings?: number | null
+          total_earnings_usdc?: number | null
           updated_at?: string | null
-          wallet_address?: string | null
+          user_type?: Database["public"]["Enums"]["user_type"] | null
+          wallet_address?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_last_notified_conversation_id_fkey"
+            columns: ["last_notified_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reviews: {
         Row: {
           comment: string | null
           created_at: string | null
           id: string
+          is_verified: boolean | null
           job_id: string
           rating: number
           reviewee_id: string
           reviewer_id: string
-          updated_at: string | null
+          transaction_hash: string | null
         }
         Insert: {
           comment?: string | null
           created_at?: string | null
           id?: string
+          is_verified?: boolean | null
           job_id: string
           rating: number
           reviewee_id: string
           reviewer_id: string
-          updated_at?: string | null
+          transaction_hash?: string | null
         }
         Update: {
           comment?: string | null
           created_at?: string | null
           id?: string
+          is_verified?: boolean | null
           job_id?: string
           rating?: number
           reviewee_id?: string
           reviewer_id?: string
-          updated_at?: string | null
+          transaction_hash?: string | null
         }
         Relationships: [
           {
@@ -495,88 +636,6 @@ export type Database = {
           },
         ]
       }
-      social_media_favorites: {
-        Row: {
-          created_at: string | null
-          id: string
-          listing_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          listing_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          listing_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "social_media_favorites_listing_id_fkey"
-            columns: ["listing_id"]
-            isOneToOne: false
-            referencedRelation: "social_media_listings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      social_media_listings: {
-        Row: {
-          account_name: string
-          created_at: string | null
-          description: string
-          followers_count: number
-          id: string
-          platform: string
-          price_usdc: number
-          screenshot_url: string | null
-          seller_id: string
-          status: string
-          updated_at: string | null
-          verification_proof: string | null
-        }
-        Insert: {
-          account_name: string
-          created_at?: string | null
-          description: string
-          followers_count: number
-          id?: string
-          platform: string
-          price_usdc: number
-          screenshot_url?: string | null
-          seller_id: string
-          status?: string
-          updated_at?: string | null
-          verification_proof?: string | null
-        }
-        Update: {
-          account_name?: string
-          created_at?: string | null
-          description?: string
-          followers_count?: number
-          id?: string
-          platform?: string
-          price_usdc?: number
-          screenshot_url?: string | null
-          seller_id?: string
-          status?: string
-          updated_at?: string | null
-          verification_proof?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "social_media_listings_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -587,7 +646,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
@@ -596,15 +655,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
@@ -612,7 +663,7 @@ export type Database = {
     }
     Functions: {
       assign_admin_role: {
-        Args: { _user_id: string }
+        Args: { user_email: string }
         Returns: undefined
       }
       has_role: {
@@ -623,12 +674,26 @@ export type Database = {
         Returns: boolean
       }
       increment_completed_jobs: {
-        Args: { _user_id: string }
+        Args: { amount: number; freelancer_id: string }
         Returns: undefined
       }
     }
     Enums: {
       app_role: "admin" | "arbitrator" | "user"
+      bid_status: "pending" | "accepted" | "rejected" | "withdrawn"
+      job_status:
+        | "open"
+        | "in_progress"
+        | "under_review"
+        | "completed"
+        | "disputed"
+        | "cancelled"
+        | "revision_requested"
+        | "refunded"
+        | "funded"
+        | "submitted"
+      priority_level: "low" | "medium" | "high"
+      user_type: "freelancer" | "client" | "both"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -757,6 +822,21 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "arbitrator", "user"],
+      bid_status: ["pending", "accepted", "rejected", "withdrawn"],
+      job_status: [
+        "open",
+        "in_progress",
+        "under_review",
+        "completed",
+        "disputed",
+        "cancelled",
+        "revision_requested",
+        "refunded",
+        "funded",
+        "submitted",
+      ],
+      priority_level: ["low", "medium", "high"],
+      user_type: ["freelancer", "client", "both"],
     },
   },
 } as const

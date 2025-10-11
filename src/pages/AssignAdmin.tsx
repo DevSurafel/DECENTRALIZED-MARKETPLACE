@@ -14,6 +14,7 @@ const AssignAdmin = () => {
   const handleAssignAdmin = async () => {
     setLoading(true);
     try {
+      // Call the database function with email
       const { error } = await supabase.rpc('assign_admin_role', {
         user_email: email
       });
