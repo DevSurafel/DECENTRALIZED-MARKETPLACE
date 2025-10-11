@@ -14,6 +14,7 @@ import { useDisputes } from "@/hooks/useDisputes";
 import { useAuth } from "@/hooks/useAuth";
 import { BidsPanel } from "@/components/BidsPanel";
 import { WorkSubmissionPanel } from "@/components/WorkSubmissionPanel";
+import { OwnershipTransferPanel } from "@/components/OwnershipTransferPanel";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { RatingDialog } from "@/components/RatingDialog";
 import { PlatformReviewDialog } from "@/components/PlatformReviewDialog";
@@ -335,6 +336,45 @@ const JobDetails = () => {
     }
   };
 
+  const handleConfirmOwnershipTransfer = async () => {
+    if (!id || !job) return;
+    
+    try {
+      // Update job status to under_review (buyer needs to verify)
+      const { error } = await supabase
+        .from('jobs')
+        .update({
+          status: 'under_review',
+          review_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours for buyer to verify
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Notify buyer via Telegram
+      if (job.client_id) {
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.client_id,
+              message: `✅ Seller confirmed ownership transfer for "${job.title}".\n\nEscrow is verifying the account. You will receive access credentials shortly. Please verify and confirm receipt within 24 hours.`,
+              sender_id: user?.id,
+              url: `${window.location.origin}/job-details/${id}`,
+              button_text: 'View Purchase Details'
+            }
+          });
+        } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+        }
+      }
+
+      loadJob();
+    } catch (error) {
+      console.error('Error confirming transfer:', error);
+      throw error;
+    }
+  };
+
   const handleApproveWork = async () => {
     if (!id || !job) return;
     
@@ -611,16 +651,41 @@ const JobDetails = () => {
 
             {/* Freelancer View - Submit Work */}
             {getUserRole() === 'freelancer' && (job.status === 'in_progress' || job.status === 'revision_requested') && (
-              <WorkSubmissionPanel
-                jobId={id!}
-                onSubmit={async (ipfs, git, repoUrl, notes) => {
-                  if (job.status === 'revision_requested') {
-                    await handleSubmitRevision(ipfs, git);
-                  } else {
-                    await handleSubmitWork(ipfs, git, repoUrl, notes);
-                  }
-                }}
-              />
+              (() => {
+                // Check if this is a social media purchase
+                const isSocialMediaPurchase = job.title?.startsWith('Social Media Purchase:');
+                
+                if (isSocialMediaPurchase && job.status === 'in_progress') {
+                  // Extract platform and account name from title
+                  // Format: "Social Media Purchase: platform - account_name"
+                  const titleParts = job.title.split(':')[1]?.trim().split(' - ') || [];
+                  const platformName = titleParts[0]?.toLowerCase() || 'account';
+                  const accountName = titleParts[1] || 'the account';
+                  
+                  return (
+                    <OwnershipTransferPanel
+                      jobId={id!}
+                      platformName={platformName}
+                      accountName={accountName}
+                      onConfirmTransfer={handleConfirmOwnershipTransfer}
+                    />
+                  );
+                } else {
+                  // Regular job submission
+                  return (
+                    <WorkSubmissionPanel
+                      jobId={id!}
+                      onSubmit={async (ipfs, git, repoUrl, notes) => {
+                        if (job.status === 'revision_requested') {
+                          await handleSubmitRevision(ipfs, git);
+                        } else {
+                          await handleSubmitWork(ipfs, git, repoUrl, notes);
+                        }
+                      }}
+                    />
+                  );
+                }
+              })()
             )}
 
             {/* Freelancer View - Waiting for Review */}
