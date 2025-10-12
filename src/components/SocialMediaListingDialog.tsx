@@ -32,6 +32,7 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<{ verified: boolean; message: string } | null>(null);
+  const [hasVerified, setHasVerified] = useState(false);
   
   // Platform-specific fields
   const [niche, setNiche] = useState("");
@@ -62,6 +63,7 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
     const code = `VERIFY-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     setVerificationCode(code);
     setVerificationStatus(null);
+    setHasVerified(false);
     setAccountLink("");
     setLinkValidation(null);
   }, [platform]);
@@ -101,155 +103,169 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
     };
   };
 
-  // Real-time link validation and data fetching
+  // Manual verification function
+  const handleManualVerify = async () => {
+    if (!accountLink) {
+      toast({
+        title: "Account link required",
+        description: "Please enter your account link/username first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      await fetchAccountData();
+      setHasVerified(true);
+    } catch (error) {
+      console.error("Verification error:", error);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  // Real-time link validation (without auto-verification)
   useEffect(() => {
     if (!accountLink) {
       setLinkValidation(null);
       return;
     }
 
-    const fetchAccountData = async () => {
-      // For Telegram, validate the identifier format and fetch data
+    const validateLink = async () => {
+      // For Telegram, validate the identifier format
       if (platform === 'telegram') {
         const telegramValidation = validateTelegramIdentifier(accountLink);
         setLinkValidation(telegramValidation);
         
-        // If valid, attempt to fetch data and verify
         if (telegramValidation.isValid) {
           let cleanedName = accountLink.trim();
-          // Ensure @ prefix for usernames
           if (!cleanedName.startsWith('@') && !cleanedName.startsWith('-')) {
             cleanedName = '@' + cleanedName;
           }
           setAccountName(cleanedName);
-
-          // Fetch Telegram data for verification
-          setIsFetchingData(true);
-          try {
-            const { data, error } = await supabase.functions.invoke('fetch-social-media-data', {
-              body: { url: cleanedName, platform: 'telegram', verificationCode }
-            });
-
-            if (error) throw error;
-
-            if (data?.success && data?.data) {
-              // Auto-fill fields with fetched data
-              if (data.data.accountName) {
-                setAccountName(data.data.accountName);
-              }
-              if (data.data.followers !== undefined) {
-                setFollowersCount(data.data.followers.toString());
-              }
-
-              // Check verification status
-              if (data.data.verificationCodeFound) {
-                setVerificationStatus({ verified: true, message: 'Verification code found in channel/group description!' });
-                setLinkValidation({ isValid: true, message: 'Telegram account verified and data loaded!' });
-                toast({
-                  title: "✓ Telegram account verified",
-                  description: "Fields auto-filled with channel/group information",
-                });
-              } else {
-                setVerificationStatus({ verified: false, message: 'Verification code not found. Please add it to your channel/group description.' });
-                setLinkValidation({ isValid: true, message: 'Account found but verification code missing' });
-                toast({
-                  title: "⚠ Verification needed",
-                  description: "Please add verification code to your Telegram channel/group description",
-                });
-              }
-            } else if (data?.error) {
-              setLinkValidation({ 
-                isValid: true, 
-                message: `Valid username/ID but couldn't fetch data: ${data.error}. Please fill manually.` 
-              });
-            }
-          } catch (error) {
-            console.error("Error fetching Telegram data:", error);
-            setLinkValidation({ 
-              isValid: true, 
-              message: 'Valid username/ID but auto-fetch failed. Please fill manually.' 
-            });
-          } finally {
-            setIsFetchingData(false);
-          }
         }
         return;
       }
 
-      // For other platforms, use URL validation
+    // For other platforms, validate URL format
       const validationResult = validateSocialMediaURL(accountLink, platform);
-      
       if (validationResult.isValid) {
-        setLinkValidation({ isValid: true, message: 'Validating and fetching data...' });
-        
-        // Fetch account data
-        setIsFetchingData(true);
-        try {
-          const { data, error } = await supabase.functions.invoke('fetch-social-media-data', {
-            body: { url: accountLink, platform, verificationCode }
-          });
-
-          if (error) throw error;
-
-          if (data?.success && data?.data) {
-            // Auto-fill fields with fetched data
-            if (data.data.accountName) {
-              setAccountName(data.data.accountName);
-            }
-            if (data.data.followers !== undefined) {
-              setFollowersCount(data.data.followers.toString());
-            }
-            if (data.data.isVerified !== undefined) {
-              setIsVerified(data.data.isVerified);
-            }
-            if (data.data.videoCount !== undefined && platform === 'youtube') {
-              setTotalVideos(data.data.videoCount.toString());
-            }
-
-            // Check verification status
-            if (data.data.verificationCodeFound) {
-              setVerificationStatus({ verified: true, message: 'Verification code found in account!' });
-              setLinkValidation({ isValid: true, message: 'Account verified and data loaded!' });
-            } else {
-              setVerificationStatus({ verified: false, message: 'Verification code not found. Please add it to your account description.' });
-              setLinkValidation({ isValid: true, message: 'Account found but verification code missing' });
-            }
-
-            toast({
-              title: data.data.verificationCodeFound ? "✓ Account verified" : "⚠ Verification needed",
-              description: data.data.verificationCodeFound 
-                ? "Fields auto-filled with account information" 
-                : "Please add verification code to your account description",
-            });
-          } else if (data?.error) {
-            setLinkValidation({ 
-              isValid: true, 
-              message: `Valid URL but couldn't fetch data: ${data.error}. Please fill manually.` 
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching account data:", error);
-          setLinkValidation({ 
-            isValid: true, 
-            message: 'Valid URL but auto-fetch failed. Please fill manually.' 
-          });
-        } finally {
-          setIsFetchingData(false);
-        }
+        setLinkValidation({ 
+          isValid: true, 
+          message: 'Valid URL format - Click "Verify Account" to check ownership' 
+        });
       } else {
         setLinkValidation({ 
           isValid: false, 
-          message: validationResult.errorMessage || 'Invalid URL' 
+          message: validationResult.errorMessage || 'Invalid URL format' 
         });
       }
     };
 
     const timeoutId = setTimeout(() => {
-      fetchAccountData();
-    }, 1000); // Debounce for 1 second
+      validateLink();
+    }, 500); // Debounce
 
     return () => clearTimeout(timeoutId);
-  }, [accountLink, platform, verificationCode]);
+  }, [accountLink, platform]);
+
+  // Fetch account data function (called manually or on verify button click)
+  const fetchAccountData = async () => {
+    if (!accountLink) return;
+
+    setIsFetchingData(true);
+    try {
+      let cleanedLink = accountLink.trim();
+      
+      // For Telegram, ensure proper format
+      if (platform === 'telegram') {
+        if (!cleanedLink.startsWith('@') && !cleanedLink.startsWith('-')) {
+          cleanedLink = '@' + cleanedLink;
+        }
+      }
+
+      const { data, error } = await supabase.functions.invoke('fetch-social-media-data', {
+        body: { url: cleanedLink, platform, verificationCode }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.data) {
+        // Auto-fill fields
+        if (data.data.accountName) {
+          setAccountName(data.data.accountName);
+        }
+        if (data.data.followers !== undefined) {
+          setFollowersCount(data.data.followers.toString());
+        }
+        if (data.data.isVerified !== undefined) {
+          setIsVerified(data.data.isVerified);
+        }
+        if (data.data.videoCount !== undefined && platform === 'youtube') {
+          setTotalVideos(data.data.videoCount.toString());
+        }
+
+        // Check verification
+        if (data.data.verificationCodeFound) {
+          setVerificationStatus({ 
+            verified: true, 
+            message: platform === 'telegram' 
+              ? 'Verification code found in channel/group description!' 
+              : 'Verification code found in account bio/description!' 
+          });
+          toast({
+            title: "✓ Account verified",
+            description: "Fields auto-filled with account information",
+          });
+      } else {
+        // For platforms with limited scraping, still allow verification if account exists
+        const allowManualVerification = ['twitter', 'facebook'].includes(platform);
+        
+        if (allowManualVerification && data.data.accountExists) {
+          setVerificationStatus({ 
+            verified: true, 
+            message: `Account found. Due to ${platform} anti-scraping measures, please upload screenshots showing the verification code in your bio.`
+          });
+          toast({
+            title: "⚠ Manual verification required",
+            description: `Please upload screenshots showing "${verificationCode}" in your account bio`,
+          });
+        } else {
+          setVerificationStatus({ 
+            verified: false, 
+            message: platform === 'telegram'
+              ? 'Verification code not found. Please add it to your channel/group description.'
+              : 'Verification code not found. Please add it to your account bio/description.'
+          });
+          toast({
+            title: "⚠ Verification code not found",
+            description: platform === 'telegram'
+              ? "Please add the code to your Telegram channel/group description and try again"
+              : "Please add the code to your account bio/description and try again",
+            variant: "destructive"
+          });
+        }
+      }
+      } else if (data?.error) {
+        toast({
+          title: "Could not fetch data",
+          description: data.error,
+          variant: "destructive"
+        });
+        setVerificationStatus({ verified: false, message: data.error });
+      }
+    } catch (error) {
+      console.error("Error fetching account data:", error);
+      toast({
+        title: "Verification failed",
+        description: "Could not verify account. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetchingData(false);
+    }
+  };
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -301,18 +317,36 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       return;
     }
 
-    // Verify the verification code for all platforms except Facebook
+    // Verify the verification code for all platforms except Facebook (which uses screenshots only)
     if (platform !== 'facebook') {
-      // For all platforms including Telegram that support auto-verification
-      if (!verificationStatus?.verified) {
+      if (!hasVerified) {
         toast({
           title: "Verification Required",
-          description: platform === 'telegram'
-            ? `Please add the verification code "${verificationCode}" to your Telegram channel/group description and wait for auto-verification, then try again.`
-            : `Please add the verification code "${verificationCode}" to your account description/bio and wait for auto-verification, then try again.`,
+          description: "Please click the 'Verify Account' button to verify ownership before listing",
           variant: "destructive"
         });
         return;
+      }
+      
+      if (!verificationStatus?.verified) {
+        // For Twitter, allow listing with screenshots
+        if (platform === 'twitter' && screenshotFiles.length > 0) {
+          toast({
+            title: "⚠ Manual verification",
+            description: "Proceeding with screenshot verification for Twitter/X",
+          });
+        } else {
+          toast({
+            title: "Verification Failed",
+            description: platform === 'telegram'
+              ? `Verification code not found. Please add "${verificationCode}" to your channel/group description and verify again.`
+              : platform === 'twitter'
+              ? "Please upload screenshots showing the verification code in your bio."
+              : `Verification code not found. Please add "${verificationCode}" to your bio and verify again.`,
+            variant: "destructive"
+          });
+          return;
+        }
       }
     }
     
@@ -466,12 +500,13 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
                 <p className="mt-2 text-xs text-muted-foreground">
                   This code changes every time you change the platform. 
                   {platform === 'telegram' 
-                    ? ' For Telegram, add this to your channel/group description. Our system will automatically verify it when you enter your username or channel ID.' 
-                    : ' Our system will automatically verify it when you enter your account link.'}
+                    ? ' Add this to your Telegram channel/group description, then click "Verify Account" below.' 
+                    : ' Add this to your account bio/description, then click "Verify Account" below.'}
                 </p>
                 {verificationStatus && (
-                  <div className={`mt-2 p-2 rounded ${verificationStatus.verified ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
-                    {verificationStatus.verified ? '✓' : '⚠'} {verificationStatus.message}
+                  <div className={`mt-2 p-2 rounded flex items-center gap-2 ${verificationStatus.verified ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                    {verificationStatus.verified ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                    <span>{verificationStatus.message}</span>
                   </div>
                 )}
               </AlertDescription>
@@ -546,6 +581,33 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
               <p className={`text-xs ${linkValidation.isValid ? 'text-green-500' : 'text-destructive'}`}>
                 {linkValidation.message}
               </p>
+            )}
+            
+            {platform !== 'facebook' && linkValidation?.isValid && (
+              <Button
+                type="button"
+                onClick={handleManualVerify}
+                disabled={isVerifying || isFetchingData}
+                className="w-full mt-2"
+                variant={verificationStatus?.verified ? "default" : "outline"}
+              >
+                {isVerifying ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                    Verifying...
+                  </>
+                ) : verificationStatus?.verified ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Verified
+                  </>
+                ) : (
+                  <>
+                    <Info className="w-4 h-4 mr-2" />
+                    Verify Account
+                  </>
+                )}
+              </Button>
             )}
           </div>
 
@@ -824,7 +886,10 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || uploading || !linkValidation?.isValid}>
+            <Button 
+              type="submit" 
+              disabled={loading || uploading || !linkValidation?.isValid || (platform !== 'facebook' && !verificationStatus?.verified)}
+            >
               {uploading ? "Uploading..." : loading ? "Creating..." : "List Account"}
             </Button>
           </div>
