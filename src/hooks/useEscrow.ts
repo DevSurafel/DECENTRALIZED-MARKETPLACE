@@ -10,7 +10,7 @@ const USDC_CONTRACT_ADDRESS = '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582'; // P
 // If you encounter blacklist errors, use fresh wallet addresses or deploy your own test token
 
 // Your deployed escrow contract address on Polygon Amoy Testnet
-const ESCROW_CONTRACT_ADDRESS = '0x4B051D0384ABB7FBe250B0D083bE3fFe20536dA9';
+const ESCROW_CONTRACT_ADDRESS = '0xb95A71b5EfDb52eEa055eBD27168DC49E6c6685b';
 
 // Network configuration
 const POLYGON_AMOY_CHAIN_ID = 80002n;
@@ -886,6 +886,26 @@ export const useEscrow = () => {
     }
   };
 
+  const checkJobFunded = async (jobId: string): Promise<{ funded: boolean; error?: string }> => {
+    try {
+      if (typeof window === 'undefined' || !(window as any).ethereum) {
+        return { funded: false, error: 'MetaMask not available' };
+      }
+
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
+      
+      const numericJobId = uuidToNumericId(jobId);
+      const jobData = await contract.getJob(numericJobId);
+      
+      // status 0 = doesn't exist or not funded yet
+      return { funded: jobData.exists && jobData.status !== 0 };
+    } catch (error) {
+      console.error('Error checking if job is funded:', error);
+      return { funded: false, error: 'Failed to check blockchain' };
+    }
+  };
+
   return {
     fundJob,
     submitWork,
@@ -893,6 +913,7 @@ export const useEscrow = () => {
     raiseDispute,
     getJobDetails,
     subscribeToEvents,
+    checkJobFunded,
     loading,
     contractAddress: ESCROW_CONTRACT_ADDRESS,
     networkConfig: NETWORK_CONFIG

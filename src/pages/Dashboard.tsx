@@ -16,7 +16,7 @@ const handleReviewClick = async () => {
   const authResponse = await supabase.auth.getUser();
   const currentUser = authResponse.data.user;
   if (!currentUser) return;
-  
+
   const jobsQuery = await supabase
     .from('jobs')
     .select('id, client_id, freelancer_id')
@@ -24,9 +24,9 @@ const handleReviewClick = async () => {
     .or(`freelancer_id.eq.${currentUser.id},client_id.eq.${currentUser.id}`)
     .order('updated_at', { ascending: false })
     .limit(1);
-  
+
   const jobs = jobsQuery.data || [];
-  
+
   if (jobs.length === 0) {
     toast({
       title: "No completed jobs",
@@ -34,26 +34,26 @@ const handleReviewClick = async () => {
     });
     return;
   }
-  
+
   const job = jobs[0];
   const isClient = job.client_id === currentUser.id;
-  
+
   // Check reviews separately
   const userReviewQuery = await supabase.from('reviews').select('id').match({
     job_id: job.id,
     reviewer_id: currentUser.id,
     review_type: 'user'
   });
-  
+
   const platformReviewQuery = await supabase.from('reviews').select('id').match({
     job_id: job.id,
     reviewer_id: currentUser.id,
     review_type: 'platform'
   });
-  
+
   const hasUserReview = (userReviewQuery.data?.length ?? 0) > 0;
   const hasPlatformReview = (platformReviewQuery.data?.length ?? 0) > 0;
-  
+
   if (hasUserReview && hasPlatformReview) {
     toast({
       title: isClient ? "Project Completed" : "Payment Received",
@@ -86,30 +86,30 @@ const Dashboard = () => {
     try {
       const jobs = await getUserJobs();
       const bids = await getUserBids();
-      
-      const active = jobs.filter((j: any) => 
+
+      const active = jobs.filter((j: any) =>
         j.status === 'assigned' ||
-        j.status === 'in_progress' || 
-        j.status === 'under_review' || 
+        j.status === 'in_progress' ||
+        j.status === 'under_review' ||
         j.status === 'revision_requested'
       );
       const completed = jobs.filter((j: any) => j.status === 'completed');
       const pending = bids.filter((b: any) => b.status === 'pending');
-      
+
       // Fetch user's total earnings from profile
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       let totalEarnings = 0;
-      
+
       if (currentUser) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('total_earnings')
           .eq('id', currentUser.id)
           .single();
-        
+
         totalEarnings = profile?.total_earnings || 0;
       }
-      
+
       setActiveJobs(active.slice(0, 3));
       setStats({
         activeJobs: active.length,
@@ -125,7 +125,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="mb-8">
@@ -134,7 +134,7 @@ const Dashboard = () => {
           </h1>
           <p className="text-muted-foreground">Manage your projects and track your progress</p>
         </div>
-        
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
           <Card className="p-6 hover:shadow-glow transition-all duration-300 border-primary/20 bg-card/50 backdrop-blur">
@@ -151,7 +151,7 @@ const Dashboard = () => {
               </div>
             </div>
           </Card>
-          
+
           <Card className="p-6 hover:shadow-glow transition-all duration-300 border-accent/20 bg-card/50 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
@@ -166,7 +166,7 @@ const Dashboard = () => {
               </div>
             </div>
           </Card>
-          
+
           <Card className="p-6 hover:shadow-glow transition-all duration-300 border-warning/20 bg-card/50 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
@@ -181,7 +181,7 @@ const Dashboard = () => {
               </div>
             </div>
           </Card>
-          
+
           <Card className="p-6 hover:shadow-glow transition-all duration-300 border-success/20 bg-card/50 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
@@ -203,7 +203,7 @@ const Dashboard = () => {
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Active Projects</h2>
-              <JobPostDialog 
+              <JobPostDialog
                 trigger={
                   <Button size="sm" className="shadow-glow">
                     <Briefcase className="h-4 w-4 mr-2" />
@@ -241,17 +241,10 @@ const Dashboard = () => {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="hover-scale"
-                        onClick={() => window.location.href = `/jobs/${job.id}`}
-                      >
-                        View Details
-                      </Button>
+
                       {job.status === 'assigned' && job.client_id === user?.id && !job.escrow_address && (
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           className="shadow-glow"
                           onClick={() => window.location.href = `/jobs/${job.id}`}
                         >
@@ -264,24 +257,24 @@ const Dashboard = () => {
               ))}
             </div>
           </div>
-          
+
           {/* Quick Actions Sidebar */}
           <div>
             <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
             <div className="space-y-4">
-              <Card 
+              <Card
                 className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
                 onClick={async () => {
                   const { data: { user } } = await supabase.auth.getUser();
                   if (!user) return;
-                  
+
                   const { data: conversations } = await supabase
                     .from('conversations')
                     .select('id')
                     .or(`participant_1_id.eq.${user.id},participant_2_id.eq.${user.id}`)
                     .order('last_message_at', { ascending: false })
                     .limit(1);
-                  
+
                   if (conversations?.[0]) {
                     window.location.href = `/chat?conversation=${conversations[0].id}`;
                   } else {
@@ -299,13 +292,13 @@ const Dashboard = () => {
                   </div>
                 </div>
               </Card>
-              
-              <Card 
+
+              <Card
                 className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
                 onClick={async () => {
                   const { data: { user } } = await supabase.auth.getUser();
                   if (!user) return;
-                  
+
                   const { data: reviewJobs } = await supabase
                     .from('jobs')
                     .select('id')
@@ -313,7 +306,7 @@ const Dashboard = () => {
                     .eq('status', 'under_review')
                     .order('updated_at', { ascending: false })
                     .limit(1);
-                  
+
                   if (reviewJobs?.[0]) {
                     window.location.href = `/jobs/${reviewJobs[0].id}`;
                   } else {
@@ -336,7 +329,7 @@ const Dashboard = () => {
               </Card>
 
               {/* Completed jobs for both clients and freelancers */}
-              <Card 
+              <Card
                 className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
                 onClick={handleReviewClick}
               >
@@ -350,20 +343,20 @@ const Dashboard = () => {
                   </div>
                 </div>
               </Card>
-              
-              <Card 
+
+              <Card
                 className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
                 onClick={async () => {
                   const { data: { user } } = await supabase.auth.getUser();
                   if (!user) return;
-                  
+
                   const { data: jobs } = await supabase
                     .from('jobs')
                     .select('id')
                     .eq('client_id', user.id)
                     .eq('status', 'open')
                     .order('created_at', { ascending: false });
-                  
+
                   if (jobs?.[0]) {
                     window.location.href = `/jobs/${jobs[0].id}`;
                   } else {
@@ -385,7 +378,7 @@ const Dashboard = () => {
                 </div>
               </Card>
             </div>
-            
+
             {/* Recent Activity */}
             <div className="mt-6">
               <h3 className="text-lg font-semibold mb-3">Recent Activity</h3>

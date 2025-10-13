@@ -19,6 +19,7 @@ import { ReviewPanel } from "@/components/ReviewPanel";
 import { SocialMediaReviewPanel } from "@/components/SocialMediaReviewPanel";
 import { RatingDialog } from "@/components/RatingDialog";
 import { PlatformReviewDialog } from "@/components/PlatformReviewDialog";
+import { WalletConnectFunding } from "@/components/WalletConnectFunding";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
@@ -44,7 +45,7 @@ const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { fundJob, approveJob, submitWork: submitWorkToBlockchain } = useEscrow();
+  const { fundJob, approveJob, submitWork: submitWorkToBlockchain, checkJobFunded } = useEscrow();
   const [job, setJob] = useState<any>(null);
   const [bidAmount, setBidAmount] = useState("");
   const [proposal, setProposal] = useState("");
@@ -53,6 +54,8 @@ const JobDetails = () => {
   const [hasLeftUserReview, setHasLeftUserReview] = useState(false);
   const [hasLeftPlatformReview, setHasLeftPlatformReview] = useState(false);
   const [hasSubmittedBid, setHasSubmittedBid] = useState(false);
+  const [isJobFundedOnChain, setIsJobFundedOnChain] = useState<boolean | null>(null);
+  const [showWalletConnectQR, setShowWalletConnectQR] = useState(false);
   const { getJobById, loading } = useJobs();
   const { createBid, loading: submitting } = useBids();
   const { requestRevision, submitRevision } = useRevisions();
@@ -104,6 +107,12 @@ const JobDetails = () => {
     const data = await getJobById(id!);
     setJob(data);
     fetchReviewFlags();
+    
+    // Check if job is funded on blockchain (for in_progress status)
+    if (data && (data.status === 'in_progress' || data.status === 'assigned')) {
+      const fundCheck = await checkJobFunded(id!);
+      setIsJobFundedOnChain(fundCheck.funded);
+    }
   };
 
   // Real-time subscription for job updates
@@ -270,6 +279,41 @@ const JobDetails = () => {
     }
   };
 
+  const handleWalletConnectSuccess = async (txHash: string) => {
+    if (!id || !job) return;
+    
+    const amountUSDC = String(job.budget_usdc || Number((job.budget_eth || 0) * 2000).toFixed(2));
+
+    // Notify freelancer via Telegram
+    if (job.freelancer_id) {
+      try {
+        await supabase.functions.invoke('send-telegram-notification', {
+          body: {
+            recipient_id: job.freelancer_id,
+            message: isSocialMediaPurchase() 
+              ? `🔒 Purchase funded with ${amountUSDC} USDC. Please transfer account ownership to @defiescrow!`
+              : `🔒 Job "${job.title}" funded with ${amountUSDC} USDC. You can start work!`,
+            sender_id: user?.id,
+            url: `${window.location.origin}/jobs/${id}`,
+            button_text: 'View Details'
+          }
+        });
+      } catch (notifError) {
+        console.error('Error sending notification:', notifError);
+      }
+    }
+    
+    toast({
+      title: "Success!",
+      description: isSocialMediaPurchase()
+        ? "Escrow funded successfully. The seller will now transfer the account."
+        : "Escrow funded successfully. The freelancer can now start working.",
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await loadJob(true);
+  };
+
   const handleSubmitWork = async (ipfsHash: string, gitHash: string, repositoryUrl: string, notes: string) => {
     if (!id) return;
     
@@ -346,6 +390,18 @@ const JobDetails = () => {
   const handleConfirmOwnershipTransfer = async () => {
     if (!id || !job) return;
     
+    // First verify the job is funded on blockchain
+    const fundCheck = await checkJobFunded(id);
+    if (!fundCheck.funded) {
+      toast({
+        title: "Escrow Not Funded",
+        description: "The client must fund the escrow before you can transfer ownership. Please wait for the client to fund the escrow.",
+        variant: "destructive",
+        duration: 10000
+      });
+      return;
+    }
+    
     try {
       // Check if it's a Telegram purchase
       const isTelegramPurchase = job.title.toLowerCase().includes('telegram');
@@ -400,8 +456,8 @@ const JobDetails = () => {
               });
             } else if (transferResult?.success) {
               toast({
-                title: "Transfer Complete!",
-                description: "Ownership transferred to buyer and funds released to you.",
+                title: "Transfer Initiated!",
+                description: "Escrow is transferring ownership to buyer. You'll receive payment once buyer verifies and approves on blockchain.",
               });
             }
           }
@@ -475,6 +531,14 @@ const JobDetails = () => {
         .eq('id', id);
 
       if (jobError) throw jobError;
+
+      // Update listing status to sold for social media purchases
+      if (isSocialMediaPurchase() && job.listing_id) {
+        await supabase
+          .from('social_media_listings')
+          .update({ status: 'sold' })
+          .eq('id', job.listing_id);
+      }
 
       // Update freelancer stats
       try {
@@ -688,11 +752,35 @@ const JobDetails = () => {
                       : "Funds will be held in escrow until work is approved"}
                   </p>
                 </div>
-                <Button onClick={handleFundEscrow} className="w-full shadow-glow" size="lg">
-                  <Wallet className="h-4 w-4 mr-2" />
-                  Fund Escrow with Wallet
-                </Button>
+                <div className="flex gap-3">
+                  <Button onClick={handleFundEscrow} className="flex-1 shadow-glow" size="lg">
+                    <Wallet className="h-4 w-4 mr-2" />
+                    Fund with MetaMask
+                  </Button>
+                  <Button 
+                    onClick={() => setShowWalletConnectQR(true)} 
+                    variant="outline" 
+                    className="flex-1" 
+                    size="lg"
+                  >
+                    Scan QR Code
+                  </Button>
+                </div>
               </Card>
+            )}
+
+            {/* WalletConnect QR Modal */}
+            {job && (
+              <WalletConnectFunding
+                isOpen={showWalletConnectQR}
+                onClose={() => setShowWalletConnectQR(false)}
+                onSuccess={handleWalletConnectSuccess}
+                jobId={id!}
+                freelancerAddress={job.freelancer?.wallet_address || ''}
+                amountUSDC={String(job.budget_usdc || Number((job.budget_eth || 0) * 2000).toFixed(2))}
+                escrowContractAddress="0xb95A71b5EfDb52eEa055eBD27168DC49E6c6685b"
+                usdcContractAddress="0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582"
+              />
             )}
 
             {/* Client View - Review Work / Verify Transfer */}
@@ -755,6 +843,26 @@ const JobDetails = () => {
                       onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
                     />
                   )}
+                </div>
+              </Card>
+            )}
+
+            {/* Warning: Escrow Not Funded */}
+            {getUserRole() === 'freelancer' && job.status === 'in_progress' && isJobFundedOnChain === false && (
+              <Card className="p-6 bg-destructive/10 border-destructive/50">
+                <div className="flex items-start gap-4">
+                  <AlertCircle className="h-8 w-8 text-destructive flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-destructive mb-2">⚠️ Escrow Not Funded</h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      The client has accepted your bid but has <strong>not funded the escrow yet</strong>. 
+                      Please wait for the client to fund the escrow before submitting work or transferring ownership.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Once the client funds the escrow, the locked funds will be held securely in the smart contract 
+                      and released to you upon successful completion.
+                    </p>
+                  </div>
                 </div>
               </Card>
             )}

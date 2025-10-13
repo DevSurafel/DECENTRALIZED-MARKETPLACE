@@ -58,9 +58,9 @@ export function SocialMediaReviewPanel({ job, onApprove, onRaiseDispute }: Socia
             <ShieldCheck className="h-6 w-6 text-primary" />
           </div>
           <div className="flex-1">
-            <h2 className="text-2xl font-bold mb-2">Verify Account Transfer</h2>
+            <h2 className="text-2xl font-bold mb-2">Verify & Approve Payment</h2>
             <p className="text-muted-foreground">
-              The seller has confirmed the ownership transfer to escrow. Please verify you've received access.
+              Ownership has been transferred to you. Verify you received the account, then approve the payment on blockchain to release funds to the seller.
             </p>
           </div>
         </div>
@@ -112,7 +112,7 @@ export function SocialMediaReviewPanel({ job, onApprove, onRaiseDispute }: Socia
             size="lg"
           >
             <CheckCircle className="h-4 w-4 mr-2" />
-            Confirm Receipt & Release Payment
+            Approve Payment on Blockchain
           </Button>
 
           <Button
@@ -128,9 +128,10 @@ export function SocialMediaReviewPanel({ job, onApprove, onRaiseDispute }: Socia
         <div className="mt-6 p-4 bg-muted/50 rounded-lg">
           <h3 className="font-semibold mb-2 text-sm">⚠️ Important</h3>
           <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• Only confirm if you have FULL access to the account</li>
-            <li>• Once you confirm, payment will be released to the seller</li>
-            <li>• You have 24 hours to verify - after that, payment auto-releases</li>
+            <li>• Only approve if you have FULL access to the account</li>
+            <li>• Approving requires a blockchain transaction (MetaMask signature)</li>
+            <li>• Smart contract will release payment to seller + platform fee (2%)</li>
+            <li>• You have 24 hours to verify - after that, payment can be auto-released</li>
             <li>• Report issues immediately if something doesn't match</li>
           </ul>
         </div>
@@ -139,17 +140,27 @@ export function SocialMediaReviewPanel({ job, onApprove, onRaiseDispute }: Socia
       <AlertDialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Account Receipt?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You are confirming that you have received full access to the account and everything matches the listing. 
-              This will release <strong>{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</strong> to the seller.
-              This action cannot be undone.
+            <AlertDialogTitle>Approve Payment on Blockchain?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                You are confirming that you have received full access to the account and everything matches the listing.
+              </p>
+              <div className="bg-muted/50 rounded p-3 space-y-2">
+                <p className="font-semibold text-foreground">What happens next:</p>
+                <ul className="text-sm space-y-1">
+                  <li>• MetaMask will open for you to sign the transaction</li>
+                  <li>• Smart contract releases <strong>{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</strong> to seller</li>
+                  <li>• Platform fee (2%) sent to platform wallet automatically</li>
+                  <li>• Transaction is final and cannot be reversed</li>
+                </ul>
+              </div>
+              <p className="text-destructive font-semibold">⚠️ Only proceed if you've verified the account is legitimate and fully accessible.</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={approving}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleApprove} disabled={approving}>
-              {approving ? "Confirming..." : "Confirm & Release Payment"}
+              {approving ? "Processing..." : "Approve & Sign Transaction"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
