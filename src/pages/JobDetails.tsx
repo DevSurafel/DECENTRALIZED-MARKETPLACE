@@ -480,8 +480,8 @@ const JobDetails = () => {
               });
             } else if (transferResult?.success) {
               toast({
-                title: "Transfer Initiated!",
-                description: "Escrow is transferring ownership to buyer. You'll receive payment once buyer verifies and approves on blockchain.",
+                title: "Transfer Complete!",
+                description: "Ownership has been transferred to buyer and payment has been automatically released to your wallet.",
               });
             }
           }
@@ -495,15 +495,15 @@ const JobDetails = () => {
         }
       }
 
-      // Send notifications
-      if (isTelegramPurchase) {
-        // Notify buyer that escrow is processing
+      // Send notifications (only if not Telegram, as Telegram auto-transfer handles its own notifications)
+      if (!isTelegramPurchase) {
+        // Notify buyer to verify (non-Telegram platforms)
         if (job.client_id) {
           try {
             await supabase.functions.invoke('send-telegram-notification', {
               body: {
                 recipient_id: job.client_id,
-                message: `✅ Seller has transferred ownership to escrow for "${job.title}".\n\nEscrow admin is verifying and will transfer ownership to you shortly. You'll be notified once complete.`,
+                message: `✅ Seller has transferred ownership for "${job.title}".\n\nPlease verify and approve payment on the blockchain.`,
                 sender_id: user?.id,
                 url: `${window.location.origin}/job-details/${id}`,
                 button_text: 'View Purchase Details'
@@ -804,11 +804,37 @@ const JobDetails = () => {
             {/* Client View - Review Work / Verify Transfer */}
             {getUserRole() === 'client' && job.status === 'under_review' && (
               isSocialMediaPurchase() ? (
-                <SocialMediaReviewPanel
-                  job={job}
-                  onApprove={handleApproveWork}
-                  onRaiseDispute={handleRaiseDispute}
-                />
+                // Check if it's a Telegram purchase
+                job.title.toLowerCase().includes('telegram') ? (
+                  <Card className="p-6 bg-primary/5 border-primary/20">
+                    <div className="flex items-start gap-4 mb-6">
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Clock className="h-6 w-6 text-primary animate-spin" />
+                      </div>
+                      <div className="flex-1">
+                        <h2 className="text-2xl font-bold mb-2">Transfer in Progress</h2>
+                        <p className="text-muted-foreground">
+                          The seller has confirmed the transfer. Our automated system is processing the ownership transfer and payment release. This should complete shortly.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-4">
+                      <h3 className="font-semibold mb-2 text-sm">What's Happening:</h3>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        <li>✅ Seller transferred ownership to escrow</li>
+                        <li>⏳ Escrow is auto-transferring ownership to you</li>
+                        <li>⏳ Payment will be auto-released to seller</li>
+                        <li>🔄 No action needed from you</li>
+                      </ul>
+                    </div>
+                  </Card>
+                ) : (
+                  <SocialMediaReviewPanel
+                    job={job}
+                    onApprove={handleApproveWork}
+                    onRaiseDispute={handleRaiseDispute}
+                  />
+                )
               ) : (
                 <ReviewPanel
                   job={job}
@@ -817,6 +843,52 @@ const JobDetails = () => {
                   onRaiseDispute={handleRaiseDispute}
                 />
               )
+            )}
+
+            {/* Client/Buyer View - Awaiting Escrow Verification (Telegram only) */}
+            {getUserRole() === 'client' && job.status === 'awaiting_escrow_verification' && (
+              <Card className="p-6 bg-primary/5 border-primary/20">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Clock className="h-6 w-6 text-primary animate-spin" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold mb-2">Automated Transfer in Progress</h2>
+                    <p className="text-muted-foreground">
+                      Seller has confirmed the transfer to escrow. Our system is automatically processing the ownership transfer to you and releasing payment to the seller.
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <span>⚡</span>
+                    Automated Process Status
+                  </h3>
+                  <ul className="text-xs text-muted-foreground space-y-2">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-success mt-0.5" />
+                      <span>Seller transferred ownership to escrow admin</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Clock className="h-4 w-4 text-primary mt-0.5 animate-spin" />
+                      <span>Escrow verifying and transferring ownership to you</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Clock className="h-4 w-4 text-primary mt-0.5 animate-spin" />
+                      <span>Smart contract auto-releasing payment to seller</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <span>You'll be notified once complete (usually within minutes)</span>
+                    </li>
+                  </ul>
+                  <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded">
+                    <p className="text-xs text-muted-foreground">
+                      <strong className="text-foreground">No action needed:</strong> This entire process is fully automated. The ownership will be transferred to your Telegram account and payment will be released to the seller automatically.
+                    </p>
+                  </div>
+                </div>
+              </Card>
             )}
 
             {/* Client View - Completed */}

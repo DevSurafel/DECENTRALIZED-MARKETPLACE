@@ -27,7 +27,7 @@ export function OwnershipTransferPanel({ jobId, platformName, accountName, onCon
       toast({
         title: "Transfer Confirmed",
         description: isTelegram 
-          ? "Escrow admin has been notified and will verify the transfer, then complete the deal."
+          ? "Processing automated transfer. Ownership will be transferred to buyer and payment will be auto-released to your wallet."
           : "Buyer has been notified. They will verify and release the funds.",
       });
     } catch (error) {
@@ -114,10 +114,10 @@ export function OwnershipTransferPanel({ jobId, platformName, accountName, onCon
             {isTelegram ? (
               <>
                 <li>• You transfer ownership of the {platformName} {accountName} to @defiescrow9</li>
-                <li>• Escrow admin verifies the account ownership and authenticity</li>
-                <li>• Escrow admin transfers ownership from @defiescrow9 to the buyer</li>
-                <li>• Escrow admin releases the funds to you automatically</li>
-                <li>• The deal completes once escrow processes the transfer</li>
+                <li>• Escrow automatically verifies and transfers ownership to buyer</li>
+                <li>• Payment is automatically released to your wallet via smart contract</li>
+                <li>• Platform fee is automatically sent to platform wallet</li>
+                <li>• The deal completes automatically without buyer approval</li>
                 <li>• If any issues arise, the admin will contact both parties</li>
               </>
             ) : (
