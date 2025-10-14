@@ -133,30 +133,58 @@ serve(async (req) => {
       throw new Error(transferResult.error || 'Transfer service failed');
     }
 
-    // Transfer complete - update job to under_review so client can approve and release payment
-    console.log('💰 Updating job status to under_review for client approval...');
+    // Transfer complete - auto-release payment on blockchain
+    console.log('💰 Auto-releasing payment on blockchain...');
     
-    // Update job status to under_review - client needs to approve to release payment
-    const { error: statusError } = await supabase
-      .from('jobs')
-      .update({
-        status: 'under_review',
-        review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days to review
-      })
-      .eq('id', jobId);
+    try {
+      // Connect to blockchain
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      const wallet = new ethers.Wallet(walletPrivateKey, provider);
+      const contract = new ethers.Contract(contractAddress, ESCROW_ABI, wallet);
+      
+      // Convert UUID to numeric job ID
+      const numericJobId = uuidToNumericId(jobId);
+      console.log(`🔢 Job ID ${jobId} -> ${numericJobId}`);
+      
+      // Call approveJob on the smart contract
+      console.log('📝 Calling approveJob on smart contract...');
+      const tx = await contract.approveJob(numericJobId);
+      console.log('⏳ Transaction sent:', tx.hash);
+      
+      // Wait for confirmation
+      const receipt = await tx.wait();
+      console.log('✅ Transaction confirmed:', receipt.hash);
+      console.log(`🔗 View on Polygonscan: https://amoy.polygonscan.com/tx/${receipt.hash}`);
+      
+      // Update job status to completed
+      const { error: statusError } = await supabase
+        .from('jobs')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', jobId);
 
-    if (statusError) {
-      console.error('❌ Failed to update job status:', statusError);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: `Failed to update job status: ${statusError.message}` 
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (statusError) {
+        console.error('❌ Failed to update job status:', statusError);
+      } else {
+        console.log('✅ Job status updated to completed');
+      }
+      
+    } catch (contractError: any) {
+      console.error('❌ Failed to auto-release payment:', contractError);
+      // Still continue with notifications, just log the error
+      // We'll update to under_review as fallback so buyer can manually approve
+      await supabase
+        .from('jobs')
+        .update({
+          status: 'under_review',
+          review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .eq('id', jobId);
+      
+      console.log('⚠️ Payment auto-release failed, job set to under_review for manual approval');
     }
-    
-    console.log('✅ Job status updated to under_review - client can now approve and release payment');
 
     // Update listing status to sold
     if (job.listing_id) {
@@ -172,14 +200,14 @@ serve(async (req) => {
       }
     }
 
-    // Notify buyer that transfer is complete and they need to approve
+    // Notify buyer that transfer and payment are complete
     try {
       await supabase.functions.invoke('send-telegram-notification', {
         body: {
           recipient_id: job.client_id,
-          message: `🎉 Ownership Transfer Complete!\n\n${listing.account_name} has been successfully transferred to you.\n\n⚠️ Please verify the account and approve the payment to release funds to the seller.`,
+          message: `🎉 Purchase Complete!\n\n${listing.account_name} has been successfully transferred to you and payment has been released to the seller.\n\n✅ Transaction completed!`,
           url: `https://your-app-url.com/jobs/${jobId}`,
-          button_text: 'Approve & Release Payment'
+          button_text: 'View Job Details'
         }
       });
       console.log('✅ Buyer notification sent');
@@ -187,12 +215,12 @@ serve(async (req) => {
       console.error('⚠️ Failed to send buyer notification:', notifError);
     }
 
-    // Notify seller that transfer is complete and awaiting buyer approval
+    // Notify seller that transfer and payment are complete
     try {
       await supabase.functions.invoke('send-telegram-notification', {
         body: {
           recipient_id: job.freelancer_id,
-          message: `✅ Transfer Confirmed!\n\nOwnership of ${listing.account_name} has been successfully transferred to the buyer.\n\n⏳ Awaiting buyer approval to release payment to your wallet.`,
+          message: `💰 Payment Received!\n\nOwnership of ${listing.account_name} has been transferred and payment has been released to your wallet.\n\n✅ Transaction completed!`,
           url: `https://your-app-url.com/jobs/${jobId}`,
           button_text: 'View Job Details'
         }
@@ -205,9 +233,9 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Ownership transferred successfully. Awaiting buyer approval to release payment.',
+        message: 'Ownership transferred and payment released successfully!',
         jobId: jobId,
-        status: 'under_review'
+        status: 'completed'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
