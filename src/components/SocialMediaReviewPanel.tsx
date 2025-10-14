@@ -129,7 +129,7 @@ export function SocialMediaReviewPanel({ job, onApprove, onRaiseDispute }: Socia
           <h3 className="font-semibold mb-2 text-sm">⚠️ Important</h3>
           <ul className="text-xs text-muted-foreground space-y-1">
             <li>• Only approve if you have FULL access to the account</li>
-            <li>• Approving requires a blockchain transaction (MetaMask signature)</li>
+            <li>• Approving requires a blockchain transaction (scan QR or use wallet)</li>
             <li>• Smart contract will release payment to seller + platform fee (2%)</li>
             <li>• You have 24 hours to verify - after that, payment can be auto-released</li>
             <li>• Report issues immediately if something doesn't match</li>
@@ -148,7 +148,7 @@ export function SocialMediaReviewPanel({ job, onApprove, onRaiseDispute }: Socia
               <div className="bg-muted/50 rounded p-3 space-y-2">
                 <p className="font-semibold text-foreground">What happens next:</p>
                 <ul className="text-sm space-y-1">
-                  <li>• MetaMask will open for you to sign the transaction</li>
+                  <li>• You'll sign the blockchain transaction using your wallet</li>
                   <li>• Smart contract releases <strong>{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</strong> to seller</li>
                   <li>• Platform fee (2%) sent to platform wallet automatically</li>
                   <li>• Transaction is final and cannot be reversed</li>

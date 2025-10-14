@@ -284,6 +284,9 @@ const JobDetails = () => {
     
     const amountUSDC = String(job.budget_usdc || Number((job.budget_eth || 0) * 2000).toFixed(2));
 
+    // Close the QR dialog
+    setShowWalletConnectQR(false);
+
     // Notify freelancer via Telegram
     if (job.freelancer_id) {
       try {
@@ -303,15 +306,36 @@ const JobDetails = () => {
       }
     }
     
+    // Mark job as funded/locked in DB immediately so UI updates and funding buttons disappear
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from('jobs')
+        .update({
+          status: 'in_progress' as any,
+          started_at: nowIso,
+          contract_address: txHash,
+        })
+        .eq('id', id);
+      if (error) console.error('Failed to update job as funded:', error);
+      // Optimistic local update to hide funding UI right away
+      setJob((prev: any) => prev ? { ...prev, status: 'in_progress', started_at: nowIso, contract_address: txHash } : prev);
+    } catch (e) {
+      console.error('Error updating job funded state:', e);
+    }
+    
     toast({
       title: "Success!",
       description: isSocialMediaPurchase()
-        ? "Escrow funded successfully. The seller will now transfer the account."
-        : "Escrow funded successfully. The freelancer can now start working.",
+        ? "Escrow funded successfully. Redirecting to dashboard..."
+        : "Escrow funded successfully. Redirecting to dashboard...",
     });
     
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    await loadJob(true);
+    // Wait a moment for the success message to be visible
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Navigate to dashboard to see the funded job
+    navigate('/dashboard');
   };
 
   const handleSubmitWork = async (ipfsHash: string, gitHash: string, repositoryUrl: string, notes: string) => {
@@ -752,20 +776,14 @@ const JobDetails = () => {
                       : "Funds will be held in escrow until work is approved"}
                   </p>
                 </div>
-                <div className="flex gap-3">
-                  <Button onClick={handleFundEscrow} className="flex-1 shadow-glow" size="lg">
-                    <Wallet className="h-4 w-4 mr-2" />
-                    Fund with MetaMask
-                  </Button>
-                  <Button 
-                    onClick={() => setShowWalletConnectQR(true)} 
-                    variant="outline" 
-                    className="flex-1" 
-                    size="lg"
-                  >
-                    Scan QR Code
-                  </Button>
-                </div>
+                <Button 
+                  onClick={() => setShowWalletConnectQR(true)} 
+                  className="w-full shadow-glow" 
+                  size="lg"
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Scan QR to Fund Escrow
+                </Button>
               </Card>
             )}
 

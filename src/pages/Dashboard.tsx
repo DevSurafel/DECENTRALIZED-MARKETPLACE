@@ -242,6 +242,14 @@ const Dashboard = () => {
                     </div>
                     <div className="flex flex-col gap-2">
 
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="hover-scale"
+                        onClick={() => window.location.href = `/jobs/${job.id}`}
+                      >
+                        View Details
+                      </Button>
                       {job.status === 'assigned' && job.client_id === user?.id && !job.escrow_address && (
                         <Button
                           size="sm"

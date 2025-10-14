@@ -249,13 +249,31 @@ export const WalletConnectFunding = ({
 
     } catch (error: any) {
       console.error('Payment error:', error);
-      setStatus('error');
 
+      const msg = (error?.reason || error?.shortMessage || error?.message || '').toString();
+      // If escrow/job is already created on-chain, treat as a success to prevent duplicate payments
+      if (msg.includes('Job already exists')) {
+        setStatus('success');
+        toast({
+          title: '✅ Already Funded',
+          description: 'Escrow is already funded and locked.',
+        });
+        setTimeout(() => {
+          onSuccess('already-funded');
+          if (wcProvider) {
+            wcProvider.disconnect();
+          }
+          onClose();
+        }, 1200);
+        return;
+      }
+
+      setStatus('error');
       let errorMsg = 'Payment failed';
-      if (error.code === 'ACTION_REJECTED') {
+      if (error?.code === 'ACTION_REJECTED') {
         errorMsg = 'Transaction rejected by user';
-      } else if (error.message) {
-        errorMsg = error.message;
+      } else if (msg) {
+        errorMsg = msg;
       }
 
       setErrorMessage(errorMsg);
