@@ -15,6 +15,8 @@ interface WalletConnectFundingProps {
   amountUSDC: string;
   escrowContractAddress: string;
   usdcContractAddress: string;
+  requiresStake?: boolean;
+  allowedRevisions?: number;
 }
 
 const PAYMENT_GATEWAY_ADDRESS = '0x6Dd2968a8B095A5dC71Af685A7a73a5122837D47';
@@ -35,7 +37,9 @@ export const WalletConnectFunding = ({
   freelancerAddress,
   amountUSDC,
   escrowContractAddress,
-  usdcContractAddress
+  usdcContractAddress,
+  requiresStake = false,
+  allowedRevisions = 3
 }: WalletConnectFundingProps) => {
   const [wcUri, setWcUri] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'connecting' | 'approving' | 'funding' | 'success' | 'error'>('idle');
@@ -221,8 +225,8 @@ export const WalletConnectFunding = ({
         numericJobId,
         freelancerAddress,
         amount,
-        false,
-        3
+        requiresStake,
+        allowedRevisions
       );
 
       toast({

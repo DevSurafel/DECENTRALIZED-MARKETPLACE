@@ -896,12 +896,20 @@ export const useEscrow = () => {
       const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
       
       const numericJobId = uuidToNumericId(jobId);
+      
+      try {
       const jobData = await contract.getJob(numericJobId);
       
       // status 0 = doesn't exist or not funded yet
       return { funded: jobData.exists && jobData.status !== 0, canProceed: true };
     } catch (error: any) {
       console.error('Error checking if job is funded:', error);
+      
+      // Check if job doesn't exist on-chain yet (this is normal before first funding)
+      if (error?.message?.includes('Job does not exist') || error?.reason?.includes('Job does not exist')) {
+        console.log('Job not created on-chain yet - user can proceed to fund');
+        return { funded: false, error: 'Not funded yet', canProceed: true };
+      }
       
       // Check if it's an RPC indexing issue (not a real "not funded" state)
       const isRpcIndexingIssue = 
@@ -917,6 +925,10 @@ export const useEscrow = () => {
       }
       
       return { funded: false, error: 'Failed to check blockchain', canProceed: false };
+    }
+    } catch (outerError: any) {
+      console.error('Outer error in checkJobFunded:', outerError);
+      return { funded: false, error: 'Failed to connect to blockchain', canProceed: false };
     }
   };
 

@@ -806,6 +806,8 @@ const JobDetails = () => {
                 amountUSDC={String(job.budget_usdc || Number((job.budget_eth || 0) * 2000).toFixed(2))}
                 escrowContractAddress="0xb95A71b5EfDb52eEa055eBD27168DC49E6c6685b"
                 usdcContractAddress="0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582"
+                requiresStake={job.requires_freelancer_stake || false}
+                allowedRevisions={job.allowed_revisions || 3}
               />
             )}
 
