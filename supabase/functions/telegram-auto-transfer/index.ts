@@ -134,8 +134,8 @@ serve(async (req) => {
       throw new Error(transferResult.error || 'Transfer service failed');
     }
 
-    // Transfer complete - auto-release payment on blockchain
-    console.log('💰 Auto-releasing payment on blockchain...');
+    // Transfer complete - check if job is funded on-chain
+    console.log('🔍 Checking if job is funded on blockchain...');
     
     try {
       // Connect to blockchain
@@ -147,44 +147,108 @@ serve(async (req) => {
       const numericJobId = uuidToNumericId(jobId);
       console.log(`🔢 Job ID ${jobId} -> ${numericJobId}`);
       
-      // Call releaseAfterTransfer (owner/arbitrator only) on the smart contract
-      console.log('📝 Calling releaseAfterTransfer on smart contract...');
-      const tx = await contract.releaseAfterTransfer(numericJobId);
-      console.log('⏳ Transaction sent:', tx.hash);
+      // First check if job exists on-chain
+      console.log('📝 Checking if job exists on smart contract...');
+      const jobData = await contract.getJob(numericJobId);
       
-      // Wait for confirmation
-      const receipt = await tx.wait();
-      console.log('✅ Transaction confirmed:', receipt.hash);
-      console.log(`🔗 View on Polygonscan: https://amoy.polygonscan.com/tx/${receipt.hash}`);
-      
-      // Update job status to completed
-      const { error: statusError } = await supabase
-        .from('jobs')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', jobId);
-
-      if (statusError) {
-        console.error('❌ Failed to update job status:', statusError);
+      if (!jobData.exists) {
+        console.log('⚠️ Job not funded on blockchain yet');
+        
+        // Update to under_review so buyer knows to fund first
+        await supabase
+          .from('jobs')
+          .update({
+            status: 'under_review',
+            review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .eq('id', jobId);
+        
+        console.log('✅ Job status updated to under_review - awaiting funding');
+        
+        // Notify buyer to fund the escrow
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.client_id,
+              message: `⚠️ Action Required!\n\n${listing.account_name} has been transferred to you, but the escrow payment has not been funded yet.\n\n🔒 Please fund the escrow to complete the purchase and release payment to the seller.`,
+              url: `https://your-app-url.com/jobs/${jobId}`,
+              button_text: 'Fund Escrow'
+            }
+          });
+          console.log('✅ Funding reminder sent to buyer');
+        } catch (notifError) {
+          console.error('⚠️ Failed to send funding reminder:', notifError);
+        }
+        
       } else {
-        console.log('✅ Job status updated to completed');
+        console.log('✅ Job exists on-chain, proceeding with payment release');
+        
+        // Call releaseAfterTransfer (owner/arbitrator only) on the smart contract
+        console.log('📝 Calling releaseAfterTransfer on smart contract...');
+        const tx = await contract.releaseAfterTransfer(numericJobId);
+        console.log('⏳ Transaction sent:', tx.hash);
+        
+        // Wait for confirmation
+        const receipt = await tx.wait();
+        console.log('✅ Transaction confirmed:', receipt.hash);
+        console.log(`🔗 View on Polygonscan: https://amoy.polygonscan.com/tx/${receipt.hash}`);
+        
+        // Update job status to completed
+        const { error: statusError } = await supabase
+          .from('jobs')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', jobId);
+
+        if (statusError) {
+          console.error('❌ Failed to update job status:', statusError);
+        } else {
+          console.log('✅ Job status updated to completed');
+        }
       }
       
     } catch (contractError: any) {
-      console.error('❌ Failed to auto-release payment:', contractError);
-      // Still continue with notifications, just log the error
-      // We'll update to under_review as fallback so buyer can manually approve
-      await supabase
-        .from('jobs')
-        .update({
-          status: 'under_review',
-          review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        })
-        .eq('id', jobId);
+      console.error('❌ Blockchain error:', contractError);
       
-      console.log('⚠️ Payment auto-release failed, job set to under_review for manual approval');
+      // Check if it's a "Job does not exist" error
+      if (contractError?.message?.includes('Job does not exist') || contractError?.reason?.includes('Job does not exist')) {
+        console.log('⚠️ Job not funded - setting to under_review');
+        
+        await supabase
+          .from('jobs')
+          .update({
+            status: 'under_review',
+            review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .eq('id', jobId);
+        
+        // Notify buyer to fund
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: job.client_id,
+              message: `⚠️ Action Required!\n\n${listing.account_name} has been transferred to you, but escrow is not funded.\n\n🔒 Please fund the escrow to complete payment.`,
+              url: `https://your-app-url.com/jobs/${jobId}`,
+              button_text: 'Fund Escrow'
+            }
+          });
+        } catch (notifError) {
+          console.error('⚠️ Failed to send notification:', notifError);
+        }
+      } else {
+        // Other blockchain error - set to under_review for manual handling
+        await supabase
+          .from('jobs')
+          .update({
+            status: 'under_review',
+            review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .eq('id', jobId);
+        
+        console.log('⚠️ Blockchain error - job set to under_review for manual approval');
+      }
     }
 
     // Update listing status to sold
