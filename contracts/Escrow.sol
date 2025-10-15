@@ -273,6 +273,26 @@ contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
     }
     
     /**
+     * @notice Owner/arbitrator releases payment after verified Telegram transfer
+     * @dev Used for automated Telegram account transfers where ownership is verified off-chain
+     * @param jobId Job identifier
+     */
+    function releaseAfterTransfer(uint256 jobId) 
+        external 
+        onlyArbitrator
+        jobExists(jobId) 
+        nonReentrant 
+    {
+        Job storage job = jobs[jobId];
+        require(
+            job.status == JobStatus.SUBMITTED || job.status == JobStatus.IN_PROGRESS, 
+            "Invalid status for release"
+        );
+        
+        _releasePayment(jobId);
+    }
+    
+    /**
      * @notice Internal function to release payment to freelancer
      */
     function _releasePayment(uint256 jobId) internal {

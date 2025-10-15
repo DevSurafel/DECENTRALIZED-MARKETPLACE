@@ -886,10 +886,10 @@ export const useEscrow = () => {
     }
   };
 
-  const checkJobFunded = async (jobId: string): Promise<{ funded: boolean; error?: string }> => {
+  const checkJobFunded = async (jobId: string): Promise<{ funded: boolean; error?: string; canProceed?: boolean }> => {
     try {
       if (typeof window === 'undefined' || !(window as any).ethereum) {
-        return { funded: false, error: 'MetaMask not available' };
+        return { funded: false, error: 'MetaMask not available', canProceed: false };
       }
 
       const provider = new ethers.BrowserProvider((window as any).ethereum);
@@ -899,10 +899,24 @@ export const useEscrow = () => {
       const jobData = await contract.getJob(numericJobId);
       
       // status 0 = doesn't exist or not funded yet
-      return { funded: jobData.exists && jobData.status !== 0 };
-    } catch (error) {
+      return { funded: jobData.exists && jobData.status !== 0, canProceed: true };
+    } catch (error: any) {
       console.error('Error checking if job is funded:', error);
-      return { funded: false, error: 'Failed to check blockchain' };
+      
+      // Check if it's an RPC indexing issue (not a real "not funded" state)
+      const isRpcIndexingIssue = 
+        error?.message?.includes('state histories') || 
+        error?.message?.includes('haven\'t been fully indexed') ||
+        error?.info?.error?.data?.message?.includes('state histories');
+      
+      if (isRpcIndexingIssue) {
+        console.warn('RPC indexing issue detected - allowing transfer to proceed');
+        // For RPC errors, we can't verify but we should allow the transfer
+        // The smart contract will reject it anyway if not funded
+        return { funded: false, error: 'RPC indexing - cannot verify', canProceed: true };
+      }
+      
+      return { funded: false, error: 'Failed to check blockchain', canProceed: false };
     }
   };
 

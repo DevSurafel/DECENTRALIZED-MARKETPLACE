@@ -17,6 +17,7 @@ const contractAddress = Deno.env.get('CONTRACT_ADDRESS')!;
 
 const ESCROW_ABI = [
   'function approveJob(uint256 jobId) external',
+  'function releaseAfterTransfer(uint256 jobId) external',
   'function getJob(uint256 jobId) external view returns (tuple(address client, address freelancer, address token, uint256 amount, uint256 platformFee, uint256 freelancerStake, uint256 arbitrationDeposit, uint256 submissionDeadline, uint256 reviewDeadline, uint256 approvalDeadline, string ipfsHash, string gitCommitHash, uint256 currentRevisionNumber, uint256 allowedRevisions, bool autoReleaseEnabled, uint8 status, bool exists))'
 ];
 
@@ -146,9 +147,9 @@ serve(async (req) => {
       const numericJobId = uuidToNumericId(jobId);
       console.log(`🔢 Job ID ${jobId} -> ${numericJobId}`);
       
-      // Call approveJob on the smart contract
-      console.log('📝 Calling approveJob on smart contract...');
-      const tx = await contract.approveJob(numericJobId);
+      // Call releaseAfterTransfer (owner/arbitrator only) on the smart contract
+      console.log('📝 Calling releaseAfterTransfer on smart contract...');
+      const tx = await contract.releaseAfterTransfer(numericJobId);
       console.log('⏳ Transaction sent:', tx.hash);
       
       // Wait for confirmation
@@ -200,14 +201,14 @@ serve(async (req) => {
       }
     }
 
-    // Notify buyer that transfer and payment are complete
+    // Notify buyer that transfer is complete
     try {
       await supabase.functions.invoke('send-telegram-notification', {
         body: {
           recipient_id: job.client_id,
-          message: `🎉 Purchase Complete!\n\n${listing.account_name} has been successfully transferred to you and payment has been released to the seller.\n\n✅ Transaction completed!`,
+          message: `🎉 Transfer Complete!\n\n${listing.account_name} has been successfully transferred to you and payment has been released to the seller.\n\n✅ Transaction completed!`,
           url: `https://your-app-url.com/jobs/${jobId}`,
-          button_text: 'View Job Details'
+          button_text: 'View Purchase'
         }
       });
       console.log('✅ Buyer notification sent');
@@ -215,14 +216,14 @@ serve(async (req) => {
       console.error('⚠️ Failed to send buyer notification:', notifError);
     }
 
-    // Notify seller that transfer and payment are complete
+    // Notify seller that payment is released
     try {
       await supabase.functions.invoke('send-telegram-notification', {
         body: {
           recipient_id: job.freelancer_id,
-          message: `💰 Payment Received!\n\nOwnership of ${listing.account_name} has been transferred and payment has been released to your wallet.\n\n✅ Transaction completed!`,
+          message: `💰 Payment Released!\n\nOwnership of ${listing.account_name} has been transferred to the buyer and payment has been automatically released to your wallet.\n\n✅ Sale completed!`,
           url: `https://your-app-url.com/jobs/${jobId}`,
-          button_text: 'View Job Details'
+          button_text: 'View Sale'
         }
       });
       console.log('✅ Seller notification sent');
