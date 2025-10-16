@@ -24,7 +24,9 @@ const ESCROW_ABI = [
 ];
 
 const USDC_ABI = [
-  'function approve(address spender, uint256 amount) external returns (bool)'
+  'function approve(address spender, uint256 amount) external returns (bool)',
+  'function balanceOf(address account) external view returns (uint256)',
+  'function allowance(address owner, address spender) external view returns (uint256)'
 ];
 
 export const WalletConnectFunding = ({
@@ -209,6 +211,29 @@ export const WalletConnectFunding = ({
       let approveTx;
       try {
         console.log('Requesting USDC approval...');
+        
+        // First check if approval is even needed by checking current allowance
+        try {
+          const currentAllowance = await usdcContract.allowance(address, escrowContractAddress);
+          console.log('Current USDC allowance:', ethers.formatUnits(currentAllowance, 6), 'USDC');
+          console.log('Required amount:', amountUSDC, 'USDC');
+          
+          if (currentAllowance >= amount) {
+            console.log('✅ Sufficient allowance already exists, skipping approval');
+            toast({
+              title: '✅ Already Approved',
+              description: 'USDC spending already approved',
+            });
+          } else {
+            // Try gas estimation first to catch contract errors
+            const gasEstimate = await usdcContract.approve.estimateGas(escrowContractAddress, amount);
+            console.log('Approval gas estimate:', gasEstimate.toString());
+          }
+        } catch (estimateError: any) {
+          console.error('Approval estimation failed:', estimateError);
+          // Continue anyway, the actual transaction might still work
+        }
+        
         approveTx = await usdcContract.approve(escrowContractAddress, amount);
       } catch (approveError: any) {
         console.error('Approve error details:', approveError);
@@ -266,6 +291,58 @@ export const WalletConnectFunding = ({
       let fundTx;
       try {
         console.log('Requesting fund job transaction...');
+        
+        // First try to estimate gas to get the actual revert reason
+        try {
+          const gasEstimate = await escrowContract.fundJob.estimateGas(
+            numericJobId,
+            freelancerAddress,
+            usdcContractAddress,
+            amount,
+            requiresStake,
+            allowedRevisions
+          );
+          console.log('Gas estimate successful:', gasEstimate.toString());
+        } catch (estimateError: any) {
+          console.error('Gas estimation failed - this will reveal the revert reason:', estimateError);
+          
+          // Try to extract revert reason
+          let revertReason = '';
+          if (estimateError?.reason) {
+            revertReason = estimateError.reason;
+          } else if (estimateError?.error?.message) {
+            revertReason = estimateError.error.message;
+          } else if (estimateError?.message) {
+            revertReason = estimateError.message;
+          }
+          
+          console.log('Contract revert reason:', revertReason);
+          
+          // Common contract errors
+          if (revertReason.toLowerCase().includes('insufficient allowance') || 
+              revertReason.toLowerCase().includes('erc20: insufficient allowance')) {
+            throw new Error('❌ USDC approval failed or insufficient. The approval transaction may not have completed. Please try again.');
+          }
+          
+          if (revertReason.toLowerCase().includes('transfer amount exceeds balance')) {
+            throw new Error('💵 Insufficient USDC balance. You need ' + amountUSDC + ' USDC in your wallet.');
+          }
+          
+          if (revertReason.toLowerCase().includes('job already exists') || 
+              revertReason.toLowerCase().includes('already funded')) {
+            throw new Error('Job already exists');
+          }
+          
+          // If we got a revert reason, throw it
+          if (revertReason) {
+            throw new Error('Contract Error: ' + revertReason);
+          }
+          
+          // Otherwise throw the estimation error
+          throw estimateError;
+        }
+        
+        // If gas estimation passed, send the transaction
         fundTx = await escrowContract.fundJob(
           numericJobId,
           freelancerAddress,
@@ -293,6 +370,11 @@ export const WalletConnectFunding = ({
             errorMsg.toLowerCase().includes('insufficient balance') ||
             errorData.toLowerCase().includes('insufficient funds')) {
           throw new Error('⛽ Insufficient MATIC (POL) for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
+        }
+        
+        // Re-throw if already formatted
+        if (errorMsg.startsWith('❌') || errorMsg.startsWith('💵') || errorMsg.startsWith('Contract Error:')) {
+          throw fundError;
         }
         
         // Otherwise throw the original error with details
