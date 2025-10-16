@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PLATFORM_FEE_PERCENTAGE = 0.08; // 2% platform fee
+const PLATFORM_FEE_PERCENTAGE = 0.08; // 8% platform fee
 const PLATFORM_WALLET_ADDRESS = '0x04AB61505d33DC4738E9d963722E5FB3e059d406'; // Platform wallet to receive fees (lowercase)
 
 serve(async (req) => {
