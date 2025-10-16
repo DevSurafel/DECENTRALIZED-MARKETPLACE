@@ -195,9 +195,29 @@ export const WalletConnectFunding = ({
         jobId: numericJobId.toString(),
         freelancer: freelancerAddress,
         amount: amount.toString(),
+        amountUSDC: amountUSDC,
         escrow: escrowContractAddress,
         usdc: usdcContractAddress
       });
+
+      // Check USDC balance first
+      const usdcContract = new ethers.Contract(usdcContractAddress, USDC_ABI, signer);
+      try {
+        const balance = await usdcContract.balanceOf(address);
+        const balanceFormatted = ethers.formatUnits(balance, 6);
+        console.log('USDC Balance:', balanceFormatted, 'USDC');
+        console.log('Required:', amountUSDC, 'USDC');
+        
+        if (balance < amount) {
+          throw new Error(`💵 Insufficient USDC balance. You have ${balanceFormatted} USDC but need ${amountUSDC} USDC. Get testnet USDC from a faucet or swap.`);
+        }
+      } catch (balanceError: any) {
+        if (balanceError.message.includes('💵')) {
+          throw balanceError; // Re-throw our formatted error
+        }
+        console.warn('Could not check USDC balance:', balanceError);
+        // Continue anyway, the transaction will fail later if balance is insufficient
+      }
 
       // Step 1: Approve USDC
       setStatus('approving');
@@ -205,8 +225,6 @@ export const WalletConnectFunding = ({
         title: '📝 Step 1 of 2',
         description: 'Approve USDC spending in your wallet',
       });
-
-      const usdcContract = new ethers.Contract(usdcContractAddress, USDC_ABI, signer);
       
       let approveTx;
       try {
@@ -409,6 +427,18 @@ export const WalletConnectFunding = ({
 
       const msg = (error?.reason || error?.shortMessage || error?.message || '').toString();
       
+      // Check for network errors
+      if (error?.code === 'NETWORK_ERROR' || msg.includes('network changed')) {
+        setStatus('error');
+        setErrorMessage('🌐 Network changed during transaction. Please ensure you stay on Polygon Amoy testnet and try again.');
+        toast({
+          title: '❌ Network Error',
+          description: 'Network switched during transaction',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
       // If escrow/job is already created on-chain, treat as a success to prevent duplicate payments
       if (msg.includes('Job already exists') || msg.includes('already funded')) {
         setStatus('success');
@@ -435,6 +465,8 @@ export const WalletConnectFunding = ({
         errorMsg = msg; // Use the specific gas error message
       } else if (msg.includes('💵 Insufficient USDC')) {
         errorMsg = msg; // Use the specific USDC error message
+      } else if (msg.includes('🌐')) {
+        errorMsg = msg; // Use network error message
       } else if (msg) {
         errorMsg = msg;
       }
@@ -591,6 +623,21 @@ export const WalletConnectFunding = ({
                       <li>Make sure you're on Polygon Amoy testnet</li>
                       <li>Try payment again</li>
                     </ol>
+                  </div>
+                )}
+                {errorMessage.includes('🌐') && (
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-xs text-left space-y-2">
+                    <p className="font-semibold text-blue-900 dark:text-blue-100">💡 How to fix:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-blue-800 dark:text-blue-200">
+                      <li>Open your wallet and switch to Polygon Amoy</li>
+                      <li>Make sure to stay on Amoy during the transaction</li>
+                      <li>Try payment again</li>
+                    </ol>
+                    <div className="mt-2 p-2 bg-blue-100 dark:bg-blue-900 rounded text-blue-900 dark:text-blue-100">
+                      <p className="font-semibold">Polygon Amoy Testnet:</p>
+                      <p>Chain ID: 80002</p>
+                      <p>RPC: https://rpc-amoy.polygon.technology</p>
+                    </div>
                   </div>
                 )}
               </div>
