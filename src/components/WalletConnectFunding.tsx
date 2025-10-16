@@ -197,7 +197,20 @@ export const WalletConnectFunding = ({
       });
 
       const usdcContract = new ethers.Contract(usdcContractAddress, USDC_ABI, signer);
-      const approveTx = await usdcContract.approve(escrowContractAddress, amount);
+      
+      let approveTx;
+      try {
+        approveTx = await usdcContract.approve(escrowContractAddress, amount);
+      } catch (approveError: any) {
+        // Handle specific RPC/gas errors
+        const errorMsg = approveError?.message || '';
+        const errorCode = approveError?.code;
+        
+        if (errorCode === -32603 || errorMsg.toLowerCase().includes('coalesce') || errorMsg.toLowerCase().includes('internal json-rpc')) {
+          throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
+        }
+        throw approveError;
+      }
 
       toast({
         title: '⏳ Approving...',
@@ -219,14 +232,27 @@ export const WalletConnectFunding = ({
       });
 
       const escrowContract = new ethers.Contract(escrowContractAddress, ESCROW_ABI, signer);
-      const fundTx = await escrowContract.fundJob(
-        numericJobId,
-        freelancerAddress,
-        usdcContractAddress,
-        amount,
-        requiresStake,
-        allowedRevisions
-      );
+      
+      let fundTx;
+      try {
+        fundTx = await escrowContract.fundJob(
+          numericJobId,
+          freelancerAddress,
+          usdcContractAddress,
+          amount,
+          requiresStake,
+          allowedRevisions
+        );
+      } catch (fundError: any) {
+        // Handle specific RPC/gas errors
+        const errorMsg = fundError?.message || '';
+        const errorCode = fundError?.code;
+        
+        if (errorCode === -32603 || errorMsg.toLowerCase().includes('coalesce') || errorMsg.toLowerCase().includes('internal json-rpc')) {
+          throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
+        }
+        throw fundError;
+      }
 
       toast({
         title: '⏳ Processing...',
@@ -273,8 +299,11 @@ export const WalletConnectFunding = ({
 
       setStatus('error');
       let errorMsg = 'Payment failed';
+      
       if (error?.code === 'ACTION_REJECTED') {
         errorMsg = 'Transaction rejected by user';
+      } else if (msg.includes('⛽ Insufficient MATIC')) {
+        errorMsg = msg; // Use the specific gas error message
       } else if (msg) {
         errorMsg = msg;
       }
@@ -410,9 +439,19 @@ export const WalletConnectFunding = ({
               </div>
               <div className="text-center">
                 <h3 className="text-xl font-bold text-red-500 mb-2">Something Went Wrong</h3>
-                <p className="text-sm text-muted-foreground px-4">
+                <p className="text-sm text-muted-foreground px-4 whitespace-pre-line">
                   {errorMessage}
                 </p>
+                {errorMessage.includes('⛽ Insufficient MATIC') && (
+                  <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-xs text-left space-y-2">
+                    <p className="font-semibold text-amber-900 dark:text-amber-100">💡 How to fix:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-amber-800 dark:text-amber-200">
+                      <li>Get free test MATIC from <a href="https://www.alchemy.com/faucets/polygon-amoy" target="_blank" rel="noopener noreferrer" className="underline">Alchemy Faucet</a></li>
+                      <li>Wait 1-2 minutes for MATIC to arrive</li>
+                      <li>Try payment again</li>
+                    </ol>
+                  </div>
+                )}
               </div>
             </div>
           )}
