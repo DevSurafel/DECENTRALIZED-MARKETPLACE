@@ -38,56 +38,44 @@ serve(async (req) => {
     // Get environment variables for blockchain interaction
     const RPC_URL = Deno.env.get('RPC_URL');
     const WALLET_PRIVATE_KEY = Deno.env.get('WALLET_PRIVATE_KEY');
-    const USDC_CONTRACT_ADDRESS = '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359'; // USDC on Polygon
+    const ESCROW_CONTRACT_ADDRESS = Deno.env.get('VITE_ESCROW_CONTRACT_ADDRESS');
 
-    if (!RPC_URL || !WALLET_PRIVATE_KEY) {
-      throw new Error('Missing RPC_URL or WALLET_PRIVATE_KEY environment variables');
+    if (!RPC_URL || !WALLET_PRIVATE_KEY || !ESCROW_CONTRACT_ADDRESS) {
+      throw new Error('Missing RPC_URL, WALLET_PRIVATE_KEY, or ESCROW_CONTRACT_ADDRESS environment variables');
     }
 
     // Initialize provider and wallet
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const wallet = new ethers.Wallet(WALLET_PRIVATE_KEY, provider);
 
-    // USDC contract ABI (minimal - only transfer function)
-    const usdcAbi = [
-      "function transfer(address to, uint256 amount) returns (bool)"
+    // Escrow contract ABI - just the release function
+    const escrowAbi = [
+      "function releaseAfterTransfer(uint256 jobId) external",
+      "function getJob(uint256 jobId) external view returns (tuple(address client, address freelancer, address token, uint256 amount, uint256 freelancerStake, uint256 platformFee, uint8 status, uint256 deadline, uint256 reviewDeadline, uint256 allowedRevisions, uint256 currentRevisionNumber))"
     ];
-    const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, usdcAbi, wallet);
+    const escrowContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, escrowAbi, wallet);
 
-    console.log('Initiating USDC transfers...');
+    console.log('Calling escrow contract to release payment...');
 
-    // Get current gas price and set appropriate fees for Polygon
-    const feeData = await provider.getFeeData();
-    const gasPrice = feeData.gasPrice || ethers.parseUnits('50', 'gwei'); // Fallback to 50 Gwei
+    // Convert UUID to numeric ID
+    const uuidBytes = new TextEncoder().encode(jobId);
+    let numericJobId = BigInt(0);
+    for (let i = 0; i < Math.min(uuidBytes.length, 8); i++) {
+      numericJobId = (numericJobId << BigInt(8)) | BigInt(uuidBytes[i]);
+    }
+
+    // Call the escrow contract's release function
+    const releaseTx = await escrowContract.releaseAfterTransfer(numericJobId, {
+      maxPriorityFeePerGas: ethers.parseUnits('50', 'gwei'),
+      maxFeePerGas: ethers.parseUnits('100', 'gwei'),
+      gasLimit: 300000
+    });
     
-    // Gas options for Polygon network
-    const gasOptions = {
-      maxPriorityFeePerGas: ethers.parseUnits('50', 'gwei'), // 50 Gwei tip
-      maxFeePerGas: ethers.parseUnits('100', 'gwei'), // 100 Gwei max
-      gasLimit: 100000 // Sufficient for USDC transfer
-    };
+    const receipt = await releaseTx.wait();
+    const txHash = receipt.hash;
+    console.log(`Payment released via escrow contract: ${txHash}`);
 
-    // Transfer to freelancer
-    const freelancerTx = await usdcContract.transfer(
-      freelancerWallet,
-      ethers.parseUnits(freelancerAmount.toString(), 6), // USDC has 6 decimals
-      gasOptions
-    );
-    const freelancerReceipt = await freelancerTx.wait();
-    const freelancerTxHash = freelancerReceipt.hash;
-    console.log(`Freelancer transfer completed: ${freelancerTxHash}`);
-
-    // Transfer platform fee
-    const platformTx = await usdcContract.transfer(
-      PLATFORM_WALLET_ADDRESS,
-      ethers.parseUnits(platformFee.toString(), 6),
-      gasOptions
-    );
-    const platformReceipt = await platformTx.wait();
-    const platformTxHash = platformReceipt.hash;
-    console.log(`Platform fee transfer completed: ${platformTxHash}`);
-
-    console.log(`Freelancer TX: ${freelancerTxHash}, Platform TX: ${platformTxHash}`);
+    console.log(`Transaction hash: ${txHash}`);
 
     // Log the payment transaction
     const { error: logError } = await supabase
@@ -96,10 +84,10 @@ serve(async (req) => {
         job_id: jobId,
         freelancer_wallet: freelancerWallet,
         freelancer_amount: freelancerAmount,
-        freelancer_tx_hash: freelancerTxHash,
+        freelancer_tx_hash: txHash,
         platform_fee: platformFee,
         platform_wallet: PLATFORM_WALLET_ADDRESS,
-        platform_tx_hash: platformTxHash,
+        platform_tx_hash: txHash,
         total_amount: amount,
         status: 'completed',
         processed_at: new Date().toISOString()
@@ -114,12 +102,11 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         freelancerAmount,
-        freelancerTxHash,
+        txHash,
         platformFee,
-        platformTxHash,
         freelancerWallet,
         platformWallet: PLATFORM_WALLET_ADDRESS,
-        message: 'Payment released successfully'
+        message: 'Payment released successfully via escrow contract'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
