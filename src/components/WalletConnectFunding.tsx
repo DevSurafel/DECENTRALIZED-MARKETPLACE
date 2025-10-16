@@ -69,146 +69,8 @@ export const WalletConnectFunding = ({
     };
   }, [isOpen]);
 
-  const executeFunding = async (
-    escrowContract: any,
-    numericJobId: bigint,
-    freelancerAddress: string,
-    usdcContractAddress: string,
-    amount: bigint,
-    requiresStake: boolean,
-    allowedRevisions: number
-  ) => {
-    let fundTx;
-    try {
-      console.log('Requesting fund job transaction...');
-      
-      // First try to estimate gas to get the actual revert reason
-      try {
-        const gasEstimate = await escrowContract.fundJob.estimateGas(
-          numericJobId,
-          freelancerAddress,
-          usdcContractAddress,
-          amount,
-          requiresStake,
-          allowedRevisions
-        );
-        console.log('Gas estimate successful:', gasEstimate.toString());
-      } catch (estimateError: any) {
-        if (estimateError?.code === 'NETWORK_ERROR') {
-          throw new Error('🌐 Network connection unstable during funding check. Please try again.');
-        }
-        
-        console.error('Gas estimation failed - this will reveal the revert reason:', estimateError);
-        
-        // Try to extract revert reason
-        let revertReason = '';
-        if (estimateError?.reason) {
-          revertReason = estimateError.reason;
-        } else if (estimateError?.error?.message) {
-          revertReason = estimateError.error.message;
-        } else if (estimateError?.message) {
-          revertReason = estimateError.message;
-        }
-        
-        console.log('Contract revert reason:', revertReason);
-        
-        // Common contract errors
-        if (revertReason.toLowerCase().includes('insufficient allowance') || 
-            revertReason.toLowerCase().includes('erc20: insufficient allowance')) {
-          throw new Error('❌ USDC approval failed or insufficient. The approval transaction may not have completed. Please try again.');
-        }
-        
-        if (revertReason.toLowerCase().includes('transfer amount exceeds balance')) {
-          throw new Error('💵 Insufficient USDC balance. You need ' + ethers.formatUnits(amount, 6) + ' USDC in your wallet.');
-        }
-        
-        if (revertReason.toLowerCase().includes('job already exists') || 
-            revertReason.toLowerCase().includes('already funded')) {
-          throw new Error('Job already exists');
-        }
-        
-        // If we got a revert reason, throw it
-        if (revertReason) {
-          throw new Error('Contract Error: ' + revertReason);
-        }
-        
-        // Otherwise throw the estimation error
-        throw estimateError;
-      }
-      
-      // If gas estimation passed, send the transaction
-      fundTx = await escrowContract.fundJob(
-        numericJobId,
-        freelancerAddress,
-        usdcContractAddress,
-        amount,
-        requiresStake,
-        allowedRevisions
-      );
-    } catch (fundError: any) {
-      if (fundError?.code === 'NETWORK_ERROR') {
-        throw new Error('🌐 Network connection unstable during funding. Please try again.');
-      }
-      
-      // Re-throw if already formatted
-      if (fundError?.message?.startsWith('❌') || fundError?.message?.startsWith('💵') || 
-          fundError?.message?.startsWith('Contract Error:') || fundError?.message?.startsWith('Job already exists')) {
-        throw fundError;
-      }
-      
-      console.error('Fund error details:', fundError);
-      
-      const errorMsg = fundError?.message || '';
-      const errorCode = fundError?.code;
-      const errorData = fundError?.data?.message || fundError?.error?.message || '';
-      
-      console.log('Error breakdown:', {
-        code: errorCode,
-        message: errorMsg,
-        data: errorData,
-        fullError: fundError
-      });
-      
-      // Check for actual insufficient gas/funds errors
-      if (errorMsg.toLowerCase().includes('insufficient funds') || 
-          errorMsg.toLowerCase().includes('insufficient balance') ||
-          errorData.toLowerCase().includes('insufficient funds')) {
-        throw new Error('⛽ Insufficient MATIC (POL) for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
-      }
-      
-      // Otherwise throw the original error with details
-      throw new Error(errorMsg || errorData || 'Transaction failed during funding');
-    }
-
-    toast({
-      title: '⏳ Processing...',
-      description: 'Waiting for payment confirmation',
-    });
-
-    console.log('Fund transaction sent:', fundTx.hash);
-    const receipt = await fundTx.wait();
-
-    // Payment successful!
-    setStatus('success');
-    toast({
-      title: '🎉 Payment Complete!',
-      description: `Successfully paid ${amountUSDC} USDC`,
-    });
-
-    setTimeout(() => {
-      onSuccess(receipt.hash);
-      if (wcProvider) {
-        wcProvider.disconnect();
-      }
-      onClose();
-    }, 2000);
-  };
-
-  useEffect(() => {
-
   useEffect(() => {
     if (wcUri && qrCodeRef.current) {
-      // Create QR code when URI is available
       if (!qrCodeInstance.current) {
         qrCodeInstance.current = new QRCodeStyling({
           width: 300,
@@ -248,11 +110,127 @@ export const WalletConnectFunding = ({
     }
   }, [wcUri]);
 
+  const executeFunding = async (
+    escrowContract: any,
+    numericJobId: bigint,
+    freelancerAddr: string,
+    usdcAddr: string,
+    amount: bigint,
+    reqStake: boolean,
+    revisions: number
+  ) => {
+    let fundTx;
+    try {
+      console.log('Requesting fund job transaction...');
+      
+      try {
+        const gasEstimate = await escrowContract.fundJob.estimateGas(
+          numericJobId,
+          freelancerAddr,
+          usdcAddr,
+          amount,
+          reqStake,
+          revisions
+        );
+        console.log('Gas estimate successful:', gasEstimate.toString());
+      } catch (estimateError: any) {
+        if (estimateError?.code === 'NETWORK_ERROR') {
+          throw new Error('🌐 Network connection unstable during funding check. Please try again.');
+        }
+        
+        console.error('Gas estimation failed:', estimateError);
+        
+        let revertReason = '';
+        if (estimateError?.reason) {
+          revertReason = estimateError.reason;
+        } else if (estimateError?.error?.message) {
+          revertReason = estimateError.error.message;
+        } else if (estimateError?.message) {
+          revertReason = estimateError.message;
+        }
+        
+        console.log('Contract revert reason:', revertReason);
+        
+        if (revertReason.toLowerCase().includes('insufficient allowance') || 
+            revertReason.toLowerCase().includes('erc20: insufficient allowance')) {
+          throw new Error('❌ USDC approval failed or insufficient. Please try again.');
+        }
+        
+        if (revertReason.toLowerCase().includes('transfer amount exceeds balance')) {
+          throw new Error('💵 Insufficient USDC balance. You need ' + ethers.formatUnits(amount, 6) + ' USDC.');
+        }
+        
+        if (revertReason.toLowerCase().includes('job already exists') || 
+            revertReason.toLowerCase().includes('already funded')) {
+          throw new Error('Job already exists');
+        }
+        
+        if (revertReason) {
+          throw new Error('Contract Error: ' + revertReason);
+        }
+        
+        throw estimateError;
+      }
+      
+      fundTx = await escrowContract.fundJob(
+        numericJobId,
+        freelancerAddr,
+        usdcAddr,
+        amount,
+        reqStake,
+        revisions
+      );
+    } catch (fundError: any) {
+      if (fundError?.code === 'NETWORK_ERROR') {
+        throw new Error('🌐 Network connection unstable during funding. Please try again.');
+      }
+      
+      if (fundError?.message?.startsWith('❌') || fundError?.message?.startsWith('💵') || 
+          fundError?.message?.startsWith('Contract Error:') || fundError?.message?.startsWith('Job already exists')) {
+        throw fundError;
+      }
+      
+      console.error('Fund error details:', fundError);
+      
+      const errorMsg = fundError?.message || '';
+      const errorData = fundError?.data?.message || fundError?.error?.message || '';
+      
+      if (errorMsg.toLowerCase().includes('insufficient funds') || 
+          errorMsg.toLowerCase().includes('insufficient balance') ||
+          errorData.toLowerCase().includes('insufficient funds')) {
+        throw new Error('⛽ Insufficient MATIC (POL) for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet.');
+      }
+      
+      throw new Error(errorMsg || errorData || 'Transaction failed during funding');
+    }
+
+    toast({
+      title: '⏳ Processing...',
+      description: 'Waiting for payment confirmation',
+    });
+
+    console.log('Fund transaction sent:', fundTx.hash);
+    const receipt = await fundTx.wait();
+
+    setStatus('success');
+    toast({
+      title: '🎉 Payment Complete!',
+      description: `Successfully paid $${amountUSDC} USDC`,
+    });
+
+    setTimeout(() => {
+      onSuccess(receipt.hash);
+      if (wcProvider) {
+        wcProvider.disconnect();
+      }
+      onClose();
+    }, 2000);
+  };
+
   const initializeWalletConnect = async () => {
     setStatus('connecting');
 
     try {
-      // Try to import WalletConnect
       let EthereumProvider;
 
       try {
@@ -265,14 +243,10 @@ export const WalletConnectFunding = ({
       }
 
       const provider = await EthereumProvider.init({
-        projectId: '22774a64e30fb9eb3014ccbad85d5b71', // ⚠️ REPLACE WITH YOUR WALLETCONNECT PROJECT ID
+        projectId: '22774a64e30fb9eb3014ccbad85d5b71',
         chains: [80002],
         showQrModal: false,
-        methods: [
-          'eth_sendTransaction',
-          'eth_sign',
-          'personal_sign',
-        ],
+        methods: ['eth_sendTransaction', 'eth_sign', 'personal_sign'],
         events: ['chainChanged', 'accountsChanged'],
         rpcMap: {
           80002: 'https://rpc-amoy.polygon.technology'
@@ -287,13 +261,11 @@ export const WalletConnectFunding = ({
 
       setWcProvider(provider);
 
-      // Listen for display_uri event
       provider.on('display_uri', (uri: string) => {
         console.log('WalletConnect URI:', uri);
         setWcUri(uri);
       });
 
-      // Listen for connection
       provider.on('connect', async (session: any) => {
         console.log('Wallet connected!', session);
         await executePayment(provider);
@@ -307,168 +279,116 @@ export const WalletConnectFunding = ({
         }
       });
 
-      // Connect
       await provider.enable();
 
     } catch (error: any) {
       console.error('WalletConnect initialization error:', error);
       setStatus('error');
-      setErrorMessage(error.message || 'Failed to initialize WalletConnect. Make sure the package is installed.');
+      setErrorMessage(error.message || 'Failed to initialize WalletConnect.');
     }
   };
 
   const executePayment = async (provider: any) => {
     try {
-      const ethersProvider = new ethers.BrowserProvider(provider);
+      const ethersProvider = new ethers.BrowserProvider(provider, 'any');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const signer = await ethersProvider.getSigner();
       const address = await signer.getAddress();
 
       console.log('Connected wallet:', address);
 
+      const network = await ethersProvider.getNetwork();
+      const currentChainId = Number(network.chainId);
+      console.log('Detected network chain ID:', currentChainId);
+      
+      if (currentChainId !== 80002) {
+        throw new Error(`🌐 Wrong Network! You're on Chain ID ${currentChainId}.\n\nPlease switch to Polygon Amoy (Chain ID: 80002) in your wallet.`);
+      }
+
+      console.log('✅ Correct network: Polygon Amoy (80002)');
+
       const numericJobId = uuidToNumericId(jobId);
       const amount = ethers.parseUnits(amountUSDC, 6);
 
       console.log('Payment details:', {
+        chainId: currentChainId,
         jobId: numericJobId.toString(),
         freelancer: freelancerAddress,
         amount: amount.toString(),
-        amountUSDC: amountUSDC,
         escrow: escrowContractAddress,
         usdc: usdcContractAddress
       });
 
-      // Check USDC balance first
       const usdcContract = new ethers.Contract(usdcContractAddress, USDC_ABI, signer);
+      
       try {
         const balance = await usdcContract.balanceOf(address);
         const balanceFormatted = ethers.formatUnits(balance, 6);
         console.log('USDC Balance:', balanceFormatted, 'USDC');
-        console.log('Required:', amountUSDC, 'USDC');
         
         if (balance < amount) {
-          throw new Error(`💵 Insufficient USDC balance. You have ${balanceFormatted} USDC but need ${amountUSDC} USDC. Get testnet USDC from a faucet or swap.`);
+          throw new Error(`💵 Insufficient USDC balance. You have ${balanceFormatted} USDC but need ${amountUSDC} USDC.`);
         }
       } catch (balanceError: any) {
         if (balanceError?.code === 'NETWORK_ERROR') {
-          console.error('Network error during balance check:', balanceError);
-          throw new Error('🌐 Network connection unstable. Please ensure you\'re connected to Polygon Amoy and try again.');
+          throw new Error('🌐 Network connection unstable. Please try again.');
         }
         if (balanceError.message.includes('💵')) {
-          throw balanceError; // Re-throw our formatted error
+          throw balanceError;
         }
         console.warn('Could not check USDC balance:', balanceError);
-        // Continue anyway, the transaction will fail later if balance is insufficient
       }
 
-      // Step 1: Approve USDC
       setStatus('approving');
       toast({
         title: '📝 Step 1 of 2',
-        description: 'Approve USDC spending in your wallet',
+        description: 'Checking USDC approval...',
       });
       
-      let approveTx;
       try {
-        console.log('Requesting USDC approval...');
+        const currentAllowance = await usdcContract.allowance(address, escrowContractAddress);
+        console.log('Current USDC allowance:', ethers.formatUnits(currentAllowance, 6), 'USDC');
         
-        // First check if approval is even needed by checking current allowance
-        try {
-          const currentAllowance = await usdcContract.allowance(address, escrowContractAddress);
-          console.log('Current USDC allowance:', ethers.formatUnits(currentAllowance, 6), 'USDC');
-          console.log('Required amount:', amountUSDC, 'USDC');
+        if (currentAllowance >= amount) {
+          console.log('✅ Sufficient allowance exists');
+          toast({
+            title: '✅ Already Approved',
+            description: 'USDC spending already approved',
+          });
+        } else {
+          toast({
+            title: '📝 Approve USDC',
+            description: 'Confirm approval in your wallet',
+          });
+
+          const approveTx = await usdcContract.approve(escrowContractAddress, amount);
           
-          if (currentAllowance >= amount) {
-            console.log('✅ Sufficient allowance already exists, skipping approval');
-            toast({
-              title: '✅ Already Approved',
-              description: 'USDC spending already approved',
-            });
-            
-            // Skip to funding directly
-            setStatus('funding');
-            toast({
-              title: '💰 Processing Payment',
-              description: `Confirm payment of ${amountUSDC} USDC`,
-            });
-            
-            const escrowContract = new ethers.Contract(escrowContractAddress, ESCROW_ABI, signer);
-            await executeFunding(escrowContract, numericJobId, freelancerAddress, usdcContractAddress, amount, requiresStake, allowedRevisions);
-            return;
-          } else {
-            // Try gas estimation first to catch contract errors
-            const gasEstimate = await usdcContract.approve.estimateGas(escrowContractAddress, amount);
-            console.log('Approval gas estimate:', gasEstimate.toString());
-          }
-        } catch (estimateError: any) {
-          if (estimateError?.code === 'NETWORK_ERROR') {
-            throw new Error('🌐 Network connection unstable during approval check. Please try again.');
-          }
-          console.error('Approval estimation failed:', estimateError);
-          // Continue anyway, the actual transaction might still work
+          toast({
+            title: '⏳ Approving...',
+            description: 'Waiting for confirmation',
+          });
+
+          console.log('Approval tx:', approveTx.hash);
+          await approveTx.wait();
+
+          toast({
+            title: '✅ Approved!',
+            description: 'USDC approval successful',
+          });
         }
-        
-        approveTx = await usdcContract.approve(escrowContractAddress, amount);
       } catch (approveError: any) {
         if (approveError?.code === 'NETWORK_ERROR') {
-          throw new Error('🌐 Network connection unstable. Please ensure you stay connected to Polygon Amoy and try again.');
+          throw new Error('🌐 Network error during approval. Please try again.');
         }
-        
-        console.error('Approve error details:', approveError);
-        
-        const errorMsg = approveError?.message || '';
-        const errorCode = approveError?.code;
-        const errorData = approveError?.data?.message || approveError?.error?.message || '';
-        
-        console.log('Error breakdown:', {
-          code: errorCode,
-          message: errorMsg,
-          data: errorData,
-          fullError: approveError
-        });
-        
-        // Check for actual insufficient gas/funds errors
-        if (errorMsg.toLowerCase().includes('insufficient funds') || 
-            errorMsg.toLowerCase().includes('insufficient balance') ||
-            errorData.toLowerCase().includes('insufficient funds')) {
-          throw new Error('⛽ Insufficient MATIC (POL) for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
-        }
-        
-        // Check for USDC balance issues
-        if (errorMsg.toLowerCase().includes('transfer amount exceeds balance') ||
-            errorData.toLowerCase().includes('transfer amount exceeds balance')) {
-          throw new Error('💵 Insufficient USDC balance. You need testnet USDC tokens to complete this transaction.');
-        }
-        
-        // Otherwise throw the original error with details
-        throw new Error(errorMsg || errorData || 'Transaction failed during approval');
+        console.error('Approve error:', approveError);
+        throw approveError;
       }
 
-      toast({
-        title: '⏳ Approving...',
-        description: 'Waiting for blockchain confirmation',
-      });
-
-      console.log('Approval transaction sent:', approveTx.hash);
-      
-      try {
-        await approveTx.wait();
-      } catch (waitError: any) {
-        if (waitError?.code === 'NETWORK_ERROR') {
-          throw new Error('🌐 Network connection lost while waiting for approval. Please check your connection and try again.');
-        }
-        throw waitError;
-      }
-
-      toast({
-        title: '✅ Approved!',
-        description: 'USDC approval successful',
-      });
-
-      // Step 2: Fund Job
       setStatus('funding');
       toast({
         title: '💰 Step 2 of 2',
-        description: `Confirm payment of ${amountUSDC} USDC`,
+        description: `Confirm payment of $${amountUSDC} USDC`,
       });
 
       const escrowContract = new ethers.Contract(escrowContractAddress, ESCROW_ABI, signer);
@@ -479,30 +399,26 @@ export const WalletConnectFunding = ({
 
       const msg = (error?.reason || error?.shortMessage || error?.message || '').toString();
       
-      // Check for network errors
       if (error?.code === 'NETWORK_ERROR' || msg.includes('network changed')) {
         setStatus('error');
-        setErrorMessage('🌐 Network changed during transaction. Please ensure you stay on Polygon Amoy testnet and try again.');
+        setErrorMessage('🌐 Network changed during transaction. Please stay on Polygon Amoy and try again.');
         toast({
           title: '❌ Network Error',
-          description: 'Network switched during transaction',
+          description: 'Network switched',
           variant: 'destructive'
         });
         return;
       }
       
-      // If escrow/job is already created on-chain, treat as a success to prevent duplicate payments
       if (msg.includes('Job already exists') || msg.includes('already funded')) {
         setStatus('success');
         toast({
           title: '✅ Already Funded',
-          description: 'Escrow is already funded and locked.',
+          description: 'Escrow already funded.',
         });
         setTimeout(() => {
           onSuccess('already-funded');
-          if (wcProvider) {
-            wcProvider.disconnect();
-          }
+          if (wcProvider) wcProvider.disconnect();
           onClose();
         }, 1200);
         return;
@@ -513,12 +429,8 @@ export const WalletConnectFunding = ({
       
       if (error?.code === 'ACTION_REJECTED' || msg.includes('user rejected')) {
         errorMsg = 'Transaction rejected by user';
-      } else if (msg.includes('⛽ Insufficient MATIC')) {
-        errorMsg = msg; // Use the specific gas error message
-      } else if (msg.includes('💵 Insufficient USDC')) {
-        errorMsg = msg; // Use the specific USDC error message
-      } else if (msg.includes('🌐')) {
-        errorMsg = msg; // Use network error message
+      } else if (msg.includes('⛽') || msg.includes('💵') || msg.includes('🌐') || msg.includes('❌')) {
+        errorMsg = msg;
       } else if (msg) {
         errorMsg = msg;
       }
@@ -534,9 +446,7 @@ export const WalletConnectFunding = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open && wcProvider) {
-        wcProvider.disconnect();
-      }
+      if (!open && wcProvider) wcProvider.disconnect();
       onClose();
     }}>
       <DialogContent className="sm:max-w-md">
@@ -551,14 +461,12 @@ export const WalletConnectFunding = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Amount Display */}
           <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-xl">
             <p className="text-sm text-muted-foreground mb-2">You're paying</p>
             <p className="text-5xl font-bold text-primary mb-1">${amountUSDC}</p>
             <p className="text-sm text-muted-foreground">USDC</p>
           </div>
 
-          {/* Status Display */}
           {status === 'connecting' && (
             <div className="flex flex-col items-center gap-4">
               {wcUri ? (
@@ -566,17 +474,15 @@ export const WalletConnectFunding = ({
                   <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border-4 border-primary shadow-lg">
                     <div ref={qrCodeRef} className="flex items-center justify-center" />
                   </div>
-
                   <div className="text-center space-y-2">
                     <p className="text-sm font-semibold flex items-center justify-center gap-2">
                       <Smartphone className="h-4 w-4 text-primary animate-pulse" />
                       Scan with your wallet app
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      MetaMask • Trust Wallet • Coinbase Wallet • Rainbow
+                      MetaMask • Trust Wallet • Coinbase Wallet
                     </p>
                   </div>
-
                   <div className="w-full p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-xs text-center">
                     <p className="text-blue-700 dark:text-blue-300 animate-pulse">
                       💡 Waiting for wallet connection...
@@ -587,7 +493,6 @@ export const WalletConnectFunding = ({
                 <div className="flex flex-col items-center gap-4 py-8">
                   <Loader2 className="h-12 w-12 animate-spin text-primary" />
                   <p className="text-sm text-muted-foreground">Generating QR code...</p>
-                  <p className="text-xs text-muted-foreground">This may take a few seconds</p>
                 </div>
               )}
             </div>
@@ -603,12 +508,8 @@ export const WalletConnectFunding = ({
               </div>
               <div className="text-center">
                 <p className="font-semibold text-lg mb-1">Step 1 of 2</p>
-                <p className="text-sm text-muted-foreground">
-                  Approve USDC spending
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Check your wallet app for approval request
-                </p>
+                <p className="text-sm text-muted-foreground">Approve USDC spending</p>
+                <p className="text-xs text-muted-foreground mt-2">Check your wallet app</p>
               </div>
             </div>
           )}
@@ -623,12 +524,8 @@ export const WalletConnectFunding = ({
               </div>
               <div className="text-center">
                 <p className="font-semibold text-lg mb-1">Step 2 of 2</p>
-                <p className="text-sm text-muted-foreground">
-                  Confirm payment of ${amountUSDC} USDC
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Check your wallet app to confirm the transaction
-                </p>
+                <p className="text-sm text-muted-foreground">Confirm payment of ${amountUSDC} USDC</p>
+                <p className="text-xs text-muted-foreground mt-2">Check your wallet app</p>
               </div>
             </div>
           )}
@@ -640,9 +537,7 @@ export const WalletConnectFunding = ({
               </div>
               <div className="text-center">
                 <h3 className="text-2xl font-bold text-green-500 mb-2">Payment Complete!</h3>
-                <p className="text-muted-foreground">
-                  Successfully paid ${amountUSDC} USDC
-                </p>
+                <p className="text-muted-foreground">Successfully paid ${amountUSDC} USDC</p>
               </div>
             </div>
           )}
@@ -654,26 +549,24 @@ export const WalletConnectFunding = ({
               </div>
               <div className="text-center">
                 <h3 className="text-xl font-bold text-red-500 mb-2">Something Went Wrong</h3>
-                <p className="text-sm text-muted-foreground px-4 whitespace-pre-line">
-                  {errorMessage}
-                </p>
-                {errorMessage.includes('⛽ Insufficient MATIC') && (
+                <p className="text-sm text-muted-foreground px-4 whitespace-pre-line">{errorMessage}</p>
+                {errorMessage.includes('⛽') && (
                   <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-xs text-left space-y-2">
                     <p className="font-semibold text-amber-900 dark:text-amber-100">💡 How to fix:</p>
                     <ol className="list-decimal list-inside space-y-1 text-amber-800 dark:text-amber-200">
-                      <li>Get free test MATIC from <a href="https://www.alchemy.com/faucets/polygon-amoy" target="_blank" rel="noopener noreferrer" className="underline">Alchemy Faucet</a></li>
-                      <li>Wait 1-2 minutes for MATIC to arrive</li>
-                      <li>Try payment again</li>
+                      <li>Get free MATIC from <a href="https://www.alchemy.com/faucets/polygon-amoy" target="_blank" rel="noopener noreferrer" className="underline">Alchemy Faucet</a></li>
+                      <li>Wait 1-2 minutes</li>
+                      <li>Try again</li>
                     </ol>
                   </div>
                 )}
-                {errorMessage.includes('💵 Insufficient USDC') && (
+                {errorMessage.includes('💵') && (
                   <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-xs text-left space-y-2">
                     <p className="font-semibold text-amber-900 dark:text-amber-100">💡 How to fix:</p>
                     <ol className="list-decimal list-inside space-y-1 text-amber-800 dark:text-amber-200">
-                      <li>Get testnet USDC from a faucet or swap</li>
-                      <li>Make sure you're on Polygon Amoy testnet</li>
-                      <li>Try payment again</li>
+                      <li>Get testnet USDC from a faucet</li>
+                      <li>Ensure you're on Polygon Amoy</li>
+                      <li>Try again</li>
                     </ol>
                   </div>
                 )}
@@ -681,14 +574,14 @@ export const WalletConnectFunding = ({
                   <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-xs text-left space-y-2">
                     <p className="font-semibold text-blue-900 dark:text-blue-100">💡 How to fix:</p>
                     <ol className="list-decimal list-inside space-y-1 text-blue-800 dark:text-blue-200">
-                      <li>Open your wallet and switch to Polygon Amoy</li>
-                      <li>Make sure to stay on Amoy during the transaction</li>
-                      <li>Try payment again</li>
+                      <li>Switch to Polygon Amoy in your wallet</li>
+                      <li>Stay on Amoy during transaction</li>
+                      <li>Try again</li>
                     </ol>
-                    <div className="mt-2 p-2 bg-blue-100 dark:bg-blue-900 rounded text-blue-900 dark:text-blue-100">
-                      <p className="font-semibold">Polygon Amoy Testnet:</p>
+                    <div className="mt-2 p-2 bg-blue-100 dark:bg-blue-900 rounded">
+                      <p className="font-semibold">Polygon Amoy:</p>
                       <p>Chain ID: 80002</p>
-                      <p>RPC: https://rpc-amoy.polygon.technology</p>
+                      <p className="text-xs">RPC: https://rpc-amoy.polygon.technology</p>
                     </div>
                   </div>
                 )}
@@ -696,41 +589,31 @@ export const WalletConnectFunding = ({
             </div>
           )}
 
-          {/* Help Text */}
           {(status === 'connecting' || status === 'approving' || status === 'funding') && (
             <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
               <p className="text-xs text-amber-900 dark:text-amber-100">
                 <strong>📱 Need a wallet?</strong>
                 <br />
-                Download MetaMask, Trust Wallet, or any WalletConnect-compatible wallet from your app store.
+                Download MetaMask or Trust Wallet from your app store.
               </p>
             </div>
           )}
         </div>
 
         <div className="flex gap-3 pt-4 border-t">
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (wcProvider) {
-                wcProvider.disconnect();
-              }
-              onClose();
-            }}
-            className="flex-1"
-          >
+          <Button variant="outline" onClick={() => {
+            if (wcProvider) wcProvider.disconnect();
+            onClose();
+          }} className="flex-1">
             Cancel
           </Button>
           {status === 'error' && (
-            <Button
-              onClick={() => {
-                setStatus('idle');
-                setErrorMessage('');
-                setWcUri('');
-                initializeWalletConnect();
-              }}
-              className="flex-1"
-            >
+            <Button onClick={() => {
+              setStatus('idle');
+              setErrorMessage('');
+              setWcUri('');
+              initializeWalletConnect();
+            }} className="flex-1">
               Try Again
             </Button>
           )}
