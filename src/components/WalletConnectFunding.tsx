@@ -19,10 +19,8 @@ interface WalletConnectFundingProps {
   allowedRevisions?: number;
 }
 
-const PAYMENT_GATEWAY_ADDRESS = '0x6Dd2968a8B095A5dC71Af685A7a73a5122837D47';
-
-const GATEWAY_ABI = [
-  'function fundJobOneClick(uint256 jobId, address freelancer, uint256 amount, bool requiresStake, uint256 allowedRevisions) external'
+const ESCROW_ABI = [
+  'function fundJob(uint256 jobId, address freelancer, address token, uint256 amount, bool requiresStake, uint256 allowedRevisions) external'
 ];
 
 const USDC_ABI = [
@@ -199,7 +197,7 @@ export const WalletConnectFunding = ({
       });
 
       const usdcContract = new ethers.Contract(usdcContractAddress, USDC_ABI, signer);
-      const approveTx = await usdcContract.approve(PAYMENT_GATEWAY_ADDRESS, amount);
+      const approveTx = await usdcContract.approve(escrowContractAddress, amount);
 
       toast({
         title: '⏳ Approving...',
@@ -220,10 +218,11 @@ export const WalletConnectFunding = ({
         description: `Confirm payment of $${amountUSDC} USDC`,
       });
 
-      const gatewayContract = new ethers.Contract(PAYMENT_GATEWAY_ADDRESS, GATEWAY_ABI, signer);
-      const fundTx = await gatewayContract.fundJobOneClick(
+      const escrowContract = new ethers.Contract(escrowContractAddress, ESCROW_ABI, signer);
+      const fundTx = await escrowContract.fundJob(
         numericJobId,
         freelancerAddress,
+        usdcContractAddress,
         amount,
         requiresStake,
         allowedRevisions

@@ -338,24 +338,11 @@ const JobDetails = () => {
     navigate('/dashboard');
   };
 
-  const handleSubmitWork = async (ipfsHash: string, gitHash: string, repositoryUrl: string, notes: string) => {
+  const handleSubmitWork = async (ipfsHash: string, gitHash: string, repositoryUrl: string, notes: string, walletAddress: string) => {
     if (!id) return;
     
     try {
-      // First, submit work to blockchain
-      toast({
-        title: "Submitting to Blockchain",
-        description: "Please confirm the transaction in MetaMask",
-      });
-
-      const blockchainResult = await submitWorkToBlockchain(id, ipfsHash, gitHash);
-      
-      if (!blockchainResult.success) {
-        // Detailed error toasts are already shown by submitWorkToBlockchain
-        return;
-      }
-
-      // Then update database
+      // Update database with submission details and freelancer wallet
       const { error } = await supabase
         .from('jobs')
         .update({
@@ -364,11 +351,18 @@ const JobDetails = () => {
           git_commit_hash: gitHash,
           repository_url: repositoryUrl || null,
           review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-          contract_address: blockchainResult.txHash,
         })
         .eq('id', id);
 
       if (error) throw error;
+
+      // Store freelancer wallet address in their profile for payment release
+      if (user?.id && walletAddress) {
+        await supabase
+          .from('profiles')
+          .update({ wallet_address: walletAddress })
+          .eq('id', user.id);
+      }
 
       // Notify client via Telegram
       if (job.client_id) {
@@ -411,7 +405,7 @@ const JobDetails = () => {
     }
   };
 
-  const handleConfirmOwnershipTransfer = async () => {
+  const handleConfirmOwnershipTransfer = async (sellerWalletAddress: string) => {
     if (!id || !job) return;
     
     // First verify the job is funded on blockchain
@@ -437,6 +431,82 @@ const JobDetails = () => {
     try {
       // Check if it's a Telegram purchase
       const isTelegramPurchase = job.title.toLowerCase().includes('telegram');
+      
+      // For Telegram purchases, verify ownership was transferred to escrow FIRST
+      if (isTelegramPurchase && job.listing_id) {
+        const { data: listing } = await supabase
+          .from('social_media_listings')
+          .select('account_name')
+          .eq('id', job.listing_id)
+          .single();
+
+        if (listing?.account_name) {
+          // Call backend to verify escrow owns the channel
+          const transferServiceUrl = import.meta.env.VITE_TRANSFER_SERVICE_URL;
+          const transferServiceSecret = import.meta.env.VITE_TRANSFER_SERVICE_SECRET;
+
+          // Check if backend is configured
+          if (!transferServiceUrl || !transferServiceSecret || 
+              transferServiceUrl.includes('YOUR_') || 
+              transferServiceSecret.includes('YOUR_')) {
+            toast({
+              title: "⚠️ Ownership Not Verified",
+              description: "You must transfer channel ownership to @defiescrow before confirming. The escrow will verify ownership before releasing payment.",
+              variant: "destructive",
+              duration: 10000
+            });
+            return;
+          }
+
+          try {
+            toast({
+              title: "Verifying Ownership",
+              description: "Checking if ownership was transferred to escrow...",
+            });
+
+            const ownershipResponse = await fetch(`${transferServiceUrl}/api/check-ownership`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-Secret': transferServiceSecret,
+              },
+              body: JSON.stringify({
+                channelUsername: listing.account_name
+              }),
+            });
+
+            if (!ownershipResponse.ok) {
+              throw new Error(`API returned status ${ownershipResponse.status}`);
+            }
+
+            const ownershipResult = await ownershipResponse.json();
+            console.log('Ownership check result:', ownershipResult);
+
+            // Check if the response indicates ownership is NOT transferred
+            if (!ownershipResult.isOwner || ownershipResult.currentRole !== 'creator') {
+              toast({
+                title: "❌ Ownership Not Transferred",
+                description: `The channel ownership has NOT been transferred to @defiescrow yet. Current status: ${ownershipResult.currentRole || 'not owner'}. Please transfer ownership in Telegram settings first, then try again.`,
+                variant: "destructive",
+                duration: 15000
+              });
+              return;
+            }
+
+            // Ownership verified - don't show toast yet, wait for actual transfer result
+            console.log('✓ Ownership verified, proceeding with transfer...');
+          } catch (ownershipError: any) {
+            console.error('Ownership verification error:', ownershipError);
+            toast({
+              title: "❌ Cannot Verify Ownership",
+              description: `Failed to verify ownership transfer to @defiescrow. Error: ${ownershipError.message}. Make sure you've transferred the channel ownership first.`,
+              variant: "destructive",
+              duration: 12000
+            });
+            return;
+          }
+        }
+      }
       
       // For Telegram: status -> awaiting_escrow_verification (escrow needs to handle transfer)
       // For others: status -> under_review (buyer needs to verify)
@@ -474,7 +544,8 @@ const JobDetails = () => {
               {
                 body: {
                   jobId: id,
-                  channelUsername: '' // Let the edge function get it from the listing
+                  channelUsername: '', // Let the edge function get it from the listing
+                  sellerWalletAddress: sellerWalletAddress // Pass seller's wallet for payment release
                 }
               }
             );
@@ -482,14 +553,16 @@ const JobDetails = () => {
             if (transferError) {
               console.error('Transfer error:', transferError);
               toast({
-                title: "Transfer Error",
+                title: "❌ Transfer Error",
                 description: `Automated transfer failed: ${transferError.message}. Please check the logs.`,
-                variant: "destructive"
+                variant: "destructive",
+                duration: 10000
               });
             } else if (transferResult?.success) {
               toast({
-                title: "Transfer Complete!",
-                description: "Ownership has been transferred to buyer and payment has been automatically released to your wallet.",
+                title: "✅ Transfer Complete!",
+                description: `Ownership transferred to buyer and payment auto-released to ${sellerWalletAddress.slice(0, 6)}...${sellerWalletAddress.slice(-4)}`,
+                duration: 8000
               });
             }
           }
@@ -503,8 +576,14 @@ const JobDetails = () => {
         }
       }
 
-      // Send notifications (only if not Telegram, as Telegram auto-transfer handles its own notifications)
+      // Send notifications and show success toast (only if not Telegram, as Telegram auto-transfer handles its own notifications)
       if (!isTelegramPurchase) {
+        toast({
+          title: "✅ Transfer Confirmed",
+          description: "Buyer has been notified to verify and release payment.",
+          duration: 6000
+        });
+        
         // Notify buyer to verify (non-Telegram platforms)
         if (job.client_id) {
           try {
@@ -550,10 +629,49 @@ const JobDetails = () => {
   const handleApproveWork = async () => {
     if (!id || !job) return;
     
-    const result = await approveJob(id);
-    if (!result.success) return;
-    
     try {
+      // Get freelancer's wallet address from their profile
+      const { data: freelancerProfile } = await supabase
+        .from('profiles')
+        .select('wallet_address')
+        .eq('id', job.freelancer_id)
+        .single();
+
+      if (!freelancerProfile?.wallet_address) {
+        toast({
+          title: "Missing Wallet Address",
+          description: "Freelancer hasn't provided their wallet address yet.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Processing Payment",
+        description: "Releasing funds to freelancer's wallet...",
+      });
+
+      // Call the payment release edge function
+      const { data: paymentResult, error: paymentError } = await supabase.functions.invoke('release-payment', {
+        body: {
+          jobId: id,
+          freelancerWallet: freelancerProfile.wallet_address,
+          amount: job.budget_usdc || Number((job.budget_eth || 0) * 2000)
+        }
+      });
+
+      if (paymentError) {
+        console.error('Payment error:', paymentError);
+        throw new Error('Failed to process payment');
+      }
+
+      if (!paymentResult?.success) {
+        throw new Error(paymentResult?.error || 'Payment failed');
+      }
+
+      console.log('Payment released:', paymentResult);
+
+      // Update job status to completed
       const { error: jobError } = await supabase
         .from('jobs')
         .update({
@@ -575,9 +693,8 @@ const JobDetails = () => {
       // Update freelancer stats
       try {
         await supabase.rpc('increment_completed_jobs', {
-          freelancer_id: job.freelancer_id,
-          amount: job.budget_usdc || Number((job.budget_eth || 0) * 2000),
-        } as any);
+          user_id_param: job.freelancer_id
+        });
       } catch (profileError) {
         console.error('Error updating profile:', profileError);
       }
@@ -588,7 +705,7 @@ const JobDetails = () => {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.freelancer_id,
-              message: `🎉 Payment released! You received ${(job.budget_usdc || Number((job.budget_eth || 0) * 2000)).toString()} USDC for "${job.title}". Congrats!`,
+              message: `🎉 Payment released! You received ${paymentResult.freelancerAmount} USDC (after ${(paymentResult.platformFee).toFixed(2)} USDC platform fee) for "${job.title}". TX: ${paymentResult.freelancerTxHash.substring(0, 10)}...`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Job'
@@ -604,7 +721,7 @@ const JobDetails = () => {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.client_id,
-              message: `✅ Job "${job.title}" completed! ${(job.budget_usdc || Number((job.budget_eth || 0) * 2000)).toString()} USDC released to freelancer.`,
+              message: `✅ Job "${job.title}" completed! ${paymentResult.freelancerAmount} USDC released to freelancer (${paymentResult.platformFee.toFixed(2)} USDC platform fee). TX: ${paymentResult.freelancerTxHash.substring(0, 10)}...`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Job'
@@ -617,9 +734,8 @@ const JobDetails = () => {
 
       toast({
         title: isSocialMediaPurchase() ? "Payment Released" : "Work Approved",
-        description: isSocialMediaPurchase()
-          ? "Payment has been released to the seller."
-          : "Funds have been released to the freelancer.",
+        description: `${paymentResult.freelancerAmount.toFixed(2)} USDC sent to ${paymentResult.freelancerWallet.substring(0, 6)}...${paymentResult.freelancerWallet.substring(38)}. Platform fee: ${paymentResult.platformFee.toFixed(2)} USDC.`,
+        duration: 8000
       });
 
       loadJob();
@@ -630,7 +746,7 @@ const JobDetails = () => {
       console.error('Error approving work:', error);
       toast({
         title: "Error",
-        description: "Failed to approve work",
+        description: error instanceof Error ? error.message : "Failed to approve work and release payment",
         variant: "destructive"
       });
     }
@@ -804,7 +920,7 @@ const JobDetails = () => {
                 jobId={id!}
                 freelancerAddress={job.freelancer?.wallet_address || ''}
                 amountUSDC={String(job.budget_usdc || Number((job.budget_eth || 0) * 2000).toFixed(2))}
-                escrowContractAddress="0xb95A71b5EfDb52eEa055eBD27168DC49E6c6685b"
+                escrowContractAddress={import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS}
                 usdcContractAddress="0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582"
                 requiresStake={job.requires_freelancer_stake || false}
                 allowedRevisions={job.allowed_revisions || 3}
@@ -970,11 +1086,11 @@ const JobDetails = () => {
                   return (
                     <WorkSubmissionPanel
                       jobId={id!}
-                      onSubmit={async (ipfs, git, repoUrl, notes) => {
+                      onSubmit={async (ipfs, git, repoUrl, notes, walletAddr) => {
                         if (job.status === 'revision_requested') {
                           await handleSubmitRevision(ipfs, git);
                         } else {
-                          await handleSubmitWork(ipfs, git, repoUrl, notes);
+                          await handleSubmitWork(ipfs, git, repoUrl, notes, walletAddr);
                         }
                       }}
                     />

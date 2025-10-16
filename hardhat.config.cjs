@@ -1,3 +1,4 @@
+require("dotenv").config();
 require("@nomicfoundation/hardhat-ethers");
 
 module.exports = {

@@ -1,41 +1,56 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, AlertTriangle, Wallet } from "lucide-react";
 
 interface OwnershipTransferPanelProps {
   jobId: string;
   platformName: string;
   accountName: string;
-  onConfirmTransfer: () => Promise<void>;
+  onConfirmTransfer: (sellerWalletAddress: string) => Promise<void>;
 }
 
 export function OwnershipTransferPanel({ jobId, platformName, accountName, onConfirmTransfer }: OwnershipTransferPanelProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
   
   const isTelegram = platformName === 'telegram';
   const escrowAccount = '@defiescrow9';
 
   const handleConfirm = async () => {
-    setConfirming(true);
-    try {
-      await onConfirmTransfer();
-      setShowConfirmDialog(false);
+    // Validate wallet address
+    if (!walletAddress || walletAddress.trim() === '') {
       toast({
-        title: "Transfer Confirmed",
-        description: isTelegram 
-          ? "Processing automated transfer. Ownership will be transferred to buyer and payment will be auto-released to your wallet."
-          : "Buyer has been notified. They will verify and release the funds.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to confirm transfer. Please try again.",
+        title: "Wallet Address Required",
+        description: "Please enter your wallet address to receive payment.",
         variant: "destructive"
       });
+      return;
+    }
+
+    // Basic Ethereum address validation
+    if (!walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      toast({
+        title: "Invalid Wallet Address",
+        description: "Please enter a valid Ethereum wallet address (0x...).",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setConfirming(true);
+    try {
+      // Don't show success toast here - let the parent function handle it after ownership check
+      await onConfirmTransfer(walletAddress);
+      setShowConfirmDialog(false);
+    } catch (error) {
+      // Only show error if something goes wrong
+      console.error('Transfer confirmation error:', error);
     } finally {
       setConfirming(false);
     }
@@ -136,10 +151,37 @@ export function OwnershipTransferPanel({ jobId, platformName, accountName, onCon
         <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-xl">
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-              Confirm Ownership Transfer
+              <Wallet className="h-6 w-6 text-primary" />
+              Enter Wallet Address for Payment
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4 text-base">
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                <p className="text-sm font-semibold text-foreground mb-2">
+                  💰 Payment will be automatically released to your wallet
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  After ownership transfer is verified, the smart contract will automatically release your payment to the wallet address you provide below.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="wallet-address" className="text-foreground">
+                  Your Wallet Address (to receive payment)
+                </Label>
+                <Input
+                  id="wallet-address"
+                  type="text"
+                  placeholder="0x..."
+                  value={walletAddress}
+                  onChange={(e) => setWalletAddress(e.target.value)}
+                  className="font-mono text-sm"
+                  disabled={confirming}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter the Ethereum wallet address where you want to receive your payment (USDC on Polygon).
+                </p>
+              </div>
+
               <p className="font-semibold text-foreground">
                 Please confirm that you have completed ALL of the following:
               </p>

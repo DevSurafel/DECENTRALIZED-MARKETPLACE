@@ -293,6 +293,29 @@ contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
     }
     
     /**
+     * @notice Owner/arbitrator releases payment to custom address after verified transfer
+     * @dev Used when seller provides a different wallet address for payment
+     * @param jobId Job identifier
+     * @param sellerAddress Seller's wallet address to receive payment
+     */
+    function releaseAfterTransferToAddress(uint256 jobId, address sellerAddress) 
+        external 
+        onlyArbitrator
+        jobExists(jobId) 
+        nonReentrant 
+    {
+        require(sellerAddress != address(0), "Invalid seller address");
+        
+        Job storage job = jobs[jobId];
+        require(
+            job.status == JobStatus.SUBMITTED || job.status == JobStatus.IN_PROGRESS, 
+            "Invalid status for release"
+        );
+        
+        _releasePaymentToAddress(jobId, sellerAddress);
+    }
+    
+    /**
      * @notice Internal function to release payment to freelancer
      */
     function _releasePayment(uint256 jobId) internal {
@@ -304,6 +327,35 @@ contract DeFiLanceEscrow is ReentrancyGuard, Ownable {
         require(
             IERC20(job.token).transfer(job.freelancer, freelancerAmount),
             "Freelancer transfer failed"
+        );
+        
+        // Transfer platform fee
+        if (job.platformFee > 0) {
+            require(
+                IERC20(job.token).transfer(platformWallet, job.platformFee),
+                "Platform fee transfer failed"
+            );
+        }
+        
+        job.status = JobStatus.COMPLETED;
+        
+        emit JobApproved(jobId, freelancerAmount, job.platformFee);
+    }
+    
+    /**
+     * @notice Internal function to release payment to a custom address
+     * @param jobId Job identifier
+     * @param recipient Address to receive the payment
+     */
+    function _releasePaymentToAddress(uint256 jobId, address recipient) internal {
+        Job storage job = jobs[jobId];
+        
+        uint256 freelancerAmount = job.amount - job.platformFee + job.freelancerStake;
+        
+        // Transfer payment to specified recipient
+        require(
+            IERC20(job.token).transfer(recipient, freelancerAmount),
+            "Recipient transfer failed"
         );
         
         // Transfer platform fee

@@ -18,6 +18,7 @@ const contractAddress = Deno.env.get('CONTRACT_ADDRESS')!;
 const ESCROW_ABI = [
   'function approveJob(uint256 jobId) external',
   'function releaseAfterTransfer(uint256 jobId) external',
+  'function releaseAfterTransferToAddress(uint256 jobId, address sellerAddress) external',
   'function getJob(uint256 jobId) external view returns (tuple(address client, address freelancer, address token, uint256 amount, uint256 platformFee, uint256 freelancerStake, uint256 arbitrationDeposit, uint256 submissionDeadline, uint256 reviewDeadline, uint256 approvalDeadline, string ipfsHash, string gitCommitHash, uint256 currentRevisionNumber, uint256 allowedRevisions, bool autoReleaseEnabled, uint8 status, bool exists))'
 ];
 
@@ -36,10 +37,14 @@ serve(async (req) => {
     const body = await req.json();
     console.log('📨 Request received:', JSON.stringify(body));
     
-    const { jobId, channelUsername } = body;
+    const { jobId, channelUsername, sellerWalletAddress } = body;
     
     if (!jobId) {
       throw new Error('jobId is required');
+    }
+
+    if (!sellerWalletAddress || !sellerWalletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      throw new Error('Valid seller wallet address is required');
     }
 
     if (!transferServiceUrl || !transferServiceSecret) {
@@ -143,9 +148,12 @@ serve(async (req) => {
       const wallet = new ethers.Wallet(walletPrivateKey, provider);
       const contract = new ethers.Contract(contractAddress, ESCROW_ABI, wallet);
       
+      console.log(`🔑 Using wallet address: ${wallet.address}`);
+      
       // Convert UUID to numeric job ID
       const numericJobId = uuidToNumericId(jobId);
       console.log(`🔢 Job ID ${jobId} -> ${numericJobId}`);
+      console.log(`💰 Seller wallet address: ${sellerWalletAddress}`);
       
       // First check if job exists on-chain
       console.log('📝 Checking if job exists on smart contract...');
@@ -183,9 +191,24 @@ serve(async (req) => {
       } else {
         console.log('✅ Job exists on-chain, proceeding with payment release');
         
-        // Call releaseAfterTransfer (owner/arbitrator only) on the smart contract
-        console.log('📝 Calling releaseAfterTransfer on smart contract...');
-        const tx = await contract.releaseAfterTransfer(numericJobId);
+        // Call releaseAfterTransferToAddress with seller's wallet address and proper gas settings
+        console.log('📝 Calling releaseAfterTransferToAddress on smart contract...');
+        console.log(`💰 Releasing payment to: ${sellerWalletAddress}`);
+        
+        // Use fixed higher gas prices for Polygon Amoy (network suggestions are often too low)
+        const gasOptions = {
+          maxFeePerGas: ethers.parseUnits('100', 'gwei'),
+          maxPriorityFeePerGas: ethers.parseUnits('50', 'gwei'),
+          gasLimit: 500000n
+        };
+        
+        console.log('⛽ Using gas settings:', {
+          maxFeePerGas: gasOptions.maxFeePerGas.toString(),
+          maxPriorityFeePerGas: gasOptions.maxPriorityFeePerGas.toString(),
+          gasLimit: gasOptions.gasLimit.toString()
+        });
+        
+        const tx = await contract.releaseAfterTransferToAddress(numericJobId, sellerWalletAddress, gasOptions);
         console.log('⏳ Transaction sent:', tx.hash);
         
         // Wait for confirmation
@@ -281,11 +304,12 @@ serve(async (req) => {
     }
 
     // Notify seller that payment is released
+    const walletShort = `${sellerWalletAddress.slice(0, 6)}...${sellerWalletAddress.slice(-4)}`;
     try {
       await supabase.functions.invoke('send-telegram-notification', {
         body: {
           recipient_id: job.freelancer_id,
-          message: `💰 Payment Released!\n\nOwnership of ${listing.account_name} has been transferred to the buyer and payment has been automatically released to your wallet.\n\n✅ Sale completed!`,
+          message: `💰 Payment Released!\n\nOwnership of ${listing.account_name} has been transferred to the buyer and payment has been automatically released to your wallet (${walletShort}).\n\n✅ Sale completed!`,
           url: `https://your-app-url.com/jobs/${jobId}`,
           button_text: 'View Sale'
         }

@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface WorkSubmissionPanelProps {
   jobId: string;
-  onSubmit: (ipfsHash: string, gitHash: string, repositoryUrl: string, notes: string) => Promise<void>;
+  onSubmit: (ipfsHash: string, gitHash: string, repositoryUrl: string, notes: string, walletAddress: string) => Promise<void>;
 }
 
 export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProps) {
@@ -18,15 +18,26 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
   const [gitHash, setGitHash] = useState("");
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [notes, setNotes] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!ipfsHash || !gitHash) {
+    if (!ipfsHash || !gitHash || !walletAddress) {
       toast({
         title: "Missing Information",
-        description: "Please provide both IPFS hash and Git commit hash",
+        description: "Please provide IPFS hash, Git commit hash, and wallet address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Basic wallet address validation (Ethereum address format)
+    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      toast({
+        title: "Invalid Wallet Address",
+        description: "Please provide a valid Ethereum wallet address",
         variant: "destructive"
       });
       return;
@@ -34,11 +45,12 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
 
     setSubmitting(true);
     try {
-      await onSubmit(ipfsHash, gitHash, repositoryUrl, notes);
+      await onSubmit(ipfsHash, gitHash, repositoryUrl, notes, walletAddress);
       setIpfsHash("");
       setGitHash("");
       setRepositoryUrl("");
       setNotes("");
+      setWalletAddress("");
       setSelectedFile(null);
     } finally {
       setSubmitting(false);
@@ -143,6 +155,25 @@ export function WorkSubmissionPanel({ jobId, onSubmit }: WorkSubmissionPanelProp
           />
           <p className="text-xs text-muted-foreground mt-1">
             Link to your GitHub/GitLab repository (optional but recommended)
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="wallet" className="flex items-center gap-2 mb-2">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+            Payment Wallet Address *
+          </Label>
+          <Input
+            id="wallet"
+            placeholder="0x..."
+            value={walletAddress}
+            onChange={(e) => setWalletAddress(e.target.value)}
+            className="font-mono"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Your Ethereum wallet address where payment will be released
           </p>
         </div>
 
