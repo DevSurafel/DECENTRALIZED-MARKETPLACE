@@ -27,6 +27,37 @@ const USDC_ABI = [
   'function approve(address spender, uint256 amount) external returns (bool)'
 ];
 
+// Chain config for Polygon Amoy
+const AMOY_DEC = 80002;
+const AMOY_HEX = '0x13882';
+
+const ensureCorrectChain = async (provider: any) => {
+  const current = await provider.request({ method: 'eth_chainId' });
+  if (current !== AMOY_HEX) {
+    try {
+      await provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: AMOY_HEX }]
+      });
+    } catch (switchError: any) {
+      if (switchError?.code === 4902) {
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: AMOY_HEX,
+            chainName: 'Polygon Amoy',
+            nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+            rpcUrls: ['https://rpc-amoy.polygon.technology'],
+            blockExplorerUrls: ['https://www.oklink.com/amoy']
+          }]
+        });
+      } else {
+        throw switchError;
+      }
+    }
+  }
+};
+
 export const WalletConnectFunding = ({
   isOpen,
   onClose,
@@ -157,7 +188,26 @@ export const WalletConnectFunding = ({
       // Listen for connection
       provider.on('connect', async (session: any) => {
         console.log('Wallet connected!', session);
+        try {
+          await ensureCorrectChain(provider);
+        } catch (e) {
+          console.error('Chain switch failed on connect:', e);
+        }
         await executePayment(provider);
+      });
+
+      // React to chain changes
+      provider.on('chainChanged', async (chainId: string) => {
+        console.log('Chain changed to', chainId);
+        if (chainId !== AMOY_HEX) {
+          try {
+            await ensureCorrectChain(provider);
+            toast({ title: '🔄 Switched Network', description: 'Switched to Polygon Amoy. Retrying payment...' });
+            await executePayment(provider);
+          } catch (e) {
+            console.error('Failed to switch to Amoy after change:', e);
+          }
+        }
       });
 
       provider.on('disconnect', () => {
@@ -180,6 +230,7 @@ export const WalletConnectFunding = ({
 
   const executePayment = async (provider: any) => {
     try {
+      await ensureCorrectChain(provider);
       const ethersProvider = new ethers.BrowserProvider(provider);
       const signer = await ethersProvider.getSigner();
       const address = await signer.getAddress();
@@ -360,6 +411,8 @@ export const WalletConnectFunding = ({
         errorMsg = 'Transaction rejected by user';
       } else if (msg.includes('⛽ Insufficient MATIC')) {
         errorMsg = msg; // Use the specific gas error message
+      } else if (msg.toLowerCase().includes('network changed')) {
+        errorMsg = '🔄 Network switched to Polygon Amoy (80002). Please confirm the transaction again in your wallet.';
       } else if (msg.toLowerCase().includes('could not coalesce error')) {
         errorMsg = '🔌 RPC Connection Error\n\nThere was a network communication issue with your wallet. This usually happens due to unstable RPC connection.\n\nPlease try again or switch to a different wallet.';
       } else if (msg) {
