@@ -202,13 +202,22 @@ export const WalletConnectFunding = ({
       try {
         approveTx = await usdcContract.approve(escrowContractAddress, amount);
       } catch (approveError: any) {
-        // Handle specific RPC/gas errors
-        const errorMsg = approveError?.message || '';
-        const errorCode = approveError?.code;
+        // Log full error details for debugging
+        console.error('USDC Approve Error Details:', {
+          code: approveError?.code,
+          message: approveError?.message,
+          reason: approveError?.reason,
+          error: approveError
+        });
         
-        if (errorCode === -32603 || errorMsg.toLowerCase().includes('coalesce') || errorMsg.toLowerCase().includes('internal json-rpc')) {
+        // Check for actual gas/balance issues
+        const errorMsg = (approveError?.message || '').toLowerCase();
+        const errorReason = (approveError?.reason || '').toLowerCase();
+        
+        if (errorMsg.includes('insufficient funds') || errorReason.includes('insufficient funds')) {
           throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
         }
+        
         throw approveError;
       }
 
@@ -244,13 +253,22 @@ export const WalletConnectFunding = ({
           allowedRevisions
         );
       } catch (fundError: any) {
-        // Handle specific RPC/gas errors
-        const errorMsg = fundError?.message || '';
-        const errorCode = fundError?.code;
+        // Log full error details for debugging
+        console.error('Fund Job Error Details:', {
+          code: fundError?.code,
+          message: fundError?.message,
+          reason: fundError?.reason,
+          error: fundError
+        });
         
-        if (errorCode === -32603 || errorMsg.toLowerCase().includes('coalesce') || errorMsg.toLowerCase().includes('internal json-rpc')) {
+        // Check for actual gas/balance issues
+        const errorMsg = (fundError?.message || '').toLowerCase();
+        const errorReason = (fundError?.reason || '').toLowerCase();
+        
+        if (errorMsg.includes('insufficient funds') || errorReason.includes('insufficient funds')) {
           throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
         }
+        
         throw fundError;
       }
 
@@ -278,6 +296,14 @@ export const WalletConnectFunding = ({
 
     } catch (error: any) {
       console.error('Payment error:', error);
+      console.error('Payment error details:', {
+        code: error?.code,
+        message: error?.message,
+        reason: error?.reason,
+        shortMessage: error?.shortMessage,
+        data: error?.data,
+        info: error?.info
+      });
 
       const msg = (error?.reason || error?.shortMessage || error?.message || '').toString();
       // If escrow/job is already created on-chain, treat as a success to prevent duplicate payments
@@ -300,10 +326,12 @@ export const WalletConnectFunding = ({
       setStatus('error');
       let errorMsg = 'Payment failed';
       
-      if (error?.code === 'ACTION_REJECTED') {
+      if (error?.code === 'ACTION_REJECTED' || error?.code === 4001) {
         errorMsg = 'Transaction rejected by user';
       } else if (msg.includes('⛽ Insufficient MATIC')) {
         errorMsg = msg; // Use the specific gas error message
+      } else if (msg.toLowerCase().includes('could not coalesce error')) {
+        errorMsg = '🔌 RPC Connection Error\n\nThere was a network communication issue with your wallet. This usually happens due to unstable RPC connection.\n\nPlease try again or switch to a different wallet.';
       } else if (msg) {
         errorMsg = msg;
       }
