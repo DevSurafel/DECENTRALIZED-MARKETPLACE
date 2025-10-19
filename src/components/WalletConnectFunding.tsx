@@ -24,9 +24,7 @@ const ESCROW_ABI = [
 ];
 
 const USDC_ABI = [
-  'function approve(address spender, uint256 amount) external returns (bool)',
-  'function balanceOf(address account) external view returns (uint256)',
-  'function allowance(address owner, address spender) external view returns (uint256)'
+  'function approve(address spender, uint256 amount) external returns (bool)'
 ];
 
 export const WalletConnectFunding = ({
@@ -191,14 +189,6 @@ export const WalletConnectFunding = ({
       const numericJobId = uuidToNumericId(jobId);
       const amount = ethers.parseUnits(amountUSDC, 6);
 
-      console.log('Payment details:', {
-        jobId: numericJobId.toString(),
-        freelancer: freelancerAddress,
-        amount: amount.toString(),
-        escrow: escrowContractAddress,
-        usdc: usdcContractAddress
-      });
-
       // Step 1: Approve USDC
       setStatus('approving');
       toast({
@@ -210,60 +200,16 @@ export const WalletConnectFunding = ({
       
       let approveTx;
       try {
-        console.log('Requesting USDC approval...');
-        
-        // First check if approval is even needed by checking current allowance
-        try {
-          const currentAllowance = await usdcContract.allowance(address, escrowContractAddress);
-          console.log('Current USDC allowance:', ethers.formatUnits(currentAllowance, 6), 'USDC');
-          console.log('Required amount:', amountUSDC, 'USDC');
-          
-          if (currentAllowance >= amount) {
-            console.log('✅ Sufficient allowance already exists, skipping approval');
-            toast({
-              title: '✅ Already Approved',
-              description: 'USDC spending already approved',
-            });
-          } else {
-            // Try gas estimation first to catch contract errors
-            const gasEstimate = await usdcContract.approve.estimateGas(escrowContractAddress, amount);
-            console.log('Approval gas estimate:', gasEstimate.toString());
-          }
-        } catch (estimateError: any) {
-          console.error('Approval estimation failed:', estimateError);
-          // Continue anyway, the actual transaction might still work
-        }
-        
         approveTx = await usdcContract.approve(escrowContractAddress, amount);
       } catch (approveError: any) {
-        console.error('Approve error details:', approveError);
-        
+        // Handle specific RPC/gas errors
         const errorMsg = approveError?.message || '';
         const errorCode = approveError?.code;
-        const errorData = approveError?.data?.message || approveError?.error?.message || '';
         
-        console.log('Error breakdown:', {
-          code: errorCode,
-          message: errorMsg,
-          data: errorData,
-          fullError: approveError
-        });
-        
-        // Check for actual insufficient gas/funds errors
-        if (errorMsg.toLowerCase().includes('insufficient funds') || 
-            errorMsg.toLowerCase().includes('insufficient balance') ||
-            errorData.toLowerCase().includes('insufficient funds')) {
-          throw new Error('⛽ Insufficient MATIC (POL) for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
+        if (errorCode === -32603 || errorMsg.toLowerCase().includes('coalesce') || errorMsg.toLowerCase().includes('internal json-rpc')) {
+          throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
         }
-        
-        // Check for USDC balance issues
-        if (errorMsg.toLowerCase().includes('transfer amount exceeds balance') ||
-            errorData.toLowerCase().includes('transfer amount exceeds balance')) {
-          throw new Error('💵 Insufficient USDC balance. You need testnet USDC tokens to complete this transaction.');
-        }
-        
-        // Otherwise throw the original error with details
-        throw new Error(errorMsg || errorData || 'Transaction failed during approval');
+        throw approveError;
       }
 
       toast({
@@ -271,7 +217,6 @@ export const WalletConnectFunding = ({
         description: 'Waiting for blockchain confirmation',
       });
 
-      console.log('Approval transaction sent:', approveTx.hash);
       await approveTx.wait();
 
       toast({
@@ -290,59 +235,6 @@ export const WalletConnectFunding = ({
       
       let fundTx;
       try {
-        console.log('Requesting fund job transaction...');
-        
-        // First try to estimate gas to get the actual revert reason
-        try {
-          const gasEstimate = await escrowContract.fundJob.estimateGas(
-            numericJobId,
-            freelancerAddress,
-            usdcContractAddress,
-            amount,
-            requiresStake,
-            allowedRevisions
-          );
-          console.log('Gas estimate successful:', gasEstimate.toString());
-        } catch (estimateError: any) {
-          console.error('Gas estimation failed - this will reveal the revert reason:', estimateError);
-          
-          // Try to extract revert reason
-          let revertReason = '';
-          if (estimateError?.reason) {
-            revertReason = estimateError.reason;
-          } else if (estimateError?.error?.message) {
-            revertReason = estimateError.error.message;
-          } else if (estimateError?.message) {
-            revertReason = estimateError.message;
-          }
-          
-          console.log('Contract revert reason:', revertReason);
-          
-          // Common contract errors
-          if (revertReason.toLowerCase().includes('insufficient allowance') || 
-              revertReason.toLowerCase().includes('erc20: insufficient allowance')) {
-            throw new Error('❌ USDC approval failed or insufficient. The approval transaction may not have completed. Please try again.');
-          }
-          
-          if (revertReason.toLowerCase().includes('transfer amount exceeds balance')) {
-            throw new Error('💵 Insufficient USDC balance. You need ' + amountUSDC + ' USDC in your wallet.');
-          }
-          
-          if (revertReason.toLowerCase().includes('job already exists') || 
-              revertReason.toLowerCase().includes('already funded')) {
-            throw new Error('Job already exists');
-          }
-          
-          // If we got a revert reason, throw it
-          if (revertReason) {
-            throw new Error('Contract Error: ' + revertReason);
-          }
-          
-          // Otherwise throw the estimation error
-          throw estimateError;
-        }
-        
-        // If gas estimation passed, send the transaction
         fundTx = await escrowContract.fundJob(
           numericJobId,
           freelancerAddress,
@@ -352,33 +244,14 @@ export const WalletConnectFunding = ({
           allowedRevisions
         );
       } catch (fundError: any) {
-        console.error('Fund error details:', fundError);
-        
+        // Handle specific RPC/gas errors
         const errorMsg = fundError?.message || '';
         const errorCode = fundError?.code;
-        const errorData = fundError?.data?.message || fundError?.error?.message || '';
         
-        console.log('Error breakdown:', {
-          code: errorCode,
-          message: errorMsg,
-          data: errorData,
-          fullError: fundError
-        });
-        
-        // Check for actual insufficient gas/funds errors
-        if (errorMsg.toLowerCase().includes('insufficient funds') || 
-            errorMsg.toLowerCase().includes('insufficient balance') ||
-            errorData.toLowerCase().includes('insufficient funds')) {
-          throw new Error('⛽ Insufficient MATIC (POL) for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
+        if (errorCode === -32603 || errorMsg.toLowerCase().includes('coalesce') || errorMsg.toLowerCase().includes('internal json-rpc')) {
+          throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
         }
-        
-        // Re-throw if already formatted
-        if (errorMsg.startsWith('❌') || errorMsg.startsWith('💵') || errorMsg.startsWith('Contract Error:')) {
-          throw fundError;
-        }
-        
-        // Otherwise throw the original error with details
-        throw new Error(errorMsg || errorData || 'Transaction failed during funding');
+        throw fundError;
       }
 
       toast({
@@ -386,7 +259,6 @@ export const WalletConnectFunding = ({
         description: 'Waiting for payment confirmation',
       });
 
-      console.log('Fund transaction sent:', fundTx.hash);
       const receipt = await fundTx.wait();
 
       // Payment successful!
@@ -408,9 +280,8 @@ export const WalletConnectFunding = ({
       console.error('Payment error:', error);
 
       const msg = (error?.reason || error?.shortMessage || error?.message || '').toString();
-      
       // If escrow/job is already created on-chain, treat as a success to prevent duplicate payments
-      if (msg.includes('Job already exists') || msg.includes('already funded')) {
+      if (msg.includes('Job already exists')) {
         setStatus('success');
         toast({
           title: '✅ Already Funded',
@@ -429,12 +300,10 @@ export const WalletConnectFunding = ({
       setStatus('error');
       let errorMsg = 'Payment failed';
       
-      if (error?.code === 'ACTION_REJECTED' || msg.includes('user rejected')) {
+      if (error?.code === 'ACTION_REJECTED') {
         errorMsg = 'Transaction rejected by user';
       } else if (msg.includes('⛽ Insufficient MATIC')) {
         errorMsg = msg; // Use the specific gas error message
-      } else if (msg.includes('💵 Insufficient USDC')) {
-        errorMsg = msg; // Use the specific USDC error message
       } else if (msg) {
         errorMsg = msg;
       }
@@ -579,16 +448,6 @@ export const WalletConnectFunding = ({
                     <ol className="list-decimal list-inside space-y-1 text-amber-800 dark:text-amber-200">
                       <li>Get free test MATIC from <a href="https://www.alchemy.com/faucets/polygon-amoy" target="_blank" rel="noopener noreferrer" className="underline">Alchemy Faucet</a></li>
                       <li>Wait 1-2 minutes for MATIC to arrive</li>
-                      <li>Try payment again</li>
-                    </ol>
-                  </div>
-                )}
-                {errorMessage.includes('💵 Insufficient USDC') && (
-                  <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-xs text-left space-y-2">
-                    <p className="font-semibold text-amber-900 dark:text-amber-100">💡 How to fix:</p>
-                    <ol className="list-decimal list-inside space-y-1 text-amber-800 dark:text-amber-200">
-                      <li>Get testnet USDC from a faucet or swap</li>
-                      <li>Make sure you're on Polygon Amoy testnet</li>
                       <li>Try payment again</li>
                     </ol>
                   </div>
