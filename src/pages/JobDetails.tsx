@@ -45,7 +45,7 @@ const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { fundJob, approveJob, submitWork: submitWorkToBlockchain, checkJobFunded } = useEscrow();
+  const { fundJob, approveJob, submitWork: submitWorkToBlockchain, checkJobFunded, getJobDetails } = useEscrow();
   const [job, setJob] = useState<any>(null);
   const [bidAmount, setBidAmount] = useState("");
   const [proposal, setProposal] = useState("");
@@ -651,25 +651,13 @@ const JobDetails = () => {
         description: "Releasing funds to freelancer's wallet...",
       });
 
-      // Call the payment release edge function
-      const { data: paymentResult, error: paymentError } = await supabase.functions.invoke('release-payment', {
-        body: {
-          jobId: id,
-          freelancerWallet: freelancerProfile.wallet_address,
-          amount: job.budget_usdc || Number((job.budget_eth || 0) * 2000)
-        }
-      });
-
-      if (paymentError) {
-        console.error('Payment error:', paymentError);
-        throw new Error('Failed to process payment');
+      // Call on-chain approve to release funds
+      const { success, txHash } = await approveJob(id);
+      if (!success) {
+        throw new Error('On-chain approval failed');
       }
 
-      if (!paymentResult?.success) {
-        throw new Error(paymentResult?.error || 'Payment failed');
-      }
-
-      console.log('Payment released:', paymentResult);
+      console.log('Payment released on-chain:', txHash);
 
       // Update job status to completed
       const { error: jobError } = await supabase
