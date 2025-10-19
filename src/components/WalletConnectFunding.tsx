@@ -186,8 +186,31 @@ export const WalletConnectFunding = ({
 
       console.log('Connected wallet:', address);
 
+      // Pre-flight checks
+      const maticBalance = await ethersProvider.getBalance(address);
+      const maticBalanceEth = ethers.formatEther(maticBalance);
+      console.log('Wallet MATIC balance:', maticBalanceEth, 'MATIC');
+
+      // Check if wallet has at least 0.01 MATIC for gas
+      const minMatic = ethers.parseEther('0.01');
+      if (maticBalance < minMatic) {
+        throw new Error(`⛽ Insufficient MATIC for gas fees.\n\nYour balance: ${maticBalanceEth} MATIC\nRequired: at least 0.01 MATIC\n\nGet free test MATIC from Alchemy Faucet to continue.`);
+      }
+
+      // Check USDC balance
+      const usdcContract = new ethers.Contract(usdcContractAddress, [
+        'function balanceOf(address) view returns (uint256)'
+      ], signer);
+      const usdcBalance = await usdcContract.balanceOf(address);
+      const usdcBalanceFormatted = ethers.formatUnits(usdcBalance, 6);
+      console.log('Wallet USDC balance:', usdcBalanceFormatted, 'USDC');
+
       const numericJobId = uuidToNumericId(jobId);
       const amount = ethers.parseUnits(amountUSDC, 6);
+
+      if (usdcBalance < amount) {
+        throw new Error(`💵 Insufficient USDC balance.\n\nRequired: ${amountUSDC} USDC\nYour balance: ${usdcBalanceFormatted} USDC\n\nPlease add more USDC to your wallet.`);
+      }
 
       // Step 1: Approve USDC
       setStatus('approving');
@@ -196,17 +219,20 @@ export const WalletConnectFunding = ({
         description: 'Approve USDC spending in your wallet',
       });
 
-      const usdcContract = new ethers.Contract(usdcContractAddress, USDC_ABI, signer);
+      const usdcContractWithSigner = new ethers.Contract(usdcContractAddress, USDC_ABI, signer);
       
       let approveTx;
       try {
-        approveTx = await usdcContract.approve(escrowContractAddress, amount);
+        console.log('Requesting USDC approval for amount:', ethers.formatUnits(amount, 6), 'USDC');
+        approveTx = await usdcContractWithSigner.approve(escrowContractAddress, amount);
+        console.log('Approval transaction sent:', approveTx.hash);
       } catch (approveError: any) {
         // Log full error details for debugging
         console.error('USDC Approve Error Details:', {
           code: approveError?.code,
           message: approveError?.message,
           reason: approveError?.reason,
+          data: approveError?.data,
           error: approveError
         });
         
@@ -215,7 +241,11 @@ export const WalletConnectFunding = ({
         const errorReason = (approveError?.reason || '').toLowerCase();
         
         if (errorMsg.includes('insufficient funds') || errorReason.includes('insufficient funds')) {
-          throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
+          throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has at least 0.01 MATIC on Polygon Amoy testnet.');
+        }
+        
+        if (errorMsg.includes('user rejected') || approveError?.code === 4001 || approveError?.code === 'ACTION_REJECTED') {
+          throw new Error('❌ Transaction rejected by user');
         }
         
         throw approveError;
