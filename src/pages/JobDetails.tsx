@@ -693,7 +693,7 @@ const JobDetails = () => {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.freelancer_id,
-              message: `🎉 Payment released! You received ${paymentResult.freelancerAmount} USDC (after ${(paymentResult.platformFee).toFixed(2)} USDC platform fee) for "${job.title}". TX: ${paymentResult.freelancerTxHash.substring(0, 10)}...`,
+              message: `🎉 Payment released! Funds have been sent to your wallet for "${job.title}". TX: ${txHash.substring(0, 10)}...`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Job'
@@ -709,7 +709,7 @@ const JobDetails = () => {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.client_id,
-              message: `✅ Job "${job.title}" completed! ${paymentResult.freelancerAmount} USDC released to freelancer (${paymentResult.platformFee.toFixed(2)} USDC platform fee). TX: ${paymentResult.freelancerTxHash.substring(0, 10)}...`,
+              message: `✅ Job "${job.title}" completed! Funds released to freelancer. TX: ${txHash.substring(0, 10)}...`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Job'
@@ -722,7 +722,7 @@ const JobDetails = () => {
 
       toast({
         title: isSocialMediaPurchase() ? "Payment Released" : "Work Approved",
-        description: `${paymentResult.freelancerAmount.toFixed(2)} USDC sent to ${paymentResult.freelancerWallet.substring(0, 6)}...${paymentResult.freelancerWallet.substring(38)}. Platform fee: ${paymentResult.platformFee.toFixed(2)} USDC.`,
+        description: `Funds released to freelancer. Transaction: ${txHash.substring(0, 10)}...`,
         duration: 8000
       });
 
