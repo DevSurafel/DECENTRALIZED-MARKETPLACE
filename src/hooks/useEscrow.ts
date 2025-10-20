@@ -681,7 +681,9 @@ export const useEscrow = () => {
       // Verify the current wallet matches the client on-chain
       try {
         const jobData = await contract.getJob(numericJobId);
-        if (!jobData.exists) {
+        console.log('Job data from contract:', jobData);
+        
+        if (!jobData || jobData.client === '0x0000000000000000000000000000000000000000') {
           toast({
             title: "Job Not Found",
             description: "This job has not been funded on the blockchain yet.",
@@ -691,6 +693,9 @@ export const useEscrow = () => {
         }
 
         const clientOnChain = jobData.client;
+        console.log('Client on-chain:', clientOnChain);
+        console.log('Current user:', userAddress);
+        
         if (clientOnChain.toLowerCase() !== userAddress.toLowerCase()) {
           toast({
             title: "Wrong Wallet",
@@ -700,11 +705,61 @@ export const useEscrow = () => {
           });
           return { success: false };
         }
+        
+        // Check job status
+        console.log('Job status:', jobData.status);
+        if (jobData.status !== 2) { // 2 = WorkSubmitted
+          const statusNames = ['None', 'Funded', 'WorkSubmitted', 'Completed', 'Disputed', 'Resolved'];
+          toast({
+            title: "Invalid Job Status",
+            description: `Job must be in WorkSubmitted status to approve. Current status: ${statusNames[jobData.status] || 'Unknown'}`,
+            variant: "destructive"
+          });
+          return { success: false };
+        }
       } catch (verifyError: any) {
         console.error('Error verifying client address:', verifyError);
+        
+        // Try to extract more specific error info
+        let errorMsg = "Could not verify job details on-chain.";
+        if (verifyError.message?.includes('circuit breaker')) {
+          errorMsg = "RPC connection issue. Please try again in a moment.";
+        } else if (verifyError.reason) {
+          errorMsg = verifyError.reason;
+        }
+        
         toast({
           title: "Verification Failed",
-          description: "Could not verify client address on-chain.",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        return { success: false };
+      }
+
+      // Try to estimate gas first to catch any issues
+      try {
+        console.log('Estimating gas for approveJob...');
+        const gasEstimate = await contract.approveJob.estimateGas(numericJobId);
+        console.log('Gas estimate:', gasEstimate.toString());
+      } catch (estimateError: any) {
+        console.error('Gas estimation failed:', estimateError);
+        
+        let errorMsg = "Transaction would fail. ";
+        if (estimateError.message?.includes('Job is already completed')) {
+          errorMsg = "Job has already been approved and payment released.";
+        } else if (estimateError.message?.includes('Only client')) {
+          errorMsg = "Only the client can approve this job.";
+        } else if (estimateError.message?.includes('Work not submitted')) {
+          errorMsg = "Freelancer must submit work before approval.";
+        } else if (estimateError.reason) {
+          errorMsg += estimateError.reason;
+        } else {
+          errorMsg += estimateError.message || "Unknown error";
+        }
+        
+        toast({
+          title: "Cannot Approve Job",
+          description: errorMsg,
           variant: "destructive"
         });
         return { success: false };
