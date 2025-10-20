@@ -24,7 +24,8 @@ const ESCROW_ABI = [
 ];
 
 const USDC_ABI = [
-  'function approve(address spender, uint256 amount) external returns (bool)'
+  'function approve(address spender, uint256 amount) external returns (bool)',
+  'function allowance(address owner, address spender) external view returns (uint256)'
 ];
 
 // Chain config for Polygon Amoy
@@ -275,8 +276,45 @@ export const WalletConnectFunding = ({
       let approveTx;
       try {
         console.log('Requesting USDC approval for amount:', ethers.formatUnits(amount, 6), 'USDC');
-        approveTx = await usdcContractWithSigner.approve(escrowContractAddress, amount);
-        console.log('Approval transaction sent:', approveTx.hash);
+        console.log('USDC Contract:', usdcContractAddress);
+        console.log('Escrow Contract:', escrowContractAddress);
+        console.log('Signer address:', address);
+        
+        // First check if approval is needed
+        const currentAllowance = await usdcContractWithSigner.allowance(address, escrowContractAddress);
+        console.log('Current USDC allowance:', ethers.formatUnits(currentAllowance, 6), 'USDC');
+        
+        if (currentAllowance >= amount) {
+          console.log('Sufficient allowance already exists, skipping approval');
+          toast({
+            title: '✅ Already Approved',
+            description: 'USDC spending already approved',
+          });
+        } else {
+          // Try to estimate gas first
+          try {
+            const gasEstimate = await usdcContractWithSigner.approve.estimateGas(escrowContractAddress, amount);
+            console.log('Approve gas estimate:', gasEstimate.toString());
+          } catch (estimateError: any) {
+            console.error('Approve gas estimation failed:', estimateError);
+            throw new Error('❌ Approval transaction would fail. Please check your wallet has MATIC for gas and try again.');
+          }
+          
+          approveTx = await usdcContractWithSigner.approve(escrowContractAddress, amount);
+          console.log('Approval transaction sent:', approveTx.hash);
+          
+          toast({
+            title: '⏳ Approving...',
+            description: 'Waiting for blockchain confirmation',
+          });
+
+          await approveTx.wait();
+          
+          toast({
+            title: '✅ Approved!',
+            description: 'USDC approval successful',
+          });
+        }
       } catch (approveError: any) {
         // Log full error details for debugging
         console.error('USDC Approve Error Details:', {
@@ -301,18 +339,6 @@ export const WalletConnectFunding = ({
         
         throw approveError;
       }
-
-      toast({
-        title: '⏳ Approving...',
-        description: 'Waiting for blockchain confirmation',
-      });
-
-      await approveTx.wait();
-
-      toast({
-        title: '✅ Approved!',
-        description: 'USDC approval successful',
-      });
 
       // Step 2: Fund Job
       setStatus('funding');
