@@ -678,10 +678,30 @@ export const useEscrow = () => {
       // Convert UUID to numeric ID
       const numericJobId = uuidToNumericId(jobId);
 
-      // Verify the current wallet matches the client on-chain
+      // Verify the current wallet matches the client on-chain (with fallback provider)
+      let jobData: any | undefined;
       try {
-        const jobData = await contract.getJob(numericJobId);
-        if (!jobData.exists) {
+        jobData = await contract.getJob(numericJobId);
+        console.log('Job data from signer provider:', jobData);
+      } catch (primaryReadErr: any) {
+        console.warn('Primary provider getJob failed, trying fallback RPC...', primaryReadErr);
+        try {
+          const readOnlyProvider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
+          const readOnlyContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, readOnlyProvider);
+          jobData = await readOnlyContract.getJob(numericJobId);
+          console.log('Job data from fallback provider:', jobData);
+        } catch (fallbackErr: any) {
+          console.error('Fallback provider getJob failed:', fallbackErr);
+          toast({
+            title: "Network Issue",
+            description: "Could not read job state due to RPC issues. We'll still attempt approval.",
+            variant: "default"
+          });
+        }
+      }
+
+      if (jobData) {
+        if (!jobData || jobData.client === '0x0000000000000000000000000000000000000000') {
           toast({
             title: "Job Not Found",
             description: "This job has not been funded on the blockchain yet.",
@@ -691,6 +711,9 @@ export const useEscrow = () => {
         }
 
         const clientOnChain = jobData.client;
+        console.log('Client on-chain:', clientOnChain);
+        console.log('Current user:', userAddress);
+        
         if (clientOnChain.toLowerCase() !== userAddress.toLowerCase()) {
           toast({
             title: "Wrong Wallet",
@@ -700,11 +723,47 @@ export const useEscrow = () => {
           });
           return { success: false };
         }
-      } catch (verifyError: any) {
-        console.error('Error verifying client address:', verifyError);
+        
+        // Check job status (2 = WorkSubmitted)
+        console.log('Job status:', jobData.status);
+        if (jobData.status !== 2) {
+          const statusNames = ['None', 'Funded', 'WorkSubmitted', 'Completed', 'Disputed', 'Resolved'];
+          toast({
+            title: "Invalid Job Status",
+            description: `Job must be in WorkSubmitted status to approve. Current status: ${statusNames[jobData.status] || 'Unknown'}`,
+            variant: "destructive"
+          });
+          return { success: false };
+        }
+      }
+
+
+      // Try to estimate gas first to catch any issues
+      try {
+        console.log('Estimating gas for approveJob...');
+        const gasEstimate = await contract.approveJob.estimateGas(numericJobId);
+        console.log('Gas estimate:', gasEstimate.toString());
+      } catch (estimateError: any) {
+        console.error('Gas estimation failed:', estimateError);
+        
+        let errorMsg = "Transaction would fail. ";
+        if (estimateError.message?.includes('Job is already completed')) {
+          errorMsg = "Job has already been approved and payment released.";
+        } else if (estimateError.message?.includes('Only client')) {
+          errorMsg = "Only the client can approve this job.";
+        } else if (estimateError.message?.includes('Work not submitted')) {
+          errorMsg = "Freelancer must submit work before approval.";
+        } else if (estimateError.message?.toLowerCase?.().includes('circuit breaker') || estimateError.message?.toLowerCase?.().includes('rpc')) {
+          errorMsg = "Network RPC issue. Please wait a moment and try again.";
+        } else if (estimateError.reason) {
+          errorMsg += estimateError.reason;
+        } else {
+          errorMsg += estimateError.message || "Unknown error";
+        }
+        
         toast({
-          title: "Verification Failed",
-          description: "Could not verify client address on-chain.",
+          title: "Cannot Approve Job",
+          description: errorMsg,
           variant: "destructive"
         });
         return { success: false };

@@ -651,10 +651,10 @@ const JobDetails = () => {
         description: "Releasing funds to freelancer's wallet...",
       });
 
-      // Call on-chain approve to release funds
       const { success, txHash } = await approveJob(id);
       if (!success) {
-        throw new Error('On-chain approval failed');
+        // Detailed error toasts already shown by approveJob
+        return;
       }
 
       console.log('Payment released on-chain:', txHash);
