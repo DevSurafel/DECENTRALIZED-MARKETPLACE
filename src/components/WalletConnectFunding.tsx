@@ -325,6 +325,36 @@ export const WalletConnectFunding = ({
       
       let fundTx;
       try {
+        // First, try to estimate gas to catch contract reverts before sending
+        console.log('Estimating gas for fundJob...');
+        try {
+          const gasEstimate = await escrowContract.fundJob.estimateGas(
+            numericJobId,
+            freelancerAddress,
+            usdcContractAddress,
+            amount,
+            requiresStake,
+            allowedRevisions
+          );
+          console.log('Gas estimate successful:', gasEstimate.toString());
+        } catch (estimateError: any) {
+          console.error('Gas estimation failed:', estimateError);
+          
+          // Try to extract the revert reason
+          const revertReason = estimateError?.reason || estimateError?.message || '';
+          
+          if (revertReason.includes('Job already exists')) {
+            throw new Error('Job already exists - Escrow is already funded');
+          } else if (revertReason.includes('Insufficient allowance')) {
+            throw new Error('⚠️ USDC approval insufficient. Please try again or refresh the page.');
+          } else if (revertReason.includes('ERC20: insufficient balance')) {
+            throw new Error('💵 Insufficient USDC balance in your wallet.');
+          } else {
+            throw new Error(`❌ Transaction would fail: ${revertReason}`);
+          }
+        }
+
+        // If gas estimation succeeded, send the transaction
         fundTx = await escrowContract.fundJob(
           numericJobId,
           freelancerAddress,
@@ -333,6 +363,7 @@ export const WalletConnectFunding = ({
           requiresStake,
           allowedRevisions
         );
+        console.log('FundJob transaction sent:', fundTx.hash);
       } catch (fundError: any) {
         // Log full error details for debugging
         console.error('Fund Job Error Details:', {
@@ -348,6 +379,10 @@ export const WalletConnectFunding = ({
         
         if (errorMsg.includes('insufficient funds') || errorReason.includes('insufficient funds')) {
           throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
+        }
+        
+        if (errorMsg.includes('user rejected') || fundError?.code === 4001 || fundError?.code === 'ACTION_REJECTED') {
+          throw new Error('❌ Transaction rejected by user');
         }
         
         throw fundError;
@@ -411,10 +446,14 @@ export const WalletConnectFunding = ({
         errorMsg = 'Transaction rejected by user';
       } else if (msg.includes('⛽ Insufficient MATIC')) {
         errorMsg = msg; // Use the specific gas error message
+      } else if (msg.includes('💵 Insufficient USDC')) {
+        errorMsg = msg; // Use the specific USDC error message
+      } else if (msg.includes('Job already exists')) {
+        errorMsg = msg; // Use the job exists message
       } else if (msg.toLowerCase().includes('network changed')) {
         errorMsg = '🔄 Network switched to Polygon Amoy (80002). Please confirm the transaction again in your wallet.';
-      } else if (msg.toLowerCase().includes('could not coalesce error')) {
-        errorMsg = '🔌 RPC Connection Error\n\nThere was a network communication issue with your wallet. This usually happens due to unstable RPC connection.\n\nPlease try again or switch to a different wallet.';
+      } else if (msg.toLowerCase().includes('could not coalesce error') || msg.toLowerCase().includes('internal json-rpc error')) {
+        errorMsg = '⚠️ Transaction Failed\n\nThe smart contract rejected this transaction. This might happen if:\n• Job is already funded\n• Insufficient USDC allowance\n• Network congestion\n\nPlease refresh and try again.';
       } else if (msg) {
         errorMsg = msg;
       }
