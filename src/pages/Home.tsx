@@ -83,11 +83,11 @@ const Home = () => {
             <Sparkles className="w-4 h-4 text-secondary" />
           </div>
           
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-fade-in leading-tight" style={{ animationDelay: '0.1s' }}>
+          <h1 className="text-4xl md:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent animate-fade-in leading-tight" style={{ animationDelay: '0.1s' }}>
             The Future of<br />Freelancing
           </h1>
           
-          <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto animate-fade-in leading-relaxed" style={{ animationDelay: '0.2s' }}>
+          <p className="text-base md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto animate-fade-in leading-relaxed px-4" style={{ animationDelay: '0.2s' }}>
             Hire talent, deliver projects, and get paid in crypto—all secured by smart contracts and escrow on the blockchain.
           </p>
           
@@ -107,14 +107,14 @@ const Home = () => {
           </div>
 
           {/* Stats Section */}
-          <div className="grid grid-cols-3 gap-3 md:gap-6 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
             {stats.map((stat, index) => (
-              <Card key={index} className="p-3 md:p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth">
-                <stat.icon className="w-5 h-5 md:w-8 md:h-8 text-primary mx-auto mb-1 md:mb-2" />
-                <div className="text-lg md:text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <Card key={index} className={`p-4 md:p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth ${index === 2 ? 'col-span-2 md:col-span-1' : ''}`}>
+                <stat.icon className="w-6 h-6 md:w-8 md:h-8 text-primary mx-auto mb-2" />
+                <div className="text-2xl md:text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                   {stat.value}
                 </div>
-                <div className="text-[10px] md:text-sm text-muted-foreground">{stat.label}</div>
+                <div className="text-xs md:text-sm text-muted-foreground">{stat.label}</div>
               </Card>
             ))}
           </div>
@@ -133,20 +133,20 @@ const Home = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-3 gap-3 md:gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
                 <Card 
                   key={index} 
-                  className="p-3 md:p-8 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-105 group animate-fade-in"
+                  className="p-5 md:p-8 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-105 group animate-fade-in"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <div className={`w-8 h-8 md:w-14 md:h-14 rounded-xl ${feature.gradient} flex items-center justify-center mb-2 md:mb-5 group-hover:scale-110 transition-smooth shadow-glow`}>
-                    <Icon className="w-4 h-4 md:w-7 md:h-7 text-primary-foreground" />
+                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl ${feature.gradient} flex items-center justify-center mb-3 md:mb-5 group-hover:scale-110 transition-smooth shadow-glow`}>
+                    <Icon className="w-6 h-6 md:w-7 md:h-7 text-primary-foreground" />
                   </div>
-                  <h3 className="text-xs md:text-xl font-bold mb-1 md:mb-3 group-hover:text-primary transition-smooth">{feature.title}</h3>
-                  <p className="text-[10px] md:text-base text-muted-foreground leading-relaxed line-clamp-3 md:line-clamp-none">
+                  <h3 className="text-sm md:text-xl font-bold mb-2 md:mb-3 group-hover:text-primary transition-smooth">{feature.title}</h3>
+                  <p className="text-xs md:text-base text-muted-foreground leading-relaxed">
                     {feature.description}
                   </p>
                 </Card>
@@ -159,14 +159,14 @@ const Home = () => {
       {/* CTA Section */}
       <section className="py-24 px-4">
         <div className="container mx-auto">
-          <Card className="relative overflow-hidden p-16 glass-card border-primary/20 shadow-glow text-center">
+          <Card className="relative overflow-hidden p-8 md:p-16 glass-card border-primary/20 shadow-glow text-center">
             <div className="absolute inset-0 gradient-primary opacity-5"></div>
             <div className="relative z-10">
-              <Sparkles className="w-12 h-12 text-primary mx-auto mb-6 animate-pulse" />
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
+              <Sparkles className="w-10 h-10 md:w-12 md:h-12 text-primary mx-auto mb-4 md:mb-6 animate-pulse" />
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 md:mb-6 bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
                 Ready to Get Started?
               </h2>
-              <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-base md:text-xl text-muted-foreground mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed px-4">
                 Connect your wallet and start hiring or freelancing on the decentralized marketplace today.
               </p>
               <Link to="/marketplace">
