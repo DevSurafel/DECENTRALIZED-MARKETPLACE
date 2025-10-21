@@ -659,31 +659,31 @@ const Profile = () => {
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 md:gap-6">
-                  <div className="flex items-center gap-2 md:gap-3">
+                  <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3">
                     <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg gradient-primary flex items-center justify-center shadow-glow">
                       <Briefcase className="w-4 h-4 md:w-6 md:h-6" />
                     </div>
-                    <div>
+                    <div className="text-center md:text-left">
                       <div className="text-lg md:text-2xl font-bold">{profile.completed_jobs}</div>
                       <div className="text-[10px] md:text-sm text-muted-foreground">Jobs Completed</div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 md:gap-3">
+                  <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3">
                     <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg gradient-secondary flex items-center justify-center shadow-glow">
                       <Award className="w-4 h-4 md:w-6 md:h-6" />
                     </div>
-                    <div>
+                    <div className="text-center md:text-left">
                       <div className="text-lg md:text-2xl font-bold">{profile.success_rate.toFixed(0)}%</div>
                       <div className="text-[10px] md:text-sm text-muted-foreground">Success Rate</div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 md:gap-3">
+                  <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3">
                     <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg gradient-primary flex items-center justify-center shadow-glow">
                       <Star className="w-4 h-4 md:w-6 md:h-6" />
                     </div>
-                    <div>
+                    <div className="text-center md:text-left">
                       <div className="text-lg md:text-2xl font-bold">{profile.total_earnings.toFixed(2)}</div>
                       <div className="text-[10px] md:text-sm text-muted-foreground">USDC Earned</div>
                     </div>
