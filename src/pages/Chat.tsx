@@ -158,8 +158,8 @@ const Chat = () => {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Conversations List */}
-          <Card className="col-span-1 p-0 bg-card/50 backdrop-blur overflow-hidden">
+          {/* Conversations List - Hidden on mobile when chat is open */}
+          <Card className={`col-span-1 p-0 bg-card/50 backdrop-blur overflow-hidden ${selectedConv ? 'hidden lg:block' : 'block'}`}>
             <div className="p-4 border-b bg-card/80">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -223,17 +223,26 @@ const Chat = () => {
             </div>
           </Card>
           
-          {/* Chat Window */}
+          {/* Chat Window - Shown on mobile when conversation is selected */}
           {!selectedConv ? (
             <Card className="col-span-1 lg:col-span-2 p-8 flex items-center justify-center h-[400px] lg:h-[calc(100vh-200px)] bg-card/50 backdrop-blur">
               <p className="text-muted-foreground">Select a conversation to start messaging</p>
             </Card>
           ) : (
-            <Card className="col-span-1 lg:col-span-2 p-0 flex flex-col h-[400px] lg:h-[calc(100vh-200px)] bg-card/50 backdrop-blur overflow-hidden">
+            <Card className={`col-span-1 lg:col-span-2 p-0 flex flex-col h-[400px] lg:h-[calc(100vh-200px)] bg-card/50 backdrop-blur overflow-hidden ${!selectedConv ? 'hidden lg:flex' : 'flex'}`}>
               {/* Chat Header */}
               <div className="p-4 border-b bg-card/80 backdrop-blur">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
+                    {/* Back button for mobile */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="lg:hidden"
+                      onClick={() => setSelectedConversation(null)}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </Button>
                     <Avatar 
                       className="cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => {
