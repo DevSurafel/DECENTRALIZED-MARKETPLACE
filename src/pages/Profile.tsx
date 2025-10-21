@@ -757,7 +757,7 @@ const Profile = () => {
               )}
             </div>
             {profile.portfolio_items && profile.portfolio_items.length > 0 ? (
-              <div className="grid grid-cols-3 gap-3 md:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-6 max-w-full md:max-w-7xl mx-auto px-0 md:px-4">
                 {profile.portfolio_items.map((item: any, index: number) => (
                   <Card key={index} className="overflow-hidden glass-card shadow-card hover:shadow-glow transition-smooth">
                     <div className="h-24 md:h-48 gradient-hero flex items-center justify-center text-3xl md:text-6xl">
@@ -803,7 +803,7 @@ const Profile = () => {
           {userJobs.length > 0 && (
             <div className="mt-12">
               <h2 className="text-2xl font-bold mb-6">Posted Jobs</h2>
-              <div className="grid grid-cols-3 gap-3 md:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-6 max-w-full md:max-w-7xl mx-auto px-0 md:px-4">
                 {userJobs.map((job: any) => {
                   const platformIcons: Record<string, any> = {
                     facebook: Facebook,
@@ -860,7 +860,7 @@ const Profile = () => {
           {userListings.length > 0 && (
             <div className="mt-12">
               <h2 className="text-2xl font-bold mb-6">Social Media Listings</h2>
-              <div className="grid grid-cols-3 gap-3 md:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-6 max-w-full md:max-w-7xl mx-auto px-0 md:px-4">
                 {userListings.map((listing: SocialMediaListing) => {
                   const platformIcons: Record<string, any> = {
                     facebook: Facebook,
