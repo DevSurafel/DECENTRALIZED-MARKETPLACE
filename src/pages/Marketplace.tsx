@@ -14,6 +14,15 @@ import { useMessages } from "@/hooks/useMessages";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Search,
   Filter,
   Clock,
@@ -45,6 +54,8 @@ const Marketplace = () => {
     frontend: 0,
     design: 0
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const jobsPerPage = 10;
   const { getJobs, loading } = useJobs();
 
   useEffect(() => {
@@ -76,6 +87,7 @@ const Marketplace = () => {
   };
 
   const filterJobs = () => {
+    setCurrentPage(1); // Reset to first page on filter change
     let filtered = jobs;
     
     // Filter by category
@@ -265,7 +277,7 @@ const Marketplace = () => {
                     : "No jobs available. Be the first to post!"}
                 </p>
               </Card>
-            ) : filteredJobs.map((job, index) => (
+            ) : filteredJobs.slice((currentPage - 1) * jobsPerPage, currentPage * jobsPerPage).map((job, index) => (
               <Card 
                 key={job.id} 
                 className="relative overflow-hidden p-4 md:p-7 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.01] md:hover:scale-[1.02] group animate-fade-in"
@@ -393,6 +405,37 @@ const Marketplace = () => {
               </Card>
             ))}
           </div>
+
+          {/* Pagination */}
+          {filteredJobs.length > jobsPerPage && (
+            <Pagination className="mt-8">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                {Array.from({ length: Math.ceil(filteredJobs.length / jobsPerPage) }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredJobs.length / jobsPerPage), p + 1))}
+                    className={currentPage === Math.ceil(filteredJobs.length / jobsPerPage) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
       </div>
 
