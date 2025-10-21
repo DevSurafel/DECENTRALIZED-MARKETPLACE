@@ -73,8 +73,8 @@ const Home = () => {
       <Navbar />
       
       {/* Hero Section */}
-      <section className="pt-32 pb-24 px-4 relative">
-        <div className="container mx-auto text-center">
+      <section className="pt-32 pb-24 px-4 md:px-4 relative">
+        <div className="container mx-auto text-center max-w-full md:max-w-7xl px-2 md:px-4">
           <div className="inline-flex items-center gap-2 mb-6 px-5 py-2.5 rounded-full glass-card border border-primary/20 shadow-glow animate-fade-in">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
