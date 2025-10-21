@@ -16,6 +16,15 @@ import { useMessages } from "@/hooks/useMessages";
 import { useJobs } from "@/hooks/useJobs";
 import { useSocialMedia, SocialMediaListing } from "@/hooks/useSocialMedia";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   MapPin,
   Star,
   Briefcase,
@@ -111,6 +120,10 @@ const Profile = () => {
     telegram_username: ""
   });
   const [uploading, setUploading] = useState(false);
+  const [jobsPage, setJobsPage] = useState(1);
+  const [listingsPage, setListingsPage] = useState(1);
+  const jobsPerPage = 6;
+  const listingsPerPage = 6;
 
   useEffect(() => {
     if (!authLoading && !user && isOwnProfile) {
@@ -804,7 +817,7 @@ const Profile = () => {
             <div className="mt-12">
               <h2 className="text-2xl font-bold mb-6">Posted Jobs</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-6">
-                {userJobs.map((job: any) => {
+                {userJobs.slice((jobsPage - 1) * jobsPerPage, jobsPage * jobsPerPage).map((job: any) => {
                   const platformIcons: Record<string, any> = {
                     facebook: Facebook,
                     telegram: Send,
@@ -853,6 +866,35 @@ const Profile = () => {
                   );
                 })}
               </div>
+              {userJobs.length > jobsPerPage && (
+                <Pagination className="mt-8">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setJobsPage(p => Math.max(1, p - 1))}
+                        className={jobsPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: Math.ceil(userJobs.length / jobsPerPage) }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => setJobsPage(page)}
+                          isActive={jobsPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setJobsPage(p => Math.min(Math.ceil(userJobs.length / jobsPerPage), p + 1))}
+                        className={jobsPage === Math.ceil(userJobs.length / jobsPerPage) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </div>
           )}
 
@@ -861,7 +903,7 @@ const Profile = () => {
             <div className="mt-12">
               <h2 className="text-2xl font-bold mb-6">Social Media Listings</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-6">
-                {userListings.map((listing: SocialMediaListing) => {
+                {userListings.slice((listingsPage - 1) * listingsPerPage, listingsPage * listingsPerPage).map((listing: SocialMediaListing) => {
                   const platformIcons: Record<string, any> = {
                     facebook: Facebook,
                     telegram: Send,
@@ -955,6 +997,35 @@ const Profile = () => {
                   );
                 })}
               </div>
+              {userListings.length > listingsPerPage && (
+                <Pagination className="mt-8">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setListingsPage(p => Math.max(1, p - 1))}
+                        className={listingsPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: Math.ceil(userListings.length / listingsPerPage) }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => setListingsPage(page)}
+                          isActive={listingsPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setListingsPage(p => Math.min(Math.ceil(userListings.length / listingsPerPage), p + 1))}
+                        className={listingsPage === Math.ceil(userListings.length / listingsPerPage) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </div>
           )}
 
