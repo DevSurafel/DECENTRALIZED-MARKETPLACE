@@ -180,24 +180,24 @@ const Marketplace = () => {
 
       <Navbar />
       
-      <div className="pt-24 pb-12 px-4">
-        <div className="container mx-auto">
+      <div className="pt-24 pb-12 px-3 md:px-4">
+        <div className="max-w-full md:container mx-auto md:max-w-7xl">
           {/* Header */}
           <div className="mb-10 animate-fade-in">
             <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full glass-card border border-primary/20">
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium">{jobCounts.all} Active Projects</span>
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Job Marketplace
             </h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-base md:text-lg text-muted-foreground">
               Browse and bid on blockchain development projects from verified clients
             </p>
           </div>
 
           {/* Categories */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2.5 md:gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {categories.map((category, index) => {
               const Icon = category.icon;
               const isSelected = selectedCategory === category.name;
@@ -206,7 +206,7 @@ const Marketplace = () => {
               return (
                 <Card 
                   key={index}
-                  className={`p-4 glass-card shadow-card hover:shadow-glow transition-smooth cursor-pointer group ${
+                  className={`p-3 md:p-4 glass-card shadow-card hover:shadow-glow transition-smooth cursor-pointer group ${
                     isSelected ? 'border-primary/50 bg-primary/5' : 'border-primary/10 hover:border-primary/30'
                   }`}
                   onClick={() => {
@@ -217,13 +217,13 @@ const Marketplace = () => {
                     }
                   }}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center group-hover:scale-110 transition-smooth">
-                      <Icon className="w-5 h-5 text-primary-foreground" />
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg gradient-primary flex items-center justify-center group-hover:scale-110 transition-smooth">
+                      <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary-foreground" />
                     </div>
                     <div>
-                      <div className="font-semibold text-sm">{category.name}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="font-semibold text-xs md:text-sm line-clamp-1">{category.name}</div>
+                      <div className="text-[10px] md:text-xs text-muted-foreground">
                         {isLinkCategory ? 'View' : `${category.count} jobs`}
                       </div>
                     </div>
@@ -244,7 +244,7 @@ const Marketplace = () => {
                 className="pl-12 h-12 glass-card border-primary/20 focus:border-primary/40 shadow-card"
               />
             </div>
-            <Button variant="outline" className="gap-2 h-12 px-6 border-primary/20 hover:border-primary/40 shadow-card">
+            <Button variant="outline" className="gap-2 h-12 px-6 border-primary/20 hover:border-primary/40 shadow-card hidden md:flex">
               <Filter className="w-4 h-4" />
               Filters
             </Button>
@@ -252,7 +252,7 @@ const Marketplace = () => {
           </div>
 
           {/* Job Listings */}
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4 md:gap-6">
             {loading ? (
               <Card className="p-8 text-center">
                 <p className="text-muted-foreground">Loading jobs...</p>
@@ -268,113 +268,121 @@ const Marketplace = () => {
             ) : filteredJobs.map((job, index) => (
               <Card 
                 key={job.id} 
-                className="relative overflow-hidden p-7 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] group animate-fade-in"
+                className="relative overflow-hidden p-4 md:p-7 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.01] md:hover:scale-[1.02] group animate-fade-in"
                 style={{ animationDelay: `${0.3 + index * 0.1}s` }}
               >
                 
-                <div className="mb-5">
-                  <div className="flex items-start justify-between mb-3 gap-4">
+                <div className="mb-4 md:mb-5">
+                  <div className="flex items-start justify-between mb-2 md:mb-3 gap-2 md:gap-4">
                     <div className="flex-1">
-                      <h2 className="text-2xl font-bold group-hover:text-primary transition-smooth mb-2">{job.title}</h2>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <h2 className="text-lg md:text-2xl font-bold group-hover:text-primary transition-smooth mb-1 md:mb-2 line-clamp-2">{job.title}</h2>
+                      <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
                         <Clock className="w-3 h-3" />
                         <span>{new Date(job.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
-                  <p className="text-muted-foreground mb-5 leading-relaxed">{job.description}</p>
+                  <p className="text-xs md:text-base text-muted-foreground mb-3 md:mb-5 leading-relaxed line-clamp-3 md:line-clamp-none">{job.description}</p>
                   
-                  <div className="flex flex-wrap gap-2 mb-5">
-                    {job.skills_required?.map((skill: string) => (
-                      <Badge key={skill} variant="secondary" className="px-3 py-1 hover:bg-primary/20 transition-smooth">
+                  <div className="flex flex-wrap gap-1 md:gap-2 mb-3 md:mb-5">
+                    {job.skills_required?.slice(0, 3).map((skill: string) => (
+                      <Badge key={skill} variant="secondary" className="px-2 py-0.5 md:px-3 md:py-1 hover:bg-primary/20 transition-smooth text-[10px] md:text-xs">
                         {skill}
                       </Badge>
                     ))}
+                    {job.skills_required?.length > 3 && (
+                      <Badge variant="outline" className="px-2 py-0.5 md:px-3 md:py-1 text-[10px] md:text-xs">
+                        +{job.skills_required.length - 3}
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pt-5 border-t border-primary/10">
-                  <div className="flex flex-wrap gap-6 text-sm">
+                <div className="flex flex-col gap-4 md:gap-6 pt-3 md:pt-5 border-t border-primary/10">
+                  <div className="grid grid-cols-2 md:flex md:flex-wrap gap-3 md:gap-6 text-xs md:text-sm">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                        <DollarSign className="w-4 h-4 text-success" />
+                      <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                        <DollarSign className="w-3 h-3 md:w-4 md:h-4 text-success" />
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground">Budget</div>
-                        <div className="font-semibold text-success">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Budget</div>
+                        <div className="font-semibold text-success text-xs md:text-sm">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Clock className="w-4 h-4 text-primary" />
+                      <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Clock className="w-3 h-3 md:w-4 md:h-4 text-primary" />
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground">Duration</div>
-                        <div className="font-semibold">{job.duration_weeks ? `${job.duration_weeks} weeks` : 'Flexible'}</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Duration</div>
+                        <div className="font-semibold text-xs md:text-sm">{job.duration_weeks ? `${job.duration_weeks} weeks` : 'Flexible'}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center">
-                        <Users className="w-4 h-4 text-secondary" />
+                      <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-secondary/10 flex items-center justify-center">
+                        <Users className="w-3 h-3 md:w-4 md:h-4 text-secondary" />
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground">Proposals</div>
-                        <div className="font-semibold">{job.bids?.[0]?.count || 0} bids</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Proposals</div>
+                        <div className="font-semibold text-xs md:text-sm">{job.bids?.[0]?.count || 0} bids</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div>
-                        <div className="text-xs text-muted-foreground">Client</div>
-                        <div className="font-mono text-sm font-medium">{job.client?.display_name || job.client?.wallet_address?.slice(0, 8) + '...'}</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground">Client</div>
+                        <div className="font-mono text-[10px] md:text-sm font-medium truncate max-w-[100px] md:max-w-none">{job.client?.display_name || job.client?.wallet_address?.slice(0, 8) + '...'}</div>
                       </div>
                     </div>
                   </div>
                   
-                   <div className="flex gap-3">
+                   <div className="flex flex-wrap gap-2 md:gap-3">
                     {user?.id === job.client_id && (
                       <>
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="hover:scale-105 transition-smooth border-primary/20"
+                          className="h-8 w-8 md:h-10 md:w-10 hover:scale-105 transition-smooth border-primary/20"
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditingJob(job);
                           }}
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-3 h-3 md:w-4 md:h-4" />
                         </Button>
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="hover:scale-105 transition-smooth border-destructive/20 hover:bg-destructive/10"
+                          className="h-8 w-8 md:h-10 md:w-10 hover:scale-105 transition-smooth border-destructive/20 hover:bg-destructive/10"
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeletingJobId(job.id);
                           }}
                         >
-                          <Trash2 className="w-4 h-4 text-destructive" />
+                          <Trash2 className="w-3 h-3 md:w-4 md:h-4 text-destructive" />
                         </Button>
                       </>
                     )}
                     <Button 
                       variant="outline" 
-                      className="hover:scale-105 transition-smooth border-primary/20 gap-2"
+                      size="sm"
+                      className="flex-1 md:flex-initial hover:scale-105 transition-smooth border-primary/20 gap-1 md:gap-2 h-8 md:h-9 text-xs md:text-sm"
                       onClick={() => handleChatWithClient(job.client_id, job.id)}
                     >
-                      <MessageSquare className="w-4 h-4" />
+                      <MessageSquare className="w-3 h-3 md:w-4 md:h-4" />
                       Chat
                     </Button>
                     <Button 
                       variant="outline" 
-                      className="hover:scale-105 transition-smooth border-primary/20"
+                      size="sm"
+                      className="flex-1 md:flex-initial hover:scale-105 transition-smooth border-primary/20 h-8 md:h-9 text-xs md:text-sm hidden md:inline-flex"
                       onClick={() => navigate(`/jobs/${job.id}`)}
                     >
                       View Details
                     </Button>
                     {user?.id !== job.client_id && (
                       <Button 
-                        className="shadow-glow hover:scale-105 transition-smooth"
+                        size="sm"
+                        className="flex-1 md:flex-initial shadow-glow hover:scale-105 transition-smooth h-8 md:h-9 text-xs md:text-sm"
                         onClick={() => navigate(`/jobs/${job.id}`)}
                       >
                         Submit Proposal
