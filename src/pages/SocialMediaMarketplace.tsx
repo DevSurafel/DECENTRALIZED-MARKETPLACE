@@ -1,643 +1,677 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import Navbar from "@/components/Navbar";
-import { SocialMediaListingDialog } from "@/components/SocialMediaListingDialog";
-import { EditSocialMediaListingDialog } from "@/components/EditSocialMediaListingDialog";
-import { SocialMediaPurchaseDialog } from "@/components/SocialMediaPurchaseDialog";
-import { useSocialMedia, SocialMediaPlatform, SocialMediaListing } from "@/hooks/useSocialMedia";
-import { useAuth } from "@/hooks/useAuth";
-import { useMessages } from "@/hooks/useMessages";
-import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import {
-  Search,
-  Users,
-  DollarSign,
-  TrendingUp,
-  Facebook,
-  Send,
-  Youtube,
-  Music2,
-  Twitter,
-  Instagram,
-  CheckCircle2,
-  Shield,
-  MessageSquare,
-  Heart,
-  ShoppingCart,
-  Edit,
-  Trash2
-} from "lucide-react";
+import { useState, useEffect, useRef } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Loader2, CheckCircle2, AlertCircle, Smartphone, Wallet } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { ethers } from 'ethers';
+import QRCodeStyling from 'qr-code-styling';
 
-const platformIcons: Record<SocialMediaPlatform, any> = {
-  facebook: Facebook,
-  telegram: Send,
-  youtube: Youtube,
-  tiktok: Music2,
-  twitter: Twitter,
-  instagram: Instagram
+interface WalletConnectFundingProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: (txHash: string) => void;
+  jobId: string;
+  freelancerAddress: string;
+  amountUSDC: string;
+  escrowContractAddress: string;
+  usdcContractAddress: string;
+  requiresStake?: boolean;
+  allowedRevisions?: number;
+}
+
+const ESCROW_ABI = [
+  'function fundJob(uint256 jobId, address freelancer, address token, uint256 amount, bool requiresStake, uint256 allowedRevisions) external'
+];
+
+const USDC_ABI = [
+  'function approve(address spender, uint256 amount) external returns (bool)',
+  'function allowance(address owner, address spender) external view returns (uint256)'
+];
+
+// Chain config for Polygon Amoy
+const AMOY_DEC = 80002;
+const AMOY_HEX = '0x13882';
+
+const ensureCorrectChain = async (provider: any) => {
+  const current = await provider.request({ method: 'eth_chainId' });
+  if (current !== AMOY_HEX) {
+    try {
+      await provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: AMOY_HEX }]
+      });
+    } catch (switchError: any) {
+      if (switchError?.code === 4902) {
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: AMOY_HEX,
+            chainName: 'Polygon Amoy',
+            nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+            rpcUrls: ['https://rpc-amoy.polygon.technology'],
+            blockExplorerUrls: ['https://www.oklink.com/amoy']
+          }]
+        });
+      } else {
+        throw switchError;
+      }
+    }
+  }
 };
 
-const platformColors: Record<SocialMediaPlatform, string> = {
-  facebook: "bg-blue-500/10 text-blue-500",
-  telegram: "bg-sky-500/10 text-sky-500",
-  youtube: "bg-red-500/10 text-red-500",
-  tiktok: "bg-pink-500/10 text-pink-500",
-  twitter: "bg-blue-400/10 text-blue-400",
-  instagram: "bg-purple-500/10 text-purple-500"
-};
+export const WalletConnectFunding = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  jobId,
+  freelancerAddress,
+  amountUSDC,
+  escrowContractAddress,
+  usdcContractAddress,
+  requiresStake = false,
+  allowedRevisions = 3
+}: WalletConnectFundingProps) => {
+  const [wcUri, setWcUri] = useState<string>('');
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'approving' | 'funding' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [wcProvider, setWcProvider] = useState<any>(null);
+  const qrCodeRef = useRef<HTMLDivElement>(null);
+  const qrCodeInstance = useRef<any>(null);
 
-const SocialMediaMarketplace = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const { createConversation } = useMessages();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [listings, setListings] = useState<SocialMediaListing[]>([]);
-  const [filteredListings, setFilteredListings] = useState<SocialMediaListing[]>([]);
-  const [selectedPlatform, setSelectedPlatform] = useState<string>("All Platforms");
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
-  const [selectedListing, setSelectedListing] = useState<SocialMediaListing | null>(null);
-  const [editingListing, setEditingListing] = useState<SocialMediaListing | null>(null);
-  const [deletingListingId, setDeletingListingId] = useState<string | null>(null);
-  const [platformCounts, setPlatformCounts] = useState({
-    all: 0,
-    facebook: 0,
-    telegram: 0,
-    youtube: 0,
-    tiktok: 0,
-    twitter: 0,
-    instagram: 0
-  });
-  const [currentPage, setCurrentPage] = useState(1);
-  const listingsPerPage = 18;
-  const { getListings, addToFavorites, removeFromFavorites, checkFavorite, loading } = useSocialMedia();
+  const uuidToNumericId = (uuid: string): bigint => {
+    const hex = uuid.replace(/-/g, '').slice(0, 16);
+    return BigInt('0x' + hex);
+  };
 
   useEffect(() => {
-    loadListings();
-  }, []);
+    if (isOpen && status === 'idle') {
+      initializeWalletConnect();
+    }
+
+    return () => {
+      if (wcProvider) {
+        try {
+          wcProvider.disconnect();
+        } catch (e) {
+          console.log('Cleanup disconnect error:', e);
+        }
+      }
+    };
+  }, [isOpen]);
 
   useEffect(() => {
-    filterListings();
-  }, [searchQuery, selectedPlatform, listings]);
+    if (wcUri && qrCodeRef.current) {
+      // Create QR code when URI is available
+      if (!qrCodeInstance.current) {
+        qrCodeInstance.current = new QRCodeStyling({
+      width: window.innerWidth < 640 ? 200 : 300,
+          height: window.innerWidth < 640 ? 200 : 300,
+          data: wcUri,
+          margin: 10,
+          qrOptions: {
+            typeNumber: 0,
+            mode: 'Byte',
+            errorCorrectionLevel: 'Q'
+          },
+          imageOptions: {
+            hideBackgroundDots: true,
+            imageSize: 0.4,
+            margin: 0
+          },
+          dotsOptions: {
+            type: 'rounded',
+            color: '#000000'
+          },
+          backgroundOptions: {
+            color: '#ffffff'
+          },
+          cornersSquareOptions: {
+            type: 'extra-rounded',
+            color: '#000000'
+          },
+          cornersDotOptions: {
+            type: 'dot',
+            color: '#000000'
+          }
+        });
+        qrCodeInstance.current.append(qrCodeRef.current);
+      } else {
+        qrCodeInstance.current.update({ data: wcUri });
+      }
+    }
+  }, [wcUri]);
 
-  const loadListings = async () => {
-    const data = await getListings({ status: 'available' });
-    setListings(data || []);
-    
-    // Load favorites status for each listing
-    if (user && data) {
-      const favPromises = data.map(listing => checkFavorite(listing.id));
-      const favResults = await Promise.all(favPromises);
-      const newFavorites = new Set<string>();
-      data.forEach((listing, index) => {
-        if (favResults[index]) {
-          newFavorites.add(listing.id);
+  const initializeWalletConnect = async () => {
+    setStatus('connecting');
+
+    try {
+      // Try to import WalletConnect
+      let EthereumProvider;
+
+      try {
+        EthereumProvider = (await import('@walletconnect/ethereum-provider')).EthereumProvider;
+      } catch (importError) {
+        console.error('WalletConnect not installed:', importError);
+        setStatus('error');
+        setErrorMessage('Please install: npm install @walletconnect/ethereum-provider qr-code-styling');
+        return;
+      }
+
+      const provider = await EthereumProvider.init({
+        projectId: '22774a64e30fb9eb3014ccbad85d5b71', // ⚠️ REPLACE WITH YOUR WALLETCONNECT PROJECT ID
+        chains: [80002],
+        showQrModal: false,
+        methods: [
+          'eth_sendTransaction',
+          'eth_sign',
+          'personal_sign',
+        ],
+        events: ['chainChanged', 'accountsChanged'],
+        rpcMap: {
+          80002: 'https://rpc-amoy.polygon.technology'
+        },
+        metadata: {
+          name: 'DeFiLance',
+          description: 'Decentralized Freelance Platform',
+          url: window.location.origin,
+          icons: ['https://avatars.githubusercontent.com/u/37784886']
         }
       });
-      setFavorites(newFavorites);
-    }
-    
-    const counts = {
-      all: data?.length || 0,
-      facebook: data?.filter((l) => l.platform === 'facebook').length || 0,
-      telegram: data?.filter((l) => l.platform === 'telegram').length || 0,
-      youtube: data?.filter((l) => l.platform === 'youtube').length || 0,
-      tiktok: data?.filter((l) => l.platform === 'tiktok').length || 0,
-      twitter: data?.filter((l) => l.platform === 'twitter').length || 0,
-      instagram: data?.filter((l) => l.platform === 'instagram').length || 0
-    };
-    setPlatformCounts(counts);
-  };
 
-  const filterListings = () => {
-    setCurrentPage(1); // Reset to first page on filter change
-    let filtered = listings;
-    
-    if (selectedPlatform !== "All Platforms") {
-      let platformKey = selectedPlatform.toLowerCase();
-      // Handle Twitter/X special case
-      if (platformKey === 'twitter/x') {
-        platformKey = 'twitter';
-      }
-      filtered = filtered.filter((l) => l.platform === platformKey);
-    }
-    
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((l) => 
-        l.account_name?.toLowerCase().includes(query) ||
-        l.description?.toLowerCase().includes(query) ||
-        l.platform?.toLowerCase().includes(query)
-      );
-    }
-    
-    setFilteredListings(filtered);
-  };
+      setWcProvider(provider);
 
-  const handleChatWithSeller = async (listing: SocialMediaListing) => {
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
-    try {
-      const conversationId = await createConversation(listing.seller_id, undefined);
-      if (conversationId) {
-        navigate(`/chat?conversation=${conversationId}`);
-      }
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start conversation",
-        variant: "destructive"
+      // Listen for display_uri event
+      provider.on('display_uri', (uri: string) => {
+        console.log('WalletConnect URI:', uri);
+        setWcUri(uri);
       });
-    }
-  };
 
-  const handleBuyAccount = (listing: SocialMediaListing) => {
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
-    if (listing.seller_id === user.id) {
-      toast({
-        title: "Cannot Purchase",
-        description: "You cannot purchase your own listing",
-        variant: "destructive"
+      // Listen for connection
+      provider.on('connect', async (session: any) => {
+        console.log('Wallet connected!', session);
+        try {
+          await ensureCorrectChain(provider);
+        } catch (e) {
+          console.error('Chain switch failed on connect:', e);
+        }
+        await executePayment(provider);
       });
-      return;
-    }
-    setSelectedListing(listing);
-    setShowPurchaseDialog(true);
-  };
 
-  const handleToggleFavorite = async (listingId: string) => {
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
-    
-    const isFavorite = favorites.has(listingId);
-    if (isFavorite) {
-      const success = await removeFromFavorites(listingId);
-      if (success) {
-        setFavorites(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(listingId);
-          return newSet;
-        });
-      }
-    } else {
-      const success = await addToFavorites(listingId);
-      if (success) {
-        setFavorites(prev => new Set(prev).add(listingId));
-      }
-    }
-  };
-
-  const handleDeleteListing = async (listingId: string) => {
-    try {
-      const { error } = await supabase
-        .from('social_media_listings')
-        .delete()
-        .eq('id', listingId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Listing deleted successfully"
+      // React to chain changes
+      provider.on('chainChanged', async (chainId: string) => {
+        console.log('Chain changed to', chainId);
+        if (chainId !== AMOY_HEX) {
+          try {
+            await ensureCorrectChain(provider);
+            toast({ title: '🔄 Switched Network', description: 'Switched to Polygon Amoy. Retrying payment...' });
+            await executePayment(provider);
+          } catch (e) {
+            console.error('Failed to switch to Amoy after change:', e);
+          }
+        }
       });
-      
-      loadListings();
+
+      provider.on('disconnect', () => {
+        console.log('Wallet disconnected');
+        if (status !== 'success') {
+          setStatus('error');
+          setErrorMessage('Wallet disconnected. Please try again.');
+        }
+      });
+
+      // Connect
+      await provider.enable();
+
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setDeletingListingId(null);
+      console.error('WalletConnect initialization error:', error);
+      setStatus('error');
+      setErrorMessage(error.message || 'Failed to initialize WalletConnect. Make sure the package is installed.');
     }
   };
 
-  const categories = [
-    { name: "All Platforms", count: platformCounts.all, icon: TrendingUp },
-    { name: "Facebook", count: platformCounts.facebook, icon: Facebook },
-    { name: "Telegram", count: platformCounts.telegram, icon: Send },
-    { name: "YouTube", count: platformCounts.youtube, icon: Youtube },
-    { name: "TikTok", count: platformCounts.tiktok, icon: Music2 },
-    { name: "Twitter/X", count: platformCounts.twitter, icon: Twitter },
-    { name: "Instagram", count: platformCounts.instagram, icon: Instagram },
-  ];
+  const executePayment = async (provider: any) => {
+    try {
+      await ensureCorrectChain(provider);
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      const address = await signer.getAddress();
+
+      console.log('Connected wallet:', address);
+
+      // Pre-flight checks
+      const maticBalance = await ethersProvider.getBalance(address);
+      const maticBalanceEth = ethers.formatEther(maticBalance);
+      console.log('Wallet MATIC balance:', maticBalanceEth, 'MATIC');
+
+      // Check if wallet has at least 0.01 MATIC for gas
+      const minMatic = ethers.parseEther('0.01');
+      if (maticBalance < minMatic) {
+        throw new Error(`⛽ Insufficient MATIC for gas fees.\n\nYour balance: ${maticBalanceEth} MATIC\nRequired: at least 0.01 MATIC\n\nGet free test MATIC from Alchemy Faucet to continue.`);
+      }
+
+      // Check USDC balance
+      const usdcContract = new ethers.Contract(usdcContractAddress, [
+        'function balanceOf(address) view returns (uint256)'
+      ], signer);
+      const usdcBalance = await usdcContract.balanceOf(address);
+      const usdcBalanceFormatted = ethers.formatUnits(usdcBalance, 6);
+      console.log('Wallet USDC balance:', usdcBalanceFormatted, 'USDC');
+
+      const numericJobId = uuidToNumericId(jobId);
+      const amount = ethers.parseUnits(amountUSDC, 6);
+
+      if (usdcBalance < amount) {
+        throw new Error(`💵 Insufficient USDC balance.\n\nRequired: ${amountUSDC} USDC\nYour balance: ${usdcBalanceFormatted} USDC\n\nPlease add more USDC to your wallet.`);
+      }
+
+      // Step 1: Approve USDC
+      setStatus('approving');
+      toast({
+        title: '📝 Step 1 of 2',
+        description: 'Approve USDC spending in your wallet',
+      });
+
+      const usdcContractWithSigner = new ethers.Contract(usdcContractAddress, USDC_ABI, signer);
+      
+      let approveTx;
+      try {
+        console.log('Requesting USDC approval for amount:', ethers.formatUnits(amount, 6), 'USDC');
+        console.log('USDC Contract:', usdcContractAddress);
+        console.log('Escrow Contract:', escrowContractAddress);
+        console.log('Signer address:', address);
+        
+        // First check if approval is needed
+        const currentAllowance = await usdcContractWithSigner.allowance(address, escrowContractAddress);
+        console.log('Current USDC allowance:', ethers.formatUnits(currentAllowance, 6), 'USDC');
+        
+        if (currentAllowance >= amount) {
+          console.log('Sufficient allowance already exists, skipping approval');
+          toast({
+            title: '✅ Already Approved',
+            description: 'USDC spending already approved',
+          });
+        } else {
+          // Try to estimate gas first
+          try {
+            const gasEstimate = await usdcContractWithSigner.approve.estimateGas(escrowContractAddress, amount);
+            console.log('Approve gas estimate:', gasEstimate.toString());
+          } catch (estimateError: any) {
+            console.error('Approve gas estimation failed:', estimateError);
+            throw new Error('❌ Approval transaction would fail. Please check your wallet has MATIC for gas and try again.');
+          }
+          
+          approveTx = await usdcContractWithSigner.approve(escrowContractAddress, amount);
+          console.log('Approval transaction sent:', approveTx.hash);
+          
+          toast({
+            title: '⏳ Approving...',
+            description: 'Waiting for blockchain confirmation',
+          });
+
+          await approveTx.wait();
+          
+          toast({
+            title: '✅ Approved!',
+            description: 'USDC approval successful',
+          });
+        }
+      } catch (approveError: any) {
+        // Log full error details for debugging
+        console.error('USDC Approve Error Details:', {
+          code: approveError?.code,
+          message: approveError?.message,
+          reason: approveError?.reason,
+          data: approveError?.data,
+          error: approveError
+        });
+        
+        // Check for actual gas/balance issues
+        const errorMsg = (approveError?.message || '').toLowerCase();
+        const errorReason = (approveError?.reason || '').toLowerCase();
+        
+        if (errorMsg.includes('insufficient funds') || errorReason.includes('insufficient funds')) {
+          throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has at least 0.01 MATIC on Polygon Amoy testnet.');
+        }
+        
+        if (errorMsg.includes('user rejected') || approveError?.code === 4001 || approveError?.code === 'ACTION_REJECTED') {
+          throw new Error('❌ Transaction rejected by user');
+        }
+        
+        throw approveError;
+      }
+
+      // Step 2: Fund Job
+      setStatus('funding');
+      toast({
+        title: '💰 Step 2 of 2',
+        description: `Confirm payment of $${amountUSDC} USDC`,
+      });
+
+      const escrowContract = new ethers.Contract(escrowContractAddress, ESCROW_ABI, signer);
+      
+      let fundTx;
+      try {
+        // First, try to estimate gas to catch contract reverts before sending
+        console.log('Estimating gas for fundJob...');
+        try {
+          const gasEstimate = await escrowContract.fundJob.estimateGas(
+            numericJobId,
+            freelancerAddress,
+            usdcContractAddress,
+            amount,
+            requiresStake,
+            allowedRevisions
+          );
+          console.log('Gas estimate successful:', gasEstimate.toString());
+        } catch (estimateError: any) {
+          console.error('Gas estimation failed:', estimateError);
+          
+          // Try to extract the revert reason
+          const revertReason = estimateError?.reason || estimateError?.message || '';
+          
+          if (revertReason.includes('Job already exists')) {
+            throw new Error('Job already exists - Escrow is already funded');
+          } else if (revertReason.includes('Insufficient allowance')) {
+            throw new Error('⚠️ USDC approval insufficient. Please try again or refresh the page.');
+          } else if (revertReason.includes('ERC20: insufficient balance')) {
+            throw new Error('💵 Insufficient USDC balance in your wallet.');
+          } else {
+            throw new Error(`❌ Transaction would fail: ${revertReason}`);
+          }
+        }
+
+        // If gas estimation succeeded, send the transaction
+        fundTx = await escrowContract.fundJob(
+          numericJobId,
+          freelancerAddress,
+          usdcContractAddress,
+          amount,
+          requiresStake,
+          allowedRevisions
+        );
+        console.log('FundJob transaction sent:', fundTx.hash);
+      } catch (fundError: any) {
+        // Log full error details for debugging
+        console.error('Fund Job Error Details:', {
+          code: fundError?.code,
+          message: fundError?.message,
+          reason: fundError?.reason,
+          error: fundError
+        });
+        
+        // Check for actual gas/balance issues
+        const errorMsg = (fundError?.message || '').toLowerCase();
+        const errorReason = (fundError?.reason || '').toLowerCase();
+        
+        if (errorMsg.includes('insufficient funds') || errorReason.includes('insufficient funds')) {
+          throw new Error('⛽ Insufficient MATIC for gas fees. Please ensure your wallet has MATIC on Polygon Amoy testnet to pay for transaction fees.');
+        }
+        
+        if (errorMsg.includes('user rejected') || fundError?.code === 4001 || fundError?.code === 'ACTION_REJECTED') {
+          throw new Error('❌ Transaction rejected by user');
+        }
+        
+        throw fundError;
+      }
+
+      toast({
+        title: '⏳ Processing...',
+        description: 'Waiting for payment confirmation',
+      });
+
+      const receipt = await fundTx.wait();
+
+      // Payment successful!
+      setStatus('success');
+      toast({
+        title: '🎉 Payment Complete!',
+        description: `Successfully paid $${amountUSDC} USDC`,
+      });
+
+      setTimeout(() => {
+        onSuccess(receipt.hash);
+        if (wcProvider) {
+          wcProvider.disconnect();
+        }
+        onClose();
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      console.error('Payment error details:', {
+        code: error?.code,
+        message: error?.message,
+        reason: error?.reason,
+        shortMessage: error?.shortMessage,
+        data: error?.data,
+        info: error?.info
+      });
+
+      const msg = (error?.reason || error?.shortMessage || error?.message || '').toString();
+      // If escrow/job is already created on-chain, treat as a success to prevent duplicate payments
+      if (msg.includes('Job already exists')) {
+        setStatus('success');
+        toast({
+          title: '✅ Already Funded',
+          description: 'Escrow is already funded and locked.',
+        });
+        setTimeout(() => {
+          onSuccess('already-funded');
+          if (wcProvider) {
+            wcProvider.disconnect();
+          }
+          onClose();
+        }, 1200);
+        return;
+      }
+
+      setStatus('error');
+      let errorMsg = 'Payment failed';
+      
+      if (error?.code === 'ACTION_REJECTED' || error?.code === 4001) {
+        errorMsg = 'Transaction rejected by user';
+      } else if (msg.includes('⛽ Insufficient MATIC')) {
+        errorMsg = msg; // Use the specific gas error message
+      } else if (msg.includes('💵 Insufficient USDC')) {
+        errorMsg = msg; // Use the specific USDC error message
+      } else if (msg.includes('Job already exists')) {
+        errorMsg = msg; // Use the job exists message
+      } else if (msg.toLowerCase().includes('network changed')) {
+        errorMsg = '🔄 Network switched to Polygon Amoy (80002). Please confirm the transaction again in your wallet.';
+      } else if (msg.toLowerCase().includes('could not coalesce error') || msg.toLowerCase().includes('internal json-rpc error')) {
+        errorMsg = '⚠️ Transaction Failed\n\nThe smart contract rejected this transaction. This might happen if:\n• Job is already funded\n• Insufficient USDC allowance\n• Network congestion\n\nPlease refresh and try again.';
+      } else if (msg) {
+        errorMsg = msg;
+      }
+
+      setErrorMessage(errorMsg);
+      toast({
+        title: '❌ Payment Failed',
+        description: errorMsg,
+        variant: 'destructive'
+      });
+    }
+  };
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-40 right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-40 left-20 w-80 h-80 bg-secondary/5 rounded-full blur-3xl"></div>
-      </div>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open && wcProvider) {
+        wcProvider.disconnect();
+      }
+      onClose();
+    }}>
+      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
+            Scan to Pay
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            Scan QR code with your mobile wallet
+          </DialogDescription>
+        </DialogHeader>
 
-      <Navbar />
-      
-      <div className="pt-24 pb-12 px-3 md:px-4">
-        <div className="max-w-full md:container mx-auto md:max-w-7xl">
-          <div className="mb-10 animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-primary/20">
-                <Shield className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium">{platformCounts.all} Accounts Available</span>
+        <div className="space-y-4 sm:space-y-6 py-2 sm:py-4">
+          {/* Amount Display */}
+          <div className="text-center p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-xl">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">You're paying</p>
+            <p className="text-3xl sm:text-5xl font-bold text-primary mb-1">${amountUSDC}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">USDC</p>
+          </div>
+
+          {/* Status Display */}
+          {status === 'connecting' && (
+            <div className="flex flex-col items-center gap-3 sm:gap-4">
+              {wcUri ? (
+                <>
+                  <div className="p-2 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border-2 sm:border-4 border-primary shadow-lg">
+                    <div ref={qrCodeRef} className="flex items-center justify-center w-[200px] h-[200px] sm:w-[300px] sm:h-[300px]" />
+                  </div>
+
+                  <div className="text-center space-y-1 sm:space-y-2">
+                    <p className="text-xs sm:text-sm font-semibold flex items-center justify-center gap-2">
+                      <Smartphone className="h-3 w-3 sm:h-4 sm:w-4 text-primary animate-pulse" />
+                      Scan with your wallet app
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      MetaMask • Trust Wallet • Coinbase Wallet • Rainbow
+                    </p>
+                  </div>
+
+                  <div className="w-full p-2 sm:p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-[10px] sm:text-xs text-center">
+                    <p className="text-blue-700 dark:text-blue-300 animate-pulse">
+                      💡 Waiting for wallet connection...
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
+                  <Loader2 className="h-10 w-10 sm:h-12 sm:w-12 animate-spin text-primary" />
+                  <p className="text-xs sm:text-sm text-muted-foreground">Generating QR code...</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">This may take a few seconds</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {status === 'approving' && (
+            <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 sm:h-16 sm:w-16 animate-spin text-primary" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+                </div>
               </div>
-              <Button 
-                onClick={() => navigate('/social-media/favorites')}
-                variant="outline"
-                className="gap-2"
-              >
-                <Heart className="w-4 h-4" />
-                <span className="hidden md:inline">My Favorites</span>
-              </Button>
-            </div>
-            <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Buy/Sell Social Media
-            </h1>
-            <p className="text-base md:text-lg text-muted-foreground">
-              Decentralized marketplace for buying and selling verified social media accounts
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5 md:gap-3 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            {categories.map((category, index) => {
-              const Icon = category.icon;
-              const isSelected = selectedPlatform === category.name;
-              return (
-                <Card 
-                  key={index}
-                  className={`p-2 md:p-3 glass-card shadow-card hover:shadow-glow transition-smooth cursor-pointer group ${
-                    isSelected ? 'border-primary/50 bg-primary/5' : 'border-primary/10 hover:border-primary/30'
-                  }`}
-                  onClick={() => setSelectedPlatform(category.name)}
-                >
-                  <div className="flex flex-col items-center gap-1 md:gap-2 text-center">
-                    <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg gradient-primary flex items-center justify-center group-hover:scale-110 transition-smooth">
-                      <Icon className="w-3 h-3 md:w-4 md:h-4 text-primary-foreground" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-[10px] md:text-xs">{category.name}</div>
-                      <div className="text-[10px] md:text-xs text-muted-foreground">{category.count}</div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-col lg:flex-row gap-4 mb-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                placeholder="Search accounts by name or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12 glass-card border-primary/20 focus:border-primary/40 shadow-card"
-              />
-            </div>
-            <SocialMediaListingDialog onSuccess={loadListings} />
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-6">
-            {loading ? (
-              <Card className="p-8 text-center col-span-full">
-                <p className="text-muted-foreground">Loading listings...</p>
-              </Card>
-            ) : filteredListings.length === 0 ? (
-              <Card className="p-8 text-center col-span-full">
-                <p className="text-muted-foreground">
-                  {searchQuery || selectedPlatform !== "All Platforms" 
-                    ? "No accounts match your filters" 
-                    : "No accounts available. Be the first to list!"}
+              <div className="text-center">
+                <p className="font-semibold text-base sm:text-lg mb-1">Step 1 of 2</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Approve USDC spending
                 </p>
-              </Card>
-            ) : filteredListings.slice((currentPage - 1) * listingsPerPage, currentPage * listingsPerPage).map((listing, index) => {
-              const PlatformIcon = platformIcons[listing.platform];
-              const platformColor = platformColors[listing.platform];
-              const isFavorite = favorites.has(listing.id);
-              const firstScreenshot = listing.screenshot_urls && listing.screenshot_urls.length > 0 
-                ? listing.screenshot_urls[0] 
-                : listing.screenshot_url;
-              
-              return (
-                <Card 
-                  key={listing.id} 
-                  className="relative overflow-hidden p-3 md:p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] group animate-fade-in cursor-pointer"
-                  style={{ animationDelay: `${0.3 + index * 0.05}s` }}
-                  onClick={() => navigate(`/social-media/${listing.id}`)}
-                >
-                  <div className="flex items-start justify-between mb-2 md:mb-4">
-                    <div className={`w-8 h-8 md:w-12 md:h-12 rounded-xl ${platformColor} flex items-center justify-center`}>
-                      <PlatformIcon className="w-4 h-4 md:w-6 md:h-6" />
-                    </div>
-                    <div className="flex gap-1">
-                      {listing.verification_proof && (
-                        <Badge variant="secondary" className="gap-1 text-[8px] md:text-xs px-1 py-0">
-                          <CheckCircle2 className="w-2 h-2 md:w-3 md:h-3" />
-                          V
-                        </Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 md:h-8 md:w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleFavorite(listing.id);
-                        }}
-                      >
-                        <Heart className={`w-3 h-3 md:w-4 md:h-4 transition-smooth ${isFavorite ? 'fill-destructive text-destructive' : 'text-muted-foreground hover:text-foreground'}`} />
-                      </Button>
-                    </div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
+                  Check your wallet app for approval request
+                </p>
+              </div>
+            </div>
+          )}
+
+          {status === 'funding' && (
+            <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 sm:h-16 sm:w-16 animate-spin text-primary" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="font-semibold text-base sm:text-lg mb-1">Step 2 of 2</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Confirm payment of ${amountUSDC} USDC
+                </p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
+                  Check your wallet app to confirm the transaction
+                </p>
+              </div>
+            </div>
+          )}
+
+          {status === 'success' && (
+            <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
+              <div className="rounded-full bg-green-500/10 p-4 sm:p-6">
+                <CheckCircle2 className="h-12 w-12 sm:h-16 sm:w-16 text-green-500" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg sm:text-2xl font-bold text-green-500 mb-2">Payment Complete!</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Successfully paid ${amountUSDC} USDC
+                </p>
+              </div>
+            </div>
+          )}
+
+          {status === 'error' && (
+            <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
+              <div className="rounded-full bg-red-500/10 p-4 sm:p-6">
+                <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-red-500" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-base sm:text-xl font-bold text-red-500 mb-2">Something Went Wrong</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-4 whitespace-pre-line">
+                  {errorMessage}
+                </p>
+                {errorMessage.includes('⛽ Insufficient MATIC') && (
+                  <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-[10px] sm:text-xs text-left space-y-2">
+                    <p className="font-semibold text-amber-900 dark:text-amber-100">💡 How to fix:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-amber-800 dark:text-amber-200">
+                      <li>Get free test MATIC from <a href="https://www.alchemy.com/faucets/polygon-amoy" target="_blank" rel="noopener noreferrer" className="underline">Alchemy Faucet</a></li>
+                      <li>Wait 1-2 minutes for MATIC to arrive</li>
+                      <li>Try payment again</li>
+                    </ol>
                   </div>
+                )}
+              </div>
+            </div>
+          )}
 
-                  {firstScreenshot && (
-                    <div className="mb-2 md:mb-4 rounded-lg overflow-hidden relative">
-                      <img 
-                        src={firstScreenshot} 
-                        alt={listing.account_name}
-                        className="w-full h-20 md:h-32 object-cover"
-                      />
-                      {listing.screenshot_urls && listing.screenshot_urls.length > 1 && (
-                        <Badge className="absolute bottom-1 right-1 bg-black/70 text-white text-[8px] md:text-xs px-1 py-0">
-                          +{listing.screenshot_urls.length - 1}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-
-                  <h3 className="text-sm md:text-xl font-bold mb-1 md:mb-2 group-hover:text-primary transition-smooth line-clamp-2">
-                    {listing.account_name}
-                  </h3>
-                  
-                  <Badge variant="outline" className="mb-2 md:mb-3 capitalize text-[8px] md:text-xs px-1 py-0">
-                    {listing.platform}
-                  </Badge>
-
-                  <p className="text-[10px] md:text-sm text-muted-foreground mb-2 md:mb-4 line-clamp-2">
-                    {listing.description}
-                  </p>
-
-                  <div className="space-y-1 md:space-y-3 mb-2 md:mb-5">
-                    <div className="flex items-center gap-1 md:gap-2">
-                      <div className="w-5 h-5 md:w-8 md:h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Users className="w-3 h-3 md:w-4 md:h-4 text-primary" />
-                      </div>
-                      <div>
-                        <div className="text-[8px] md:text-xs text-muted-foreground">
-                          {listing.platform === 'youtube' ? 'Subs' : 
-                           listing.platform === 'telegram' || (listing.platform === 'facebook' && listing.metadata?.account_type === 'Group') ? 'Members' : 
-                           'Followers'}
-                        </div>
-                        <div className="text-[10px] md:text-sm font-semibold">{(listing.followers_count / 1000).toFixed(1)}k</div>
-                      </div>
-                    </div>
-
-                    {/* Platform-specific metadata display */}
-                    {listing.metadata?.niche && (
-                      <div className="flex items-center gap-1">
-                        <Badge variant="outline" className="text-[8px] md:text-xs px-1 py-0">
-                          {listing.metadata.niche}
-                        </Badge>
-                      </div>
-                    )}
-
-                    {listing.metadata?.is_verified && (
-                      <div className="flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 text-primary" />
-                        <span className="text-[8px] md:text-xs font-medium">Verified</span>
-                      </div>
-                    )}
-
-                    {listing.metadata?.engagement_rate && (
-                      <div className="text-[8px] md:text-xs">
-                        <span className="text-muted-foreground">Engagement: </span>
-                        <span className="font-semibold">{listing.metadata.engagement_rate}%</span>
-                      </div>
-                    )}
-
-                    {listing.metadata?.monetization_status && (
-                      <div className="text-[8px] md:text-xs hidden md:block">
-                        <span className="text-muted-foreground">Monetization: </span>
-                        <span className="font-semibold">{listing.metadata.monetization_status}</span>
-                      </div>
-                    )}
-
-                    {listing.metadata?.average_views && (
-                      <div className="text-[8px] md:text-xs hidden md:block">
-                        <span className="text-muted-foreground">Avg Views: </span>
-                        <span className="font-semibold">{parseInt(listing.metadata.average_views).toLocaleString()}</span>
-                      </div>
-                    )}
-
-                    {listing.metadata?.total_videos && (
-                      <div className="text-[8px] md:text-xs hidden md:block">
-                        <span className="text-muted-foreground">Total Videos: </span>
-                        <span className="font-semibold">{listing.metadata.total_videos}</span>
-                      </div>
-                    )}
-
-                    {listing.metadata?.tweets_count && (
-                      <div className="text-[8px] md:text-xs hidden md:block">
-                        <span className="text-muted-foreground">Tweets: </span>
-                        <span className="font-semibold">{parseInt(listing.metadata.tweets_count).toLocaleString()}</span>
-                      </div>
-                    )}
-
-                    {listing.metadata?.total_likes && (
-                      <div className="text-[8px] md:text-xs hidden md:block">
-                        <span className="text-muted-foreground">Total Likes: </span>
-                        <span className="font-semibold">{parseInt(listing.metadata.total_likes).toLocaleString()}</span>
-                      </div>
-                    )}
-
-                    {listing.metadata?.account_type && (
-                      <div className="text-[8px] md:text-xs hidden md:block">
-                        <span className="text-muted-foreground">Type: </span>
-                        <span className="font-semibold">{listing.metadata.account_type}</span>
-                      </div>
-                    )}
-
-                    {listing.metadata?.monthly_reach && (
-                      <div className="text-[8px] md:text-xs hidden md:block">
-                        <span className="text-muted-foreground">Monthly Reach: </span>
-                        <span className="font-semibold">{parseInt(listing.metadata.monthly_reach).toLocaleString()}</span>
-                      </div>
-                    )}
-
-                    {listing.metadata?.account_age && (
-                      <div className="text-[8px] md:text-xs hidden md:block">
-                        <span className="text-muted-foreground">Age: </span>
-                        <span className="font-semibold">{listing.metadata.account_age}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-1 md:gap-2 pt-1 md:pt-2">
-                      <div className="w-5 h-5 md:w-8 md:h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                        <DollarSign className="w-3 h-3 md:w-4 md:h-4 text-success" />
-                      </div>
-                      <div>
-                        <div className="text-[8px] md:text-xs text-muted-foreground">Price</div>
-                        <div className="text-[10px] md:text-sm font-semibold text-success">{listing.price_usdc} USDC</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 md:pt-4 border-t border-primary/10">
-                    <div className="text-[8px] md:text-xs text-muted-foreground mb-2 md:mb-3 truncate">
-                      Seller: {listing.seller?.display_name || listing.seller?.wallet_address?.slice(0, 8) + '...'}
-                    </div>
-                    <div className="flex gap-1 md:gap-2">
-                      {user?.id === listing.seller_id && (
-                        <>
-                          <Button 
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6 md:h-9 md:w-9"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingListing(listing);
-                            }}
-                          >
-                            <Edit className="w-3 h-3 md:w-4 md:h-4" />
-                          </Button>
-                          <Button 
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6 md:h-9 md:w-9 border-destructive/20 hover:bg-destructive/10"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeletingListingId(listing.id);
-                            }}
-                          >
-                            <Trash2 className="w-3 h-3 md:w-4 md:h-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 gap-1 text-[10px] md:text-sm h-6 md:h-9"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleChatWithSeller(listing);
-                        }}
-                      >
-                        <MessageSquare className="w-2 h-2 md:w-3 md:h-3" />
-                        Chat
-                      </Button>
-                      {user?.id !== listing.seller_id && (
-                        <Button 
-                          size="sm"
-                          className="flex-1 gap-1 shadow-glow text-[10px] md:text-sm h-6 md:h-9"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleBuyAccount(listing);
-                          }}
-                        >
-                          <ShoppingCart className="w-2 h-2 md:w-3 md:h-3" />
-                          Buy
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-
-          {/* Pagination */}
-          {filteredListings.length > listingsPerPage && (
-            <Pagination className="mt-8">
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious 
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                  />
-                </PaginationItem>
-                {Array.from({ length: Math.ceil(filteredListings.length / listingsPerPage) }, (_, i) => i + 1).map((page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink
-                      onClick={() => setCurrentPage(page)}
-                      isActive={currentPage === page}
-                      className="cursor-pointer"
-                    >
-                      {page}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-                <PaginationItem>
-                  <PaginationNext 
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredListings.length / listingsPerPage), p + 1))}
-                    className={currentPage === Math.ceil(filteredListings.length / listingsPerPage) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+          {/* Help Text */}
+          {(status === 'connecting' || status === 'approving' || status === 'funding') && (
+            <div className="p-2 sm:p-4 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-[10px] sm:text-xs text-amber-900 dark:text-amber-100">
+                <strong>📱 Need a wallet?</strong>
+                <br />
+                Download MetaMask, Trust Wallet, or any WalletConnect-compatible wallet from your app store.
+              </p>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Purchase Dialog */}
-      {selectedListing && (
-        <SocialMediaPurchaseDialog
-          open={showPurchaseDialog}
-          onOpenChange={setShowPurchaseDialog}
-          listing={selectedListing}
-        />
-      )}
-
-      {editingListing && (
-        <EditSocialMediaListingDialog
-          listing={editingListing}
-          open={!!editingListing}
-          onOpenChange={(open) => !open && setEditingListing(null)}
-          onSuccess={loadListings}
-        />
-      )}
-
-      <AlertDialog open={!!deletingListingId} onOpenChange={() => setDeletingListingId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Listing</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this listing? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deletingListingId && handleDeleteListing(deletingListingId)} className="bg-destructive hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (wcProvider) {
+                wcProvider.disconnect();
+              }
+              onClose();
+            }}
+            className="flex-1 text-xs sm:text-sm"
+          >
+            Cancel
+          </Button>
+          {status === 'error' && (
+            <Button
+              onClick={() => {
+                setStatus('idle');
+                setErrorMessage('');
+                setWcUri('');
+                initializeWalletConnect();
+              }}
+              className="flex-1 text-xs sm:text-sm"
+            >
+              Try Again
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
-
-export default SocialMediaMarketplace;
