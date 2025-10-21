@@ -17,6 +17,15 @@ import { useMessages } from "@/hooks/useMessages";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Search,
   Users,
   DollarSign,
@@ -76,6 +85,8 @@ const SocialMediaMarketplace = () => {
     twitter: 0,
     instagram: 0
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const listingsPerPage = 18;
   const { getListings, addToFavorites, removeFromFavorites, checkFavorite, loading } = useSocialMedia();
 
   useEffect(() => {
@@ -116,6 +127,7 @@ const SocialMediaMarketplace = () => {
   };
 
   const filterListings = () => {
+    setCurrentPage(1); // Reset to first page on filter change
     let filtered = listings;
     
     if (selectedPlatform !== "All Platforms") {
@@ -322,7 +334,7 @@ const SocialMediaMarketplace = () => {
                     : "No accounts available. Be the first to list!"}
                 </p>
               </Card>
-            ) : filteredListings.map((listing, index) => {
+            ) : filteredListings.slice((currentPage - 1) * listingsPerPage, currentPage * listingsPerPage).map((listing, index) => {
               const PlatformIcon = platformIcons[listing.platform];
               const platformColor = platformColors[listing.platform];
               const isFavorite = favorites.has(listing.id);
@@ -556,6 +568,37 @@ const SocialMediaMarketplace = () => {
               );
             })}
           </div>
+
+          {/* Pagination */}
+          {filteredListings.length > listingsPerPage && (
+            <Pagination className="mt-8">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                {Array.from({ length: Math.ceil(filteredListings.length / listingsPerPage) }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredListings.length / listingsPerPage), p + 1))}
+                    className={currentPage === Math.ceil(filteredListings.length / listingsPerPage) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
       </div>
 
