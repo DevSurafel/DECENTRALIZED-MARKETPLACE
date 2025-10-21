@@ -309,7 +309,7 @@ const SocialMediaMarketplace = () => {
             <SocialMediaListingDialog onSuccess={loadListings} />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-3 gap-3 md:gap-6">
             {loading ? (
               <Card className="p-8 text-center col-span-full">
                 <p className="text-muted-foreground">Loading listings...</p>
@@ -333,219 +333,220 @@ const SocialMediaMarketplace = () => {
               return (
                 <Card 
                   key={listing.id} 
-                  className="relative overflow-hidden p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] group animate-fade-in cursor-pointer"
+                  className="relative overflow-hidden p-3 md:p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] group animate-fade-in cursor-pointer"
                   style={{ animationDelay: `${0.3 + index * 0.05}s` }}
                   onClick={() => navigate(`/social-media/${listing.id}`)}
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-xl ${platformColor} flex items-center justify-center`}>
-                      <PlatformIcon className="w-6 h-6" />
+                  <div className="flex items-start justify-between mb-2 md:mb-4">
+                    <div className={`w-8 h-8 md:w-12 md:h-12 rounded-xl ${platformColor} flex items-center justify-center`}>
+                      <PlatformIcon className="w-4 h-4 md:w-6 md:h-6" />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
                       {listing.verification_proof && (
-                        <Badge variant="secondary" className="gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Verified
+                        <Badge variant="secondary" className="gap-1 text-[8px] md:text-xs px-1 py-0">
+                          <CheckCircle2 className="w-2 h-2 md:w-3 md:h-3" />
+                          V
                         </Badge>
                       )}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-6 w-6 md:h-8 md:w-8"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleToggleFavorite(listing.id);
                         }}
                       >
-                        <Heart className={`w-4 h-4 transition-smooth ${isFavorite ? 'fill-destructive text-destructive' : 'text-muted-foreground hover:text-foreground'}`} />
+                        <Heart className={`w-3 h-3 md:w-4 md:h-4 transition-smooth ${isFavorite ? 'fill-destructive text-destructive' : 'text-muted-foreground hover:text-foreground'}`} />
                       </Button>
                     </div>
                   </div>
 
                   {firstScreenshot && (
-                    <div className="mb-4 rounded-lg overflow-hidden relative">
+                    <div className="mb-2 md:mb-4 rounded-lg overflow-hidden relative">
                       <img 
                         src={firstScreenshot} 
                         alt={listing.account_name}
-                        className="w-full h-32 object-cover"
+                        className="w-full h-20 md:h-32 object-cover"
                       />
                       {listing.screenshot_urls && listing.screenshot_urls.length > 1 && (
-                        <Badge className="absolute bottom-2 right-2 bg-black/70 text-white">
-                          +{listing.screenshot_urls.length - 1} more
+                        <Badge className="absolute bottom-1 right-1 bg-black/70 text-white text-[8px] md:text-xs px-1 py-0">
+                          +{listing.screenshot_urls.length - 1}
                         </Badge>
                       )}
                     </div>
                   )}
 
-                  <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-smooth">
+                  <h3 className="text-sm md:text-xl font-bold mb-1 md:mb-2 group-hover:text-primary transition-smooth line-clamp-2">
                     {listing.account_name}
                   </h3>
                   
-                  <Badge variant="outline" className="mb-3 capitalize">
+                  <Badge variant="outline" className="mb-2 md:mb-3 capitalize text-[8px] md:text-xs px-1 py-0">
                     {listing.platform}
                   </Badge>
 
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                  <p className="text-[10px] md:text-sm text-muted-foreground mb-2 md:mb-4 line-clamp-2">
                     {listing.description}
                   </p>
 
-                  <div className="space-y-3 mb-5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Users className="w-4 h-4 text-primary" />
+                  <div className="space-y-1 md:space-y-3 mb-2 md:mb-5">
+                    <div className="flex items-center gap-1 md:gap-2">
+                      <div className="w-5 h-5 md:w-8 md:h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Users className="w-3 h-3 md:w-4 md:h-4 text-primary" />
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground">
-                          {listing.platform === 'youtube' ? 'Subscribers' : 
+                        <div className="text-[8px] md:text-xs text-muted-foreground">
+                          {listing.platform === 'youtube' ? 'Subs' : 
                            listing.platform === 'telegram' || (listing.platform === 'facebook' && listing.metadata?.account_type === 'Group') ? 'Members' : 
                            'Followers'}
                         </div>
-                        <div className="font-semibold">{listing.followers_count.toLocaleString()}</div>
+                        <div className="text-[10px] md:text-sm font-semibold">{(listing.followers_count / 1000).toFixed(1)}k</div>
                       </div>
                     </div>
 
                     {/* Platform-specific metadata display */}
                     {listing.metadata?.niche && (
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="text-[8px] md:text-xs px-1 py-0">
                           {listing.metadata.niche}
                         </Badge>
                       </div>
                     )}
 
                     {listing.metadata?.is_verified && (
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-primary" />
-                        <span className="text-xs font-medium">Verified Account</span>
+                      <div className="flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 text-primary" />
+                        <span className="text-[8px] md:text-xs font-medium">Verified</span>
                       </div>
                     )}
 
                     {listing.metadata?.engagement_rate && (
-                      <div className="text-xs">
+                      <div className="text-[8px] md:text-xs">
                         <span className="text-muted-foreground">Engagement: </span>
                         <span className="font-semibold">{listing.metadata.engagement_rate}%</span>
                       </div>
                     )}
 
                     {listing.metadata?.monetization_status && (
-                      <div className="text-xs">
+                      <div className="text-[8px] md:text-xs hidden md:block">
                         <span className="text-muted-foreground">Monetization: </span>
                         <span className="font-semibold">{listing.metadata.monetization_status}</span>
                       </div>
                     )}
 
                     {listing.metadata?.average_views && (
-                      <div className="text-xs">
+                      <div className="text-[8px] md:text-xs hidden md:block">
                         <span className="text-muted-foreground">Avg Views: </span>
                         <span className="font-semibold">{parseInt(listing.metadata.average_views).toLocaleString()}</span>
                       </div>
                     )}
 
                     {listing.metadata?.total_videos && (
-                      <div className="text-xs">
+                      <div className="text-[8px] md:text-xs hidden md:block">
                         <span className="text-muted-foreground">Total Videos: </span>
                         <span className="font-semibold">{listing.metadata.total_videos}</span>
                       </div>
                     )}
 
                     {listing.metadata?.tweets_count && (
-                      <div className="text-xs">
+                      <div className="text-[8px] md:text-xs hidden md:block">
                         <span className="text-muted-foreground">Tweets: </span>
                         <span className="font-semibold">{parseInt(listing.metadata.tweets_count).toLocaleString()}</span>
                       </div>
                     )}
 
                     {listing.metadata?.total_likes && (
-                      <div className="text-xs">
+                      <div className="text-[8px] md:text-xs hidden md:block">
                         <span className="text-muted-foreground">Total Likes: </span>
                         <span className="font-semibold">{parseInt(listing.metadata.total_likes).toLocaleString()}</span>
                       </div>
                     )}
 
                     {listing.metadata?.account_type && (
-                      <div className="text-xs">
+                      <div className="text-[8px] md:text-xs hidden md:block">
                         <span className="text-muted-foreground">Type: </span>
                         <span className="font-semibold">{listing.metadata.account_type}</span>
                       </div>
                     )}
 
                     {listing.metadata?.monthly_reach && (
-                      <div className="text-xs">
+                      <div className="text-[8px] md:text-xs hidden md:block">
                         <span className="text-muted-foreground">Monthly Reach: </span>
                         <span className="font-semibold">{parseInt(listing.metadata.monthly_reach).toLocaleString()}</span>
                       </div>
                     )}
 
                     {listing.metadata?.account_age && (
-                      <div className="text-xs">
+                      <div className="text-[8px] md:text-xs hidden md:block">
                         <span className="text-muted-foreground">Age: </span>
                         <span className="font-semibold">{listing.metadata.account_age}</span>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 pt-2">
-                      <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                        <DollarSign className="w-4 h-4 text-success" />
+                    <div className="flex items-center gap-1 md:gap-2 pt-1 md:pt-2">
+                      <div className="w-5 h-5 md:w-8 md:h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                        <DollarSign className="w-3 h-3 md:w-4 md:h-4 text-success" />
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground">Price</div>
-                        <div className="font-semibold text-success">{listing.price_usdc} USDC</div>
+                        <div className="text-[8px] md:text-xs text-muted-foreground">Price</div>
+                        <div className="text-[10px] md:text-sm font-semibold text-success">{listing.price_usdc} USDC</div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-primary/10">
-                    <div className="text-xs text-muted-foreground mb-3">
+                  <div className="pt-2 md:pt-4 border-t border-primary/10">
+                    <div className="text-[8px] md:text-xs text-muted-foreground mb-2 md:mb-3 truncate">
                       Seller: {listing.seller?.display_name || listing.seller?.wallet_address?.slice(0, 8) + '...'}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 md:gap-2">
                       {user?.id === listing.seller_id && (
                         <>
                           <Button 
                             variant="outline"
                             size="icon"
+                            className="h-6 w-6 md:h-9 md:w-9"
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingListing(listing);
                             }}
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-3 h-3 md:w-4 md:h-4" />
                           </Button>
                           <Button 
                             variant="outline"
                             size="icon"
-                            className="border-destructive/20 hover:bg-destructive/10"
+                            className="h-6 w-6 md:h-9 md:w-9 border-destructive/20 hover:bg-destructive/10"
                             onClick={(e) => {
                               e.stopPropagation();
                               setDeletingListingId(listing.id);
                             }}
                           >
-                            <Trash2 className="w-4 h-4 text-destructive" />
+                            <Trash2 className="w-3 h-3 md:w-4 md:h-4 text-destructive" />
                           </Button>
                         </>
                       )}
                       <Button 
                         variant="outline"
                         size="sm"
-                        className="flex-1 gap-2"
+                        className="flex-1 gap-1 text-[10px] md:text-sm h-6 md:h-9"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleChatWithSeller(listing);
                         }}
                       >
-                        <MessageSquare className="w-3 h-3" />
+                        <MessageSquare className="w-2 h-2 md:w-3 md:h-3" />
                         Chat
                       </Button>
                       {user?.id !== listing.seller_id && (
                         <Button 
                           size="sm"
-                          className="flex-1 gap-2 shadow-glow"
+                          className="flex-1 gap-1 shadow-glow text-[10px] md:text-sm h-6 md:h-9"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleBuyAccount(listing);
                           }}
                         >
-                          <ShoppingCart className="w-3 h-3" />
+                          <ShoppingCart className="w-2 h-2 md:w-3 md:h-3" />
                           Buy
                         </Button>
                       )}

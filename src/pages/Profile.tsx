@@ -757,18 +757,18 @@ const Profile = () => {
               )}
             </div>
             {profile.portfolio_items && profile.portfolio_items.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-3 gap-3 md:gap-6">
                 {profile.portfolio_items.map((item: any, index: number) => (
                   <Card key={index} className="overflow-hidden glass-card shadow-card hover:shadow-glow transition-smooth">
-                    <div className="h-48 gradient-hero flex items-center justify-center text-6xl">
+                    <div className="h-24 md:h-48 gradient-hero flex items-center justify-center text-3xl md:text-6xl">
                       {item.image || "🎨"}
                     </div>
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                      <p className="text-muted-foreground mb-4">{item.description}</p>
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {item.tags?.map((tag: string) => (
-                          <Badge key={tag} variant="outline">
+                    <div className="p-3 md:p-6">
+                      <h3 className="text-sm md:text-xl font-bold mb-1 md:mb-2 line-clamp-2">{item.title}</h3>
+                      <p className="text-[10px] md:text-sm text-muted-foreground mb-2 md:mb-4 line-clamp-2">{item.description}</p>
+                      <div className="flex flex-wrap gap-1 md:gap-2 mb-2 md:mb-4">
+                        {item.tags?.slice(0, 2).map((tag: string) => (
+                          <Badge key={tag} variant="outline" className="text-[8px] md:text-xs px-1 py-0">
                             {tag}
                           </Badge>
                         ))}
@@ -776,11 +776,12 @@ const Profile = () => {
                       {item.url && (
                         <Button 
                           variant="outline" 
-                          className="w-full gap-2"
+                          size="sm"
+                          className="w-full gap-1 text-[10px] md:text-sm h-7 md:h-9"
                           onClick={() => window.open(item.url, '_blank')}
                         >
-                          View Project
-                          <ExternalLink className="w-4 h-4" />
+                          View
+                          <ExternalLink className="w-2 h-2 md:w-4 md:h-4" />
                         </Button>
                       )}
                     </div>
@@ -802,7 +803,7 @@ const Profile = () => {
           {userJobs.length > 0 && (
             <div className="mt-12">
               <h2 className="text-2xl font-bold mb-6">Posted Jobs</h2>
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-3 gap-3 md:gap-6">
                 {userJobs.map((job: any) => {
                   const platformIcons: Record<string, any> = {
                     facebook: Facebook,
@@ -815,45 +816,36 @@ const Profile = () => {
                   return (
                     <Card 
                       key={job.id} 
-                      className="p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] cursor-pointer"
+                      className="p-3 md:p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] cursor-pointer"
                       onClick={() => navigate(`/jobs/${job.id}`)}
                     >
-                      <h3 className="text-xl font-bold mb-2 hover:text-primary transition-smooth">{job.title}</h3>
-                      <p className="text-muted-foreground mb-4 line-clamp-2">{job.description}</p>
+                      <h3 className="text-sm md:text-xl font-bold mb-1 md:mb-2 hover:text-primary transition-smooth line-clamp-2">{job.title}</h3>
+                      <p className="text-[10px] md:text-sm text-muted-foreground mb-2 md:mb-4 line-clamp-2">{job.description}</p>
                       
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {job.skills_required?.slice(0, 3).map((skill: string) => (
-                          <Badge key={skill} variant="secondary" className="text-xs">
+                      <div className="flex flex-wrap gap-1 md:gap-2 mb-2 md:mb-4">
+                        {job.skills_required?.slice(0, 2).map((skill: string) => (
+                          <Badge key={skill} variant="secondary" className="text-[8px] md:text-xs px-1 py-0">
                             {skill}
                           </Badge>
                         ))}
-                        {job.skills_required?.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{job.skills_required.length - 3} more
+                        {job.skills_required?.length > 2 && (
+                          <Badge variant="outline" className="text-[8px] md:text-xs px-1 py-0">
+                            +{job.skills_required.length - 2}
                           </Badge>
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                            <DollarSign className="w-4 h-4 text-success" />
+                      <div className="flex flex-col gap-2 pt-2 md:pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-1 md:gap-2">
+                          <div className="w-5 h-5 md:w-8 md:h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                            <DollarSign className="w-3 h-3 md:w-4 md:h-4 text-success" />
                           </div>
                           <div>
-                            <div className="text-xs text-muted-foreground">Budget</div>
-                            <div className="font-semibold text-success">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</div>
+                            <div className="text-[8px] md:text-xs text-muted-foreground">Budget</div>
+                            <div className="text-[10px] md:text-sm font-semibold text-success">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Clock className="w-4 h-4 text-primary" />
-                          </div>
-                          <div>
-                            <div className="text-xs text-muted-foreground">Duration</div>
-                            <div className="font-semibold">{job.duration_weeks ? `${job.duration_weeks}w` : 'Flex'}</div>
-                          </div>
-                        </div>
-                        <Badge variant={job.status === 'open' ? 'default' : 'secondary'} className="capitalize">
+                        <Badge variant={job.status === 'open' ? 'default' : 'secondary'} className="capitalize text-[8px] md:text-xs w-fit px-1 py-0">
                           {job.status}
                         </Badge>
                       </div>
@@ -868,7 +860,7 @@ const Profile = () => {
           {userListings.length > 0 && (
             <div className="mt-12">
               <h2 className="text-2xl font-bold mb-6">Social Media Listings</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-3 gap-3 md:gap-6">
                 {userListings.map((listing: SocialMediaListing) => {
                   const platformIcons: Record<string, any> = {
                     facebook: Facebook,
@@ -895,67 +887,67 @@ const Profile = () => {
                   return (
                     <Card 
                       key={listing.id} 
-                      className="p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] cursor-pointer"
+                      className="p-3 md:p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-[1.02] cursor-pointer"
                       onClick={() => navigate(`/social-media/${listing.id}`)}
                     >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className={`w-12 h-12 rounded-xl ${platformColor} flex items-center justify-center`}>
-                          <PlatformIcon className="w-6 h-6" />
+                      <div className="flex items-start justify-between mb-2 md:mb-4">
+                        <div className={`w-8 h-8 md:w-12 md:h-12 rounded-xl ${platformColor} flex items-center justify-center`}>
+                          <PlatformIcon className="w-4 h-4 md:w-6 md:h-6" />
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
                           {listing.verification_proof && (
-                            <Badge variant="secondary" className="gap-1">
-                              <CheckCircle2 className="w-3 h-3" />
+                            <Badge variant="secondary" className="gap-1 text-[8px] md:text-xs px-1 py-0">
+                              <CheckCircle2 className="w-2 h-2 md:w-3 md:h-3" />
                               Verified
                             </Badge>
                           )}
-                          <Badge variant={listing.status === 'available' ? 'default' : 'secondary'} className="capitalize">
+                          <Badge variant={listing.status === 'available' ? 'default' : 'secondary'} className="capitalize text-[8px] md:text-xs px-1 py-0">
                             {listing.status}
                           </Badge>
                         </div>
                       </div>
 
                       {firstScreenshot && (
-                        <div className="mb-4 rounded-lg overflow-hidden">
+                        <div className="mb-2 md:mb-4 rounded-lg overflow-hidden">
                           <img 
                             src={firstScreenshot} 
                             alt={listing.account_name}
-                            className="w-full h-32 object-cover"
+                            className="w-full h-20 md:h-32 object-cover"
                           />
                         </div>
                       )}
 
-                      <h3 className="text-xl font-bold mb-2 hover:text-primary transition-smooth">
+                      <h3 className="text-sm md:text-xl font-bold mb-1 md:mb-2 hover:text-primary transition-smooth line-clamp-2">
                         {listing.account_name}
                       </h3>
                       
-                      <Badge variant="outline" className="mb-3 capitalize">
+                      <Badge variant="outline" className="mb-2 md:mb-3 capitalize text-[8px] md:text-xs px-1 py-0">
                         {listing.platform}
                       </Badge>
 
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      <p className="text-[10px] md:text-sm text-muted-foreground mb-2 md:mb-4 line-clamp-2">
                         {listing.description}
                       </p>
 
-                      <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Users className="w-4 h-4 text-primary" />
+                      <div className="flex items-center justify-between pt-2 md:pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-1 md:gap-2">
+                          <div className="w-5 h-5 md:w-8 md:h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Users className="w-3 h-3 md:w-4 md:h-4 text-primary" />
                           </div>
                           <div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-[8px] md:text-xs text-muted-foreground">
                               {listing.platform === 'youtube' ? 'Subs' : 'Followers'}
                             </div>
-                            <div className="font-semibold">{listing.followers_count.toLocaleString()}</div>
+                            <div className="text-[10px] md:text-sm font-semibold">{(listing.followers_count / 1000).toFixed(1)}k</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                            <DollarSign className="w-4 h-4 text-success" />
+                        <div className="flex items-center gap-1 md:gap-2">
+                          <div className="w-5 h-5 md:w-8 md:h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                            <DollarSign className="w-3 h-3 md:w-4 md:h-4 text-success" />
                           </div>
                           <div>
-                            <div className="text-xs text-muted-foreground">Price</div>
-                            <div className="font-semibold text-success">{listing.price_usdc} USDC</div>
+                            <div className="text-[8px] md:text-xs text-muted-foreground">Price</div>
+                            <div className="text-[10px] md:text-sm font-semibold text-success">{listing.price_usdc} USDC</div>
                           </div>
                         </div>
                       </div>

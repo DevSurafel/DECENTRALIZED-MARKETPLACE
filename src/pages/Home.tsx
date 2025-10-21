@@ -107,14 +107,14 @@ const Home = () => {
           </div>
 
           {/* Stats Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <div className="grid grid-cols-3 gap-3 md:gap-6 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
             {stats.map((stat, index) => (
-              <Card key={index} className="p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth">
-                <stat.icon className="w-8 h-8 text-primary mx-auto mb-2" />
-                <div className="text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <Card key={index} className="p-3 md:p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth">
+                <stat.icon className="w-5 h-5 md:w-8 md:h-8 text-primary mx-auto mb-1 md:mb-2" />
+                <div className="text-lg md:text-3xl font-bold mb-1 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                   {stat.value}
                 </div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                <div className="text-[10px] md:text-sm text-muted-foreground">{stat.label}</div>
               </Card>
             ))}
           </div>
@@ -133,20 +133,20 @@ const Home = () => {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-3 gap-3 md:gap-8">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
                 <Card 
                   key={index} 
-                  className="p-8 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-105 group animate-fade-in"
+                  className="p-3 md:p-8 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth hover:scale-105 group animate-fade-in"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <div className={`w-14 h-14 rounded-xl ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-smooth shadow-glow`}>
-                    <Icon className="w-7 h-7 text-primary-foreground" />
+                  <div className={`w-8 h-8 md:w-14 md:h-14 rounded-xl ${feature.gradient} flex items-center justify-center mb-2 md:mb-5 group-hover:scale-110 transition-smooth shadow-glow`}>
+                    <Icon className="w-4 h-4 md:w-7 md:h-7 text-primary-foreground" />
                   </div>
-                  <h3 className="text-xl font-bold mb-3 group-hover:text-primary transition-smooth">{feature.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <h3 className="text-xs md:text-xl font-bold mb-1 md:mb-3 group-hover:text-primary transition-smooth">{feature.title}</h3>
+                  <p className="text-[10px] md:text-base text-muted-foreground leading-relaxed line-clamp-3 md:line-clamp-none">
                     {feature.description}
                   </p>
                 </Card>

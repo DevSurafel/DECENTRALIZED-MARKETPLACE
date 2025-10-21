@@ -157,9 +157,9 @@ const Chat = () => {
           <p className="text-muted-foreground">Connect with clients and freelancers</p>
         </div>
         
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Conversations List */}
-          <Card className="lg:col-span-1 p-0 bg-card/50 backdrop-blur overflow-hidden">
+          <Card className="col-span-1 p-0 bg-card/50 backdrop-blur overflow-hidden">
             <div className="p-4 border-b bg-card/80">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -171,7 +171,7 @@ const Chat = () => {
                 />
               </div>
             </div>
-            <div className="overflow-y-auto max-h-[calc(100vh-250px)]">
+            <div className="overflow-y-auto max-h-[300px] lg:max-h-[calc(100vh-250px)]">
               {conversations.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                   No conversations yet
@@ -225,11 +225,11 @@ const Chat = () => {
           
           {/* Chat Window */}
           {!selectedConv ? (
-            <Card className="lg:col-span-2 p-8 flex items-center justify-center h-[calc(100vh-200px)] bg-card/50 backdrop-blur">
+            <Card className="col-span-1 lg:col-span-2 p-8 flex items-center justify-center h-[400px] lg:h-[calc(100vh-200px)] bg-card/50 backdrop-blur">
               <p className="text-muted-foreground">Select a conversation to start messaging</p>
             </Card>
           ) : (
-            <Card className="lg:col-span-2 p-0 flex flex-col h-[calc(100vh-200px)] bg-card/50 backdrop-blur overflow-hidden">
+            <Card className="col-span-1 lg:col-span-2 p-0 flex flex-col h-[400px] lg:h-[calc(100vh-200px)] bg-card/50 backdrop-blur overflow-hidden">
               {/* Chat Header */}
               <div className="p-4 border-b bg-card/80 backdrop-blur">
                 <div className="flex items-center justify-between">
