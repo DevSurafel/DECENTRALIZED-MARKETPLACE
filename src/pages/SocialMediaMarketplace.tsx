@@ -245,8 +245,8 @@ const SocialMediaMarketplace = () => {
 
       <Navbar />
       
-      <div className="pt-24 pb-12 px-4">
-        <div className="container mx-auto">
+      <div className="pt-24 pb-12 px-3 md:px-4">
+        <div className="max-w-full md:container mx-auto md:max-w-7xl">
           <div className="mb-10 animate-fade-in">
             <div className="flex items-center justify-between mb-4">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-primary/20">
@@ -259,36 +259,36 @@ const SocialMediaMarketplace = () => {
                 className="gap-2"
               >
                 <Heart className="w-4 h-4" />
-                My Favorites
+                <span className="hidden md:inline">My Favorites</span>
               </Button>
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Buy/Sell Social Media
             </h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-base md:text-lg text-muted-foreground">
               Decentralized marketplace for buying and selling verified social media accounts
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5 md:gap-3 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {categories.map((category, index) => {
               const Icon = category.icon;
               const isSelected = selectedPlatform === category.name;
               return (
                 <Card 
                   key={index}
-                  className={`p-3 glass-card shadow-card hover:shadow-glow transition-smooth cursor-pointer group ${
+                  className={`p-2 md:p-3 glass-card shadow-card hover:shadow-glow transition-smooth cursor-pointer group ${
                     isSelected ? 'border-primary/50 bg-primary/5' : 'border-primary/10 hover:border-primary/30'
                   }`}
                   onClick={() => setSelectedPlatform(category.name)}
                 >
-                  <div className="flex flex-col items-center gap-2 text-center">
-                    <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center group-hover:scale-110 transition-smooth">
-                      <Icon className="w-4 h-4 text-primary-foreground" />
+                  <div className="flex flex-col items-center gap-1 md:gap-2 text-center">
+                    <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg gradient-primary flex items-center justify-center group-hover:scale-110 transition-smooth">
+                      <Icon className="w-3 h-3 md:w-4 md:h-4 text-primary-foreground" />
                     </div>
                     <div>
-                      <div className="font-semibold text-xs">{category.name}</div>
-                      <div className="text-xs text-muted-foreground">{category.count}</div>
+                      <div className="font-semibold text-[10px] md:text-xs">{category.name}</div>
+                      <div className="text-[10px] md:text-xs text-muted-foreground">{category.count}</div>
                     </div>
                   </div>
                 </Card>
@@ -309,7 +309,7 @@ const SocialMediaMarketplace = () => {
             <SocialMediaListingDialog onSuccess={loadListings} />
           </div>
 
-          <div className="grid grid-cols-3 gap-3 md:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-6">
             {loading ? (
               <Card className="p-8 text-center col-span-full">
                 <p className="text-muted-foreground">Loading listings...</p>
