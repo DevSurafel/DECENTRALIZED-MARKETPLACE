@@ -473,8 +473,8 @@ const Profile = () => {
     <div className="min-h-screen">
       <Navbar />
       
-      <div className="pt-24 pb-12 px-4">
-        <div className="container mx-auto">
+      <div className="pt-24 pb-12 px-3 md:px-4">
+        <div className="mx-auto max-w-full md:container md:max-w-7xl">
           {/* Welcome Banner */}
           <Card className="p-6 mb-8 gradient-secondary border-0 shadow-glow">
             <div className="flex items-center gap-4">
