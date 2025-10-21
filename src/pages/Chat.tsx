@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send, Search, MoreVertical, Phone, Video, Check, CheckCheck } from "lucide-react";
+import { Send, Search, MoreVertical, Phone, Video, Check, CheckCheck, MessageSquare } from "lucide-react";
 import { useMessages } from "@/hooks/useMessages";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -146,20 +146,34 @@ const Chat = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+      {/* Enhanced animated background */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+      
       <Navbar />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+      <main className="container mx-auto px-4 py-8 relative z-10">
+        <div className="mb-6 animate-fade-in">
+          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full glass-card border border-primary/20">
+            <MessageSquare className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Communication</span>
+          </div>
+          <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent">
             Messages
           </h1>
-          <p className="text-muted-foreground">Connect with clients and freelancers</p>
+          <p className="text-lg text-gray-300">Connect with clients and freelancers</p>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Conversations List - Hidden on mobile when chat is open */}
-          <Card className={`col-span-1 p-0 bg-card/50 backdrop-blur overflow-hidden ${selectedConv ? 'hidden lg:block' : 'block'}`}>
+          <Card className={`col-span-1 p-0 glass-card shadow-card border-primary/10 overflow-hidden ${selectedConv ? 'hidden lg:block' : 'block'}`}>
             <div className="p-4 border-b bg-card/80">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -225,11 +239,11 @@ const Chat = () => {
           
           {/* Chat Window - Shown on mobile when conversation is selected */}
           {!selectedConv ? (
-            <Card className="col-span-1 lg:col-span-2 p-8 flex items-center justify-center h-[400px] lg:h-[calc(100vh-200px)] bg-card/50 backdrop-blur">
-              <p className="text-muted-foreground">Select a conversation to start messaging</p>
+            <Card className="col-span-1 lg:col-span-2 p-8 flex items-center justify-center h-[400px] lg:h-[calc(100vh-200px)] glass-card shadow-card border-primary/10">
+              <p className="text-gray-300">Select a conversation to start messaging</p>
             </Card>
           ) : (
-            <Card className={`col-span-1 lg:col-span-2 p-0 flex flex-col h-[400px] lg:h-[calc(100vh-200px)] bg-card/50 backdrop-blur overflow-hidden ${!selectedConv ? 'hidden lg:flex' : 'flex'}`}>
+            <Card className={`col-span-1 lg:col-span-2 p-0 flex flex-col h-[400px] lg:h-[calc(100vh-200px)] glass-card shadow-card border-primary/10 overflow-hidden ${!selectedConv ? 'hidden lg:flex' : 'flex'}`}>
               {/* Chat Header */}
               <div className="p-4 border-b bg-card/80 backdrop-blur">
                 <div className="flex items-center justify-between">

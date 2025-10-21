@@ -94,24 +94,45 @@ export default function SocialMediaFavorites() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+      {/* Enhanced animated background */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
+      <Navbar />
+      {/* Animated background */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.03),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(139,92,246,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(139,92,246,0.03)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,black,transparent)]" />
+        <div className="absolute top-40 right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-40 left-20 w-80 h-80 bg-secondary/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
+
       <Navbar />
       
       <main className="container mx-auto px-4 py-8 pt-24">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">My Favorites</h1>
-          <p className="text-muted-foreground">
+        <div className="mb-8 animate-fade-in">
+          <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            My Favorites
+          </h1>
+          <p className="text-base md:text-lg text-muted-foreground">
             Social media accounts you've saved for later
           </p>
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 animate-fade-in">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"></div>
             <p className="mt-4 text-muted-foreground">Loading your favorites...</p>
           </div>
         ) : favorites.length === 0 ? (
-          <Card className="text-center py-12">
+          <Card className="text-center py-12 glass-card shadow-card animate-fade-in">
             <CardContent>
               <Heart className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No favorites yet</h3>
@@ -124,8 +145,8 @@ export default function SocialMediaFavorites() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {favorites.map((listing) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            {favorites.map((listing, index) => {
               const Icon = platformIcons[listing.platform as keyof typeof platformIcons];
               const colorClass = platformColors[listing.platform as keyof typeof platformColors];
               const firstScreenshot = listing.screenshot_urls && listing.screenshot_urls.length > 0 
@@ -135,7 +156,8 @@ export default function SocialMediaFavorites() {
               return (
                 <Card 
                   key={listing.id} 
-                  className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                  className="overflow-hidden glass-card shadow-card hover:shadow-glow transition-smooth cursor-pointer group animate-fade-in"
+                  style={{ animationDelay: `${0.2 + index * 0.05}s` }}
                   onClick={() => navigate(`/social-media/${listing.id}`)}
                 >
                   <CardHeader className={`${colorClass} text-white p-0`}>

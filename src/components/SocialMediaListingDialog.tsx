@@ -467,7 +467,7 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
           List Account
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto glass-card border-primary/20">
         <DialogHeader>
           <DialogTitle>List Social Media Account for Sale</DialogTitle>
         </DialogHeader>

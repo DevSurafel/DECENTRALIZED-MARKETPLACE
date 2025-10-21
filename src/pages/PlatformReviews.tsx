@@ -113,25 +113,37 @@ const loadReviews = async () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+      {/* Enhanced animated background */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
       <Navbar />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Platform Reviews</h1>
-          <p className="text-muted-foreground">
+      <main className="container mx-auto px-4 py-8 pt-24">
+        <div className="mb-8 animate-fade-in">
+          <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Platform Reviews
+          </h1>
+          <p className="text-base md:text-lg text-muted-foreground">
             See what our users think about DeFiLance
           </p>
         </div>
 
         {loading ? (
-          <Card className="p-8 text-center">
+          <Card className="p-8 text-center glass-card shadow-card">
             <p className="text-muted-foreground">Loading reviews...</p>
           </Card>
         ) : (
-          <div className="grid lg:grid-cols-4 gap-6">
+          <div className="grid lg:grid-cols-4 gap-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {/* Stats Sidebar */}
-            <Card className="p-6 h-fit space-y-6">
+            <Card className="p-6 h-fit space-y-6 glass-card shadow-card hover:shadow-glow transition-smooth">
               <div className="text-center">
                 <div className="text-5xl font-bold mb-2">
                   {stats.average.toFixed(1)}
@@ -178,13 +190,17 @@ const loadReviews = async () => {
             <div className="lg:col-span-3 space-y-6">
               <h2 className="text-xl font-semibold">Platform Reviews</h2>
               {reviews.length === 0 ? (
-                <Card className="p-8 text-center">
+                <Card className="p-8 text-center glass-card shadow-card">
                   <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                   <p className="text-muted-foreground">No platform reviews yet</p>
                 </Card>
               ) : (
-                reviews.map((review) => (
-                  <Card key={review.id} className="p-6">
+                reviews.map((review, index) => (
+                  <Card 
+                    key={review.id} 
+                    className="p-6 glass-card shadow-card hover:shadow-glow transition-smooth animate-fade-in"
+                    style={{ animationDelay: `${0.2 + index * 0.1}s` }}
+                  >
                     <div className="flex items-start gap-4">
                       <Avatar
                         className="cursor-pointer"

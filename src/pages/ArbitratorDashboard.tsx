@@ -223,10 +223,20 @@ export default function ArbitratorDashboard() {
 
   if (checkingAccess) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+        {/* Enhanced animated background */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        </div>
+
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
         <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <Card className="p-8 text-center">
+        <main className="container mx-auto px-4 py-8 pt-24">
+          <Card className="p-8 text-center glass-card shadow-card">
             <p className="text-muted-foreground">Checking access...</p>
           </Card>
         </main>
@@ -239,15 +249,28 @@ export default function ArbitratorDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+      {/* Enhanced animated background */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Gavel className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">Admin - Dispute Resolution</h1>
+      <main className="container mx-auto px-4 py-8 pt-24">
+        <div className="mb-8 animate-fade-in">
+          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full glass-card border border-primary/20">
+            <Gavel className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Admin Dashboard</span>
           </div>
-          <p className="text-muted-foreground">Review and resolve disputes with evidence-based decisions</p>
+          <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent">
+            Dispute Resolution
+          </h1>
+          <p className="text-lg text-gray-300">Review and resolve disputes with evidence-based decisions</p>
         </div>
 
         <Card className="mb-8">

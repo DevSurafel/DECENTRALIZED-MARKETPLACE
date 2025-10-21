@@ -140,7 +140,7 @@ const Escrow = () => {
   };
 
   const renderEscrowCard = (escrow: any, showActions = false) => (
-    <Card key={escrow._id} className="p-6 bg-card/50 backdrop-blur hover:bg-card/70 transition-all">
+    <Card key={escrow._id} className="p-6 glass-card shadow-card hover:shadow-glow transition-smooth">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <h3 className="text-xl font-semibold mb-2">{escrow.jobTitle}</h3>
@@ -257,13 +257,25 @@ const Escrow = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+      {/* Enhanced animated background */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
       <Navbar />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Escrow Management</h1>
-          <p className="text-muted-foreground">
+      <main className="container mx-auto px-4 py-8 pt-24">
+        <div className="mb-8 animate-fade-in">
+          <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Escrow Management
+          </h1>
+          <p className="text-base md:text-lg text-muted-foreground">
             Secure smart contract escrow for all your jobs
           </p>
         </div>
@@ -278,15 +290,15 @@ const Escrow = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="active" className="space-y-4">
+          <TabsContent value="active" className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {activeEscrows.length === 0 ? (
-              <Card className="p-12 text-center bg-card/50 backdrop-blur">
+              <Card className="p-12 text-center glass-card shadow-card">
                 <Lock className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-xl font-semibold mb-2">No Active Escrows</h3>
                 <p className="text-muted-foreground mb-6">
                   Your active escrow transactions will appear here
                 </p>
-                <Button onClick={() => navigate('/marketplace')}>
+                <Button onClick={() => navigate('/marketplace')} className="shadow-glow">
                   Browse Jobs
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
@@ -296,9 +308,9 @@ const Escrow = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="history" className="space-y-4">
+          <TabsContent value="history" className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {historyEscrows.length === 0 ? (
-              <Card className="p-12 text-center bg-card/50 backdrop-blur">
+              <Card className="p-12 text-center glass-card shadow-card">
                 <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-xl font-semibold mb-2">No History</h3>
                 <p className="text-muted-foreground">
@@ -312,7 +324,7 @@ const Escrow = () => {
         </Tabs>
 
         {/* Info Section */}
-        <Card className="mt-8 p-6 bg-primary/5 border-primary/20">
+        <Card className="mt-8 p-6 glass-card shadow-card border-primary/20 animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <div className="flex items-start gap-4">
             <Lock className="h-8 w-8 text-primary flex-shrink-0" />
             <div>

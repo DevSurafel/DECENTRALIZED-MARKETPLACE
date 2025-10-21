@@ -168,7 +168,10 @@ const Home = () => {
               <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
               <a href="#how-it-works" className="text-gray-300 hover:text-white transition-colors">How It Works</a>
               <a href="#testimonials" className="text-gray-300 hover:text-white transition-colors">Testimonials</a>
-              <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+              <Button 
+                onClick={() => window.location.href = '/marketplace'}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+              >
                 Launch App
               </Button>
             </div>
@@ -186,7 +189,10 @@ const Home = () => {
               <a href="#features" className="block text-gray-300 hover:text-white transition-colors">Features</a>
               <a href="#how-it-works" className="block text-gray-300 hover:text-white transition-colors">How It Works</a>
               <a href="#testimonials" className="block text-gray-300 hover:text-white transition-colors">Testimonials</a>
-              <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+              <Button 
+                onClick={() => window.location.href = '/marketplace'}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+              >
                 Launch App
               </Button>
             </div>
@@ -214,11 +220,20 @@ const Home = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-5 justify-center mb-20 px-4">
-            <Button size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/50 hover:scale-105 transition-all duration-300 text-base md:text-lg px-10 py-7 w-full sm:w-auto group">
+            <Button 
+              size="lg" 
+              onClick={() => window.location.href = '/marketplace'}
+              className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/50 hover:scale-105 transition-all duration-300 text-base md:text-lg px-10 py-7 w-full sm:w-auto group"
+            >
               Get Started Free
               <Rocket className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
-            <Button size="lg" variant="outline" className="gap-2 hover:scale-105 transition-all duration-300 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 text-base md:text-lg px-10 py-7 w-full sm:w-auto group">
+            <Button 
+              size="lg" 
+              variant="outline" 
+              onClick={() => window.location.href = '/marketplace'}
+              className="gap-2 hover:scale-105 transition-all duration-300 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 text-base md:text-lg px-10 py-7 w-full sm:w-auto group"
+            >
               Explore Jobs
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
@@ -457,11 +472,20 @@ const Home = () => {
                 Join the decentralized revolution. Connect your wallet and start your journey on the world's most secure freelance platform.
               </p>
               <div className="flex flex-col sm:flex-row gap-5 justify-center">
-                <Button size="lg" className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/50 hover:scale-105 transition-all duration-300 text-lg px-12 py-8 w-full sm:w-auto group">
+                <Button 
+                  size="lg" 
+                  onClick={() => window.location.href = '/marketplace'}
+                  className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/50 hover:scale-105 transition-all duration-300 text-lg px-12 py-8 w-full sm:w-auto group"
+                >
                   Launch App
                   <Rocket className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                 </Button>
-                <Button size="lg" variant="outline" className="gap-2 hover:scale-105 transition-all duration-300 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 text-lg px-12 py-8 w-full sm:w-auto">
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="gap-2 hover:scale-105 transition-all duration-300 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 text-lg px-12 py-8 w-full sm:w-auto"
+                >
                   Learn More
                 </Button>
               </div>

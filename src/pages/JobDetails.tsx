@@ -753,10 +753,20 @@ const JobDetails = () => {
 
   if (loading || !job) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+        {/* Enhanced animated background */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        </div>
+
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
         <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <Card className="p-8 text-center">
+        <main className="container mx-auto px-4 py-8 pt-24">
+          <Card className="p-8 text-center glass-card shadow-card">
             <p className="text-muted-foreground">Loading...</p>
           </Card>
         </main>
@@ -784,10 +794,20 @@ const JobDetails = () => {
   const durationText = job.duration_weeks ? `${job.duration_weeks} weeks` : 'Flexible';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+      {/* Enhanced animated background */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
       <Navbar />
       
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 pt-24 animate-fade-in">
         <Button 
           variant="ghost" 
           onClick={() => navigate(-1)}
@@ -801,7 +821,7 @@ const JobDetails = () => {
           {/* Job Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Job/Purchase Details Card - Show to everyone */}
-            <Card className="p-6 bg-card/50 backdrop-blur">
+            <Card className="p-6 glass-card shadow-card hover:shadow-glow transition-smooth">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
@@ -870,7 +890,7 @@ const JobDetails = () => {
 
             {/* Client View - Fund Escrow */}
             {getUserRole() === 'client' && job.status === 'assigned' && (
-              <Card className="p-6">
+              <Card className="p-6 glass-card shadow-card">
                 <h2 className="text-2xl font-bold mb-4">Fund Escrow</h2>
                 <p className="text-muted-foreground mb-6">
                   {isSocialMediaPurchase() 
@@ -1089,7 +1109,7 @@ const JobDetails = () => {
 
             {/* Freelancer/Seller View - Waiting for Review */}
             {getUserRole() === 'freelancer' && job.status === 'under_review' && (
-              <Card className="p-6">
+              <Card className="p-6 glass-card shadow-card">
                 <div className="text-center">
                   <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
                   <h2 className="text-2xl font-bold mb-2">
@@ -1134,7 +1154,7 @@ const JobDetails = () => {
 
             {/* Freelancer/Seller View - Completed */}
             {getUserRole() === 'freelancer' && job.status === 'completed' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
-              <Card className="p-6 bg-primary/5 border-primary/20">
+              <Card className="p-6 glass-card shadow-card border-primary/20">
                 <div className="text-center mb-6">
                   <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
                   <h2 className="text-2xl font-bold mb-2">Payment Received!</h2>
@@ -1177,7 +1197,7 @@ const JobDetails = () => {
             {/* Non-participant View - Bid Form or Already Submitted */}
             {!getUserRole() && user && job.client_id !== user.id && job.status === 'open' && (
               hasSubmittedBid ? (
-                <Card className="p-6 bg-card/50 backdrop-blur border-primary/20">
+                <Card className="p-6 glass-card shadow-card border-primary/20">
                   <div className="text-center py-8">
                     <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
                     <h2 className="text-2xl font-bold mb-2">Proposal Submitted</h2>
@@ -1187,7 +1207,7 @@ const JobDetails = () => {
                   </div>
                 </Card>
               ) : (
-                  <Card className="p-6 bg-card/50 backdrop-blur">
+                  <Card className="p-6 glass-card shadow-card">
                     <h2 className="text-2xl font-bold mb-4">Submit Your Proposal</h2>
                     
                     <div className="space-y-4">
@@ -1246,7 +1266,7 @@ const JobDetails = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <Card className="p-6 bg-card/50 backdrop-blur">
+            <Card className="p-6 glass-card shadow-card">
               <h3 className="text-lg font-semibold mb-4">
                 {isSocialMediaPurchase() ? 'Purchase Information' : 'Job Information'}
               </h3>
@@ -1285,7 +1305,7 @@ const JobDetails = () => {
             </Card>
 
             {!isSocialMediaPurchase() && (
-              <Card className="p-6 bg-card/50 backdrop-blur">
+              <Card className="p-6 glass-card shadow-card">
                 <h3 className="text-lg font-semibold mb-3">Tips for Success</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">

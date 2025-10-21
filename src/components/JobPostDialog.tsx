@@ -66,7 +66,7 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] glass-card border-primary/20">
         <DialogHeader>
           <DialogTitle>Post a New Job</DialogTitle>
         </DialogHeader>

@@ -500,7 +500,7 @@ export const WalletConnectFunding = ({
       }
       onClose();
     }}>
-      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto glass-card border-primary/20">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
             <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
