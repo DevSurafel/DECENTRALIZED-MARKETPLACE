@@ -136,63 +136,63 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-          <Card className="p-6 hover:shadow-glow transition-all duration-300 border-primary/20 bg-card/50 backdrop-blur">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-8">
+          <Card className="p-4 md:p-6 hover:shadow-glow transition-all duration-300 border-primary/20 bg-card/50 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active Jobs</p>
-                <h3 className="text-3xl font-bold mt-1 bg-gradient-to-br from-primary to-accent bg-clip-text text-transparent">
+                <p className="text-xs md:text-sm text-muted-foreground">Active Jobs</p>
+                <h3 className="text-2xl md:text-3xl font-bold mt-1 bg-gradient-to-br from-primary to-accent bg-clip-text text-transparent">
                   {stats.activeJobs}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1">+2 this week</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground mt-1">+2 this week</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Briefcase className="h-6 w-6 text-primary" />
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Briefcase className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 hover:shadow-glow transition-all duration-300 border-accent/20 bg-card/50 backdrop-blur">
+          <Card className="p-4 md:p-6 hover:shadow-glow transition-all duration-300 border-accent/20 bg-card/50 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Earnings</p>
-                <h3 className="text-3xl font-bold mt-1 bg-gradient-to-br from-accent to-primary bg-clip-text text-transparent">
+                <p className="text-xs md:text-sm text-muted-foreground">Total Earnings</p>
+                <h3 className="text-xl md:text-3xl font-bold mt-1 bg-gradient-to-br from-accent to-primary bg-clip-text text-transparent">
                   {(stats.totalEarnings * 2000).toFixed(2)} USDC
                 </h3>
-                <p className="text-xs text-success mt-1">+15% from last month</p>
+                <p className="text-[10px] md:text-xs text-success mt-1">+15%</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-accent/10 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-accent" />
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-accent/10 flex items-center justify-center">
+                <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-accent" />
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 hover:shadow-glow transition-all duration-300 border-warning/20 bg-card/50 backdrop-blur">
+          <Card className="p-4 md:p-6 hover:shadow-glow transition-all duration-300 border-warning/20 bg-card/50 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pending Bids</p>
-                <h3 className="text-3xl font-bold mt-1 bg-gradient-to-br from-warning to-accent bg-clip-text text-transparent">
+                <p className="text-xs md:text-sm text-muted-foreground">Pending Bids</p>
+                <h3 className="text-2xl md:text-3xl font-bold mt-1 bg-gradient-to-br from-warning to-accent bg-clip-text text-transparent">
                   {stats.pendingBids}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1">Awaiting response</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground mt-1">Awaiting</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-warning" />
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-warning/10 flex items-center justify-center">
+                <Clock className="h-5 w-5 md:h-6 md:w-6 text-warning" />
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 hover:shadow-glow transition-all duration-300 border-success/20 bg-card/50 backdrop-blur">
+          <Card className="p-4 md:p-6 hover:shadow-glow transition-all duration-300 border-success/20 bg-card/50 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Completed</p>
-                <h3 className="text-3xl font-bold mt-1 bg-gradient-to-br from-success to-primary bg-clip-text text-transparent">
+                <p className="text-xs md:text-sm text-muted-foreground">Completed</p>
+                <h3 className="text-2xl md:text-3xl font-bold mt-1 bg-gradient-to-br from-success to-primary bg-clip-text text-transparent">
                   {stats.completedJobs}
                 </h3>
-                <p className="text-xs text-success mt-1">95% success rate</p>
+                <p className="text-[10px] md:text-xs text-success mt-1">95% rate</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-success" />
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-success/10 flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-success" />
               </div>
             </div>
           </Card>

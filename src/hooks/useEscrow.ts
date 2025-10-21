@@ -76,7 +76,7 @@ interface EscrowJob {
 export const useEscrow = () => {
   const [loading, setLoading] = useState(false);
 
-  const getProvider = async () => {
+  const getProvider = async (skipWalletCheck: boolean = false) => {
     if (typeof window === 'undefined' || !(window as any).ethereum) {
       toast({
         title: "MetaMask Not Found",
@@ -90,34 +90,36 @@ export const useEscrow = () => {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       await provider.send("eth_requestAccounts", []);
 
-      // Verify the connected wallet matches the user's profile
-      const signer = await provider.getSigner();
-      const walletAddress = await signer.getAddress();
+      // Verify the connected wallet matches the user's profile (skip for approval actions)
+      if (!skipWalletCheck) {
+        const signer = await provider.getSigner();
+        const walletAddress = await signer.getAddress();
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('wallet_address')
-          .eq('id', user.id)
-          .single();
-
-        if (profile?.wallet_address && profile.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
-          toast({
-            title: "Wrong Wallet Connected",
-            description: `This account requires wallet ${profile.wallet_address.substring(0, 6)}...${profile.wallet_address.substring(38)}. Please switch in MetaMask.`,
-            variant: "destructive",
-            duration: 10000
-          });
-          return null;
-        }
-
-        // Update profile with wallet address if not set
-        if (!profile?.wallet_address) {
-          await supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
             .from('profiles')
-            .update({ wallet_address: walletAddress })
-            .eq('id', user.id);
+            .select('wallet_address')
+            .eq('id', user.id)
+            .single();
+
+          if (profile?.wallet_address && profile.wallet_address.toLowerCase() !== walletAddress.toLowerCase()) {
+            toast({
+              title: "Wrong Wallet Connected",
+              description: `This account requires wallet ${profile.wallet_address.substring(0, 6)}...${profile.wallet_address.substring(38)}. Please switch in MetaMask.`,
+              variant: "destructive",
+              duration: 10000
+            });
+            return null;
+          }
+
+          // Update profile with wallet address if not set
+          if (!profile?.wallet_address) {
+            await supabase
+              .from('profiles')
+              .update({ wallet_address: walletAddress })
+              .eq('id', user.id);
+          }
         }
       }
 
@@ -667,7 +669,8 @@ export const useEscrow = () => {
         return { success: false };
       }
 
-      const provider = await getProvider();
+      // Skip wallet check for approval - let the contract verify the client
+      const provider = await getProvider(true);
       if (!provider) return { success: false };
 
       await checkNetwork(provider);
