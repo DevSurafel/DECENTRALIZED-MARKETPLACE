@@ -73,8 +73,8 @@ const Home = () => {
       <Navbar />
       
       {/* Hero Section */}
-      <section className="pt-32 pb-24 px-4 md:px-4 relative">
-        <div className="container mx-auto text-center max-w-full md:max-w-7xl px-2 md:px-4">
+      <section className="pt-32 pb-24 px-3 md:px-4 relative">
+        <div className="mx-auto text-center max-w-full md:container md:max-w-7xl">
           <div className="inline-flex items-center gap-2 mb-6 px-5 py-2.5 rounded-full glass-card border border-primary/20 shadow-glow animate-fade-in">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -107,7 +107,7 @@ const Home = () => {
           </div>
 
           {/* Stats Section */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-6 max-w-full md:max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
             {stats.map((stat, index) => (
               <Card key={index} className={`p-4 md:p-6 glass-card border-primary/10 shadow-card hover:shadow-glow transition-smooth ${index === 2 ? 'col-span-2 md:col-span-1' : ''}`}>
                 <stat.icon className="w-6 h-6 md:w-8 md:h-8 text-primary mx-auto mb-2" />
@@ -122,8 +122,8 @@ const Home = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 px-4 relative">
-        <div className="container mx-auto">
+      <section className="py-24 px-3 md:px-4 relative">
+        <div className="mx-auto max-w-full md:container md:max-w-7xl">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Why Choose DeFiLance?
@@ -133,7 +133,7 @@ const Home = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-8">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
