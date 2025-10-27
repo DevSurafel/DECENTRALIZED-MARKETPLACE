@@ -264,6 +264,69 @@ export const WalletConnectFunding = ({
         throw new Error(`💵 Insufficient USDC balance.\n\nRequired: ${amountUSDC} USDC\nYour balance: ${usdcBalanceFormatted} USDC\n\nPlease add more USDC to your wallet.`);
       }
 
+      // Pre-flight: verify contracts exist and stake requirements
+      const [escrowCode, usdcCode] = await Promise.all([
+        ethersProvider.getCode(escrowContractAddress),
+        ethersProvider.getCode(usdcContractAddress),
+      ]);
+      if (escrowCode === '0x' || escrowCode === '0x0') {
+        setStatus('error');
+        setErrorMessage(`Escrow contract not deployed at ${escrowContractAddress}.`);
+        toast({ title: 'Contract Not Deployed', description: 'Escrow contract is not deployed on this network.', variant: 'destructive' });
+        return;
+      }
+      if (usdcCode === '0x' || usdcCode === '0x0') {
+        setStatus('error');
+        setErrorMessage(`USDC contract not deployed at ${usdcContractAddress}.`);
+        toast({ title: 'Invalid USDC', description: 'USDC contract is not deployed on this network.', variant: 'destructive' });
+        return;
+      }
+
+      // If freelancer stake is required, verify freelancer balance and allowance before sending
+      if (requiresStake) {
+        try {
+          const escrowRead = new ethers.Contract(
+            escrowContractAddress,
+            ['function defaultStakePercentage() view returns (uint256)'],
+            ethersProvider
+          );
+          const stakeBps: bigint = await escrowRead.defaultStakePercentage();
+          const stakeAmount: bigint = (amount * stakeBps) / 10000n;
+
+          const freelancerBal: bigint = await usdcContract.balanceOf(freelancerAddress);
+          const freelancerAllowance: bigint = await new ethers.Contract(
+            usdcContractAddress,
+            USDC_ABI,
+            ethersProvider
+          ).allowance(freelancerAddress, escrowContractAddress);
+
+          if (freelancerBal < stakeAmount) {
+            const needed = ethers.formatUnits(stakeAmount, 6);
+            setStatus('error');
+            setErrorMessage(`Freelancer stake missing. Needs ${needed} USDC available.`);
+            toast({
+              title: 'Freelancer Stake Missing',
+              description: `Freelancer must have ${needed} USDC to deposit stake before funding.`,
+              variant: 'destructive',
+            });
+            return;
+          }
+          if (freelancerAllowance < stakeAmount) {
+            const needed = ethers.formatUnits(stakeAmount, 6);
+            setStatus('error');
+            setErrorMessage(`Freelancer approval required for ${needed} USDC.`);
+            toast({
+              title: 'Freelancer Approval Required',
+              description: `Ask the freelancer to approve ${needed} USDC to the escrow contract before funding.`,
+              variant: 'destructive',
+            });
+            return;
+          }
+        } catch (stakeCheckErr) {
+          console.warn('Stake pre-check failed:', stakeCheckErr);
+        }
+      }
+
       // Step 1: Approve USDC
       setStatus('approving');
       toast({
@@ -375,6 +438,10 @@ export const WalletConnectFunding = ({
             throw new Error('⚠️ USDC approval insufficient. Please try again or refresh the page.');
           } else if (revertReason.includes('ERC20: insufficient balance')) {
             throw new Error('💵 Insufficient USDC balance in your wallet.');
+          } else if (revertReason.includes('Stake transfer failed')) {
+            throw new Error('⚠️ Freelancer stake not approved. Ask the freelancer to approve the required stake to the escrow.');
+          } else if (revertReason.includes('Transfer failed')) {
+            throw new Error('⚠️ Token transfer failed. Check allowances and balances, then try again.');
           } else {
             throw new Error(`❌ Transaction would fail: ${revertReason}`);
           }
