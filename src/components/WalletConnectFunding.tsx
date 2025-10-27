@@ -363,7 +363,15 @@ export const WalletConnectFunding = ({
             throw new Error('❌ Approval transaction would fail. Please check your wallet has MATIC for gas and try again.');
           }
           
-          approveTx = await usdcContractWithSigner.approve(escrowContractAddress, amount);
+          // Send approval with a safe gas buffer and fallback without overrides
+          try {
+            const approveGasLimit = await usdcContractWithSigner.approve.estimateGas(escrowContractAddress, amount);
+            const approveOverrides = { gasLimit: (approveGasLimit * 120n) / 100n } as any;
+            approveTx = await usdcContractWithSigner.approve(escrowContractAddress, amount, approveOverrides);
+          } catch (sendWithOverrideErr) {
+            console.warn('Approve with gas override failed, retrying without override:', sendWithOverrideErr);
+            approveTx = await usdcContractWithSigner.approve(escrowContractAddress, amount);
+          }
           console.log('Approval transaction sent:', approveTx.hash);
           
           toast({
@@ -372,6 +380,13 @@ export const WalletConnectFunding = ({
           });
 
           await approveTx.wait();
+          
+          // Double-check allowance after approval
+          const postAllowance = await usdcContractWithSigner.allowance(address, escrowContractAddress);
+          console.log('Post-approval allowance:', ethers.formatUnits(postAllowance, 6), 'USDC');
+          if (postAllowance < amount) {
+            console.warn('Allowance still below required amount after approval.');
+          }
           
           toast({
             title: '✅ Approved!',
@@ -414,10 +429,11 @@ export const WalletConnectFunding = ({
       
       let fundTx;
       try {
-        // First, try to estimate gas to catch contract reverts before sending
+        // First, try to estimate gas and simulate to catch contract reverts before sending
         console.log('Estimating gas for fundJob...');
+        let gasEstimateForFund: bigint | undefined;
         try {
-          const gasEstimate = await escrowContract.fundJob.estimateGas(
+          gasEstimateForFund = await escrowContract.fundJob.estimateGas(
             numericJobId,
             freelancerAddress,
             usdcContractAddress,
@@ -425,13 +441,39 @@ export const WalletConnectFunding = ({
             requiresStake,
             allowedRevisions
           );
-          console.log('Gas estimate successful:', gasEstimate.toString());
+          console.log('Gas estimate successful:', gasEstimateForFund.toString());
+
+          // Static simulation to surface precise revert reasons (no state change)
+          try {
+            await escrowContract.fundJob.staticCall(
+              numericJobId,
+              freelancerAddress,
+              usdcContractAddress,
+              amount,
+              requiresStake,
+              allowedRevisions
+            );
+          } catch (staticErr: any) {
+            const revertReason = staticErr?.reason || staticErr?.message || '';
+            console.error('Static call revert:', staticErr);
+            if (revertReason.includes('Job already exists')) {
+              throw new Error('Job already exists - Escrow is already funded');
+            } else if (revertReason.includes('Insufficient allowance')) {
+              throw new Error('⚠️ USDC approval insufficient. Please try again or refresh the page.');
+            } else if (revertReason.includes('ERC20: insufficient balance')) {
+              throw new Error('💵 Insufficient USDC balance in your wallet.');
+            } else if (revertReason.includes('Stake transfer failed')) {
+              throw new Error('⚠️ Freelancer stake not approved. Ask the freelancer to approve the required stake to the escrow.');
+            } else if (revertReason.includes('Transfer failed')) {
+              throw new Error('⚠️ Token transfer failed. Check allowances and balances, then try again.');
+            } else {
+              throw new Error(`❌ Transaction would fail: ${revertReason}`);
+            }
+          }
         } catch (estimateError: any) {
           console.error('Gas estimation failed:', estimateError);
-          
           // Try to extract the revert reason
           const revertReason = estimateError?.reason || estimateError?.message || '';
-          
           if (revertReason.includes('Job already exists')) {
             throw new Error('Job already exists - Escrow is already funded');
           } else if (revertReason.includes('Insufficient allowance')) {
@@ -447,14 +489,16 @@ export const WalletConnectFunding = ({
           }
         }
 
-        // If gas estimation succeeded, send the transaction
+        // If estimation and simulation succeeded, send the transaction with a safe gas limit buffer
+        const fundOverrides = gasEstimateForFund ? { gasLimit: (gasEstimateForFund * 120n) / 100n } : {} as any;
         fundTx = await escrowContract.fundJob(
           numericJobId,
           freelancerAddress,
           usdcContractAddress,
           amount,
           requiresStake,
-          allowedRevisions
+          allowedRevisions,
+          fundOverrides
         );
         console.log('FundJob transaction sent:', fundTx.hash);
       } catch (fundError: any) {
