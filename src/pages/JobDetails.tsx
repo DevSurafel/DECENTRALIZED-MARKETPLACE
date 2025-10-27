@@ -17,6 +17,7 @@ import { WorkSubmissionPanel } from "@/components/WorkSubmissionPanel";
 import { OwnershipTransferPanel } from "@/components/OwnershipTransferPanel";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { SocialMediaReviewPanel } from "@/components/SocialMediaReviewPanel";
+import { SocialMediaCredentialSubmitPanel } from "@/components/SocialMediaCredentialSubmitPanel";
 import { RatingDialog } from "@/components/RatingDialog";
 import { PlatformReviewDialog } from "@/components/PlatformReviewDialog";
 import { WalletConnectFunding } from "@/components/WalletConnectFunding";
@@ -1069,7 +1070,7 @@ const JobDetails = () => {
               </Card>
             )}
 
-            {/* Freelancer/Seller View - Submit Work / Transfer Ownership */}
+            {/* Freelancer/Seller View - Submit Work / Transfer Ownership / Submit Credentials */}
             {getUserRole() === 'freelancer' && (job.status === 'in_progress' || job.status === 'revision_requested') && (
               (() => {
                 const isSmPurchase = isSocialMediaPurchase();
@@ -1081,14 +1082,33 @@ const JobDetails = () => {
                   const platformName = titleParts[0]?.toLowerCase() || 'account';
                   const accountName = titleParts[1] || 'the account';
                   
-                  return (
-                    <OwnershipTransferPanel
-                      jobId={id!}
-                      platformName={platformName}
-                      accountName={accountName}
-                      onConfirmTransfer={handleConfirmOwnershipTransfer}
-                    />
-                  );
+                  // Check if it's Telegram - use old ownership transfer flow
+                  if (platformName === 'telegram') {
+                    return (
+                      <OwnershipTransferPanel
+                        jobId={id!}
+                        platformName={platformName}
+                        accountName={accountName}
+                        onConfirmTransfer={handleConfirmOwnershipTransfer}
+                      />
+                    );
+                  } else {
+                    // For other social media - use credential submit flow
+                    // Extract buyer email from job description
+                    const descriptionLines = job.description?.split('\n') || [];
+                    const buyerContactLine = descriptionLines.find((line: string) => line.startsWith('Buyer Contact:'));
+                    const buyerEmail = buyerContactLine?.replace('Buyer Contact:', '').trim() || 'Not provided';
+                    
+                    return (
+                      <SocialMediaCredentialSubmitPanel
+                        jobId={id!}
+                        platform={platformName}
+                        accountName={accountName}
+                        buyerEmail={buyerEmail}
+                        onSubmit={() => loadJob()}
+                      />
+                    );
+                  }
                 } else {
                   // Regular job submission
                   return (
