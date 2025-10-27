@@ -317,8 +317,8 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       return;
     }
 
-    // Verify the verification code for all platforms except Facebook (which uses screenshots only)
-    if (platform !== 'facebook') {
+    // Verification check - Only for Telegram (other platforms disabled for testing)
+    if (platform === 'telegram') {
       if (!hasVerified) {
         toast({
           title: "Verification Required",
@@ -329,7 +329,27 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       }
       
       if (!verificationStatus?.verified) {
-        // For Twitter, allow listing with screenshots
+        toast({
+          title: "Verification Failed",
+          description: `Verification code not found. Please add "${verificationCode}" to your channel/group description and verify again.`,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
+    /* Verification checks for other platforms - Temporarily disabled for testing
+    if (platform !== 'facebook' && platform !== 'telegram') {
+      if (!hasVerified) {
+        toast({
+          title: "Verification Required",
+          description: "Please click the 'Verify Account' button to verify ownership before listing",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (!verificationStatus?.verified) {
         if (platform === 'twitter' && screenshotFiles.length > 0) {
           toast({
             title: "⚠ Manual verification",
@@ -338,9 +358,7 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
         } else {
           toast({
             title: "Verification Failed",
-            description: platform === 'telegram'
-              ? `Verification code not found. Please add "${verificationCode}" to your channel/group description and verify again.`
-              : platform === 'twitter'
+            description: platform === 'twitter'
               ? "Please upload screenshots showing the verification code in your bio."
               : `Verification code not found. Please add "${verificationCode}" to your bio and verify again.`,
             variant: "destructive"
@@ -350,7 +368,6 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       }
     }
     
-    // For Facebook, show warning but allow submission
     if (platform === 'facebook' && !screenshotFiles.length) {
       toast({
         title: "Screenshots Recommended",
@@ -359,6 +376,7 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       });
       return;
     }
+    */
     
     setUploading(true);
     
@@ -391,7 +409,7 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
         console.error('Error uploading screenshots:', error);
         toast({
           title: "Upload failed",
-          description: "Failed to upload screenshots",
+          description: error instanceof Error ? error.message : "Failed to upload screenshots. Please try again.",
           variant: "destructive"
         });
         setUploading(false);
@@ -467,9 +485,12 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
           List Account
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto glass-card border-primary/20">
-        <DialogHeader>
-          <DialogTitle>List Social Media Account for Sale</DialogTitle>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background/95 to-primary/5 border-2 border-primary/30 shadow-2xl backdrop-blur-xl">
+        <DialogHeader className="space-y-2 pb-4 border-b border-primary/10">
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            List Social Media Account for Sale
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground">Fill in the details to list your social media account on the marketplace</p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
@@ -489,19 +510,40 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
             </Select>
           </div>
 
-          {platform !== 'facebook' && (
+          {/* Verification Code - Currently commented out for testing (except Telegram) */}
+          {platform === 'telegram' && (
+            <Alert className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 shadow-lg">
+              <Info className="h-4 w-4 text-primary" />
+              <AlertDescription className="text-sm">
+                <strong className="text-primary">Verification Required:</strong> To prove you own this account, add this code to your channel/group description:
+                <div className="mt-3 p-3 bg-background/80 backdrop-blur-sm rounded-lg font-mono text-lg font-bold text-center border border-primary/20 shadow-inner">
+                  {verificationCode}
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+                  This code changes every time you change the platform. Add this to your Telegram channel/group description, then click "Verify Account" below.
+                </p>
+                {verificationStatus && (
+                  <div className={`mt-3 p-3 rounded-lg flex items-center gap-3 shadow-md ${verificationStatus.verified ? 'bg-green-500/20 text-green-600 border border-green-500/30' : 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/30'}`}>
+                    {verificationStatus.verified ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+                    <span className="font-medium">{verificationStatus.message}</span>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {/* Verification code for other platforms - Temporarily disabled for testing */}
+          {/* 
+          {platform !== 'facebook' && platform !== 'telegram' && (
             <Alert className="bg-primary/10 border-primary/20">
               <Info className="h-4 w-4" />
               <AlertDescription className="text-sm">
-                <strong>Verification Required:</strong> To prove you own this account, add this code to your {platform === 'telegram' ? 'channel/group description' : 'account bio/description'}:
+                <strong>Verification Required:</strong> To prove you own this account, add this code to your account bio/description:
                 <div className="mt-2 p-2 bg-background rounded font-mono text-lg font-bold text-center">
                   {verificationCode}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  This code changes every time you change the platform. 
-                  {platform === 'telegram' 
-                    ? ' Add this to your Telegram channel/group description, then click "Verify Account" below.' 
-                    : ' Add this to your account bio/description, then click "Verify Account" below.'}
+                  This code changes every time you change the platform. Add this to your account bio/description, then click "Verify Account" below.
                 </p>
                 {verificationStatus && (
                   <div className={`mt-2 p-2 rounded flex items-center gap-2 ${verificationStatus.verified ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
@@ -512,7 +554,10 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
               </AlertDescription>
             </Alert>
           )}
+          */}
 
+          {/* Facebook verification - Temporarily disabled for testing */}
+          {/* 
           {platform === 'facebook' && (
             <Alert className="bg-primary/10 border-primary/20">
               <Info className="h-4 w-4" />
@@ -527,16 +572,15 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
               </AlertDescription>
             </Alert>
           )}
+          */}
 
           {platform === 'telegram' && (
-            <Alert className="bg-blue-500/10 border-blue-500/20">
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                <strong>For Telegram:</strong> Enter your channel/group username (@username) or channel ID (-100123456789).
-                <br />
-                <strong>Example:</strong> @mychannel or -1001234567890
-                <br />
-                <strong>How to find:</strong> Open your channel → Info → Look for "t.me/username" or use @userinfobot for the ID
+            <Alert className="bg-gradient-to-r from-blue-500/15 to-blue-400/10 border-blue-500/30 shadow-md">
+              <Info className="h-4 w-4 text-blue-500" />
+              <AlertDescription className="text-sm space-y-2">
+                <p><strong className="text-blue-600">For Telegram:</strong> Enter your channel/group username (@username) or channel ID (-100123456789).</p>
+                <p><strong className="text-blue-600">Example:</strong> @mychannel or -1001234567890</p>
+                <p><strong className="text-blue-600">How to find:</strong> Open your channel → Info → Look for "t.me/username" or use @userinfobot for the ID</p>
               </AlertDescription>
             </Alert>
           )}
@@ -583,7 +627,37 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
               </p>
             )}
             
-            {platform !== 'facebook' && linkValidation?.isValid && (
+            {/* Verify Account button - Only shown for Telegram */}
+            {platform === 'telegram' && linkValidation?.isValid && (
+              <Button
+                type="button"
+                onClick={handleManualVerify}
+                disabled={isVerifying || isFetchingData}
+                className="w-full mt-2 shadow-lg hover:shadow-xl transition-all duration-300"
+                variant={verificationStatus?.verified ? "default" : "outline"}
+              >
+                {isVerifying ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                    Verifying...
+                  </>
+                ) : verificationStatus?.verified ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Verified
+                  </>
+                ) : (
+                  <>
+                    <Info className="w-4 h-4 mr-2" />
+                    Verify Account
+                  </>
+                )}
+              </Button>
+            )}
+            
+            {/* Verify button for other platforms - Temporarily disabled for testing */}
+            {/* 
+            {platform !== 'facebook' && platform !== 'telegram' && linkValidation?.isValid && (
               <Button
                 type="button"
                 onClick={handleManualVerify}
@@ -609,6 +683,7 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
                 )}
               </Button>
             )}
+            */}
           </div>
 
           <div className="space-y-2">
@@ -888,7 +963,8 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
             </Button>
             <Button 
               type="submit" 
-              disabled={loading || uploading || !linkValidation?.isValid || (platform !== 'facebook' && !verificationStatus?.verified)}
+              disabled={loading || uploading || !linkValidation?.isValid || (platform === 'telegram' && !verificationStatus?.verified)}
+              className="shadow-lg hover:shadow-xl transition-all duration-300"
             >
               {uploading ? "Uploading..." : loading ? "Creating..." : "List Account"}
             </Button>
