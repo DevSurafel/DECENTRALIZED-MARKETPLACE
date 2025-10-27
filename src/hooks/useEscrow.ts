@@ -657,172 +657,236 @@ export const useEscrow = () => {
     }
   };
 
-  const approveJob = async (jobId: string): Promise<{ success: boolean; txHash?: string }> => {
-    setLoading(true);
-    try {
-      if (!ESCROW_CONTRACT_ADDRESS) {
-        toast({
-          title: "Configuration Error",
-          description: "Escrow contract address not configured",
-          variant: "destructive"
-        });
-        return { success: false };
-      }
+// Add this improved approveJob function to your useEscrow hook
+// Replace the existing approveJob function with this one
 
-      // Skip wallet check for approval - let the contract verify the client
-      const provider = await getProvider(true);
-      if (!provider) return { success: false };
-
-      await checkNetwork(provider);
-      const signer = await provider.getSigner();
-      const userAddress = await signer.getAddress();
-      const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
-
-      // Convert UUID to numeric ID
-      const numericJobId = uuidToNumericId(jobId);
-
-      // Verify the current wallet matches the client on-chain (with fallback provider)
-      let jobData: any | undefined;
-      try {
-        jobData = await contract.getJob(numericJobId);
-        console.log('Job data from signer provider:', jobData);
-      } catch (primaryReadErr: any) {
-        console.warn('Primary provider getJob failed, trying fallback RPC...', primaryReadErr);
-        try {
-          const readOnlyProvider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
-          const readOnlyContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, readOnlyProvider);
-          jobData = await readOnlyContract.getJob(numericJobId);
-          console.log('Job data from fallback provider:', jobData);
-        } catch (fallbackErr: any) {
-          console.error('Fallback provider getJob failed:', fallbackErr);
-          toast({
-            title: "Network Issue",
-            description: "Could not read job state due to RPC issues. We'll still attempt approval.",
-            variant: "default"
-          });
-        }
-      }
-
-      if (jobData) {
-        if (!jobData || jobData.client === '0x0000000000000000000000000000000000000000') {
-          toast({
-            title: "Job Not Found",
-            description: "This job has not been funded on the blockchain yet.",
-            variant: "destructive"
-          });
-          return { success: false };
-        }
-
-        const clientOnChain = jobData.client;
-        console.log('Client on-chain:', clientOnChain);
-        console.log('Current user:', userAddress);
-        
-        if (clientOnChain.toLowerCase() !== userAddress.toLowerCase()) {
-          toast({
-            title: "Wrong Wallet",
-            description: `You must use the client's wallet (${clientOnChain.substring(0, 6)}...${clientOnChain.substring(38)}) to approve. Currently connected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`,
-            variant: "destructive",
-            duration: 10000
-          });
-          return { success: false };
-        }
-        
-        // Check job status (2 = WorkSubmitted)
-        console.log('Job status:', jobData.status);
-        if (jobData.status !== 2) {
-          const statusNames = ['None', 'Funded', 'WorkSubmitted', 'Completed', 'Disputed', 'Resolved'];
-          toast({
-            title: "Invalid Job Status",
-            description: `Job must be in WorkSubmitted status to approve. Current status: ${statusNames[jobData.status] || 'Unknown'}`,
-            variant: "destructive"
-          });
-          return { success: false };
-        }
-      }
-
-
-      // Try to estimate gas first to catch any issues
-      try {
-        console.log('Estimating gas for approveJob...');
-        const gasEstimate = await contract.approveJob.estimateGas(numericJobId);
-        console.log('Gas estimate:', gasEstimate.toString());
-      } catch (estimateError: any) {
-        console.error('Gas estimation failed:', estimateError);
-        
-        let errorMsg = "Transaction would fail. ";
-        if (estimateError.message?.includes('Job is already completed')) {
-          errorMsg = "Job has already been approved and payment released.";
-        } else if (estimateError.message?.includes('Only client')) {
-          errorMsg = "Only the client can approve this job.";
-        } else if (estimateError.message?.includes('Work not submitted')) {
-          errorMsg = "Freelancer must submit work before approval.";
-        } else if (estimateError.message?.toLowerCase?.().includes('circuit breaker') || estimateError.message?.toLowerCase?.().includes('rpc')) {
-          errorMsg = "Network RPC issue. Please wait a moment and try again.";
-        } else if (estimateError.reason) {
-          errorMsg += estimateError.reason;
-        } else {
-          errorMsg += estimateError.message || "Unknown error";
-        }
-        
-        toast({
-          title: "Cannot Approve Job",
-          description: errorMsg,
-          variant: "destructive"
-        });
-        return { success: false };
-      }
-
+const approveJob = async (jobId: string): Promise<{ success: boolean; txHash?: string }> => {
+  setLoading(true);
+  try {
+    if (!ESCROW_CONTRACT_ADDRESS) {
       toast({
-        title: "Approving Job...",
-        description: "Please confirm the transaction in MetaMask. Payment will be released to freelancer.",
-      });
-
-      const tx = await contract.approveJob(numericJobId);
-      const receipt = await tx.wait();
-
-      // Store transaction hash
-      await supabase
-        .from('jobs')
-        .update({ contract_address: receipt.hash })
-        .eq('id', jobId);
-
-      toast({
-        title: "Job Approved",
-        description: `Payment released! Tx: ${receipt.hash.substring(0, 10)}...`,
-      });
-
-      console.log('Transaction hash:', receipt.hash);
-      return { success: true, txHash: receipt.hash };
-    } catch (error: any) {
-      console.error('Error approving job:', error);
-
-      let errorTitle = "Approval Failed";
-      let errorMsg = "Failed to approve job. ";
-
-      // Handle USDC blacklist error specifically
-      if (error.message?.includes('Blacklistable') || error.message?.includes('blacklisted') ||
-        error.data?.includes('Blacklistable') || error.reason?.includes('blacklisted')) {
-        errorTitle = "USDC Blacklist Error";
-        errorMsg = "One of the addresses involved (escrow contract, platform wallet, or freelancer wallet) is blacklisted by the USDC contract. This is a testnet limitation. Solution: Use a different test token or deploy a new escrow contract with fresh wallet addresses.";
-      } else if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
-        errorMsg = "Transaction rejected by user.";
-      } else if (error.reason) {
-        errorMsg += error.reason;
-      } else {
-        errorMsg += error.message || "Unknown error occurred.";
-      }
-
-      toast({
-        title: errorTitle,
-        description: errorMsg,
-        variant: "destructive",
-        duration: 10000,
+        title: "Configuration Error",
+        description: "Escrow contract address not configured",
+        variant: "destructive"
       });
       return { success: false };
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // Get provider WITHOUT wallet check - we'll verify after
+    const provider = await getProvider(true);
+    if (!provider) return { success: false };
+
+    await checkNetwork(provider);
+    const signer = await provider.getSigner();
+    const userAddress = await signer.getAddress();
+    console.log('Current wallet address:', userAddress);
+
+    const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
+    const numericJobId = uuidToNumericId(jobId);
+
+    // Try multiple methods to verify the job and client address
+    let jobData: any = null;
+    let clientOnChain: string | null = null;
+    
+    // Method 1: Try with signer provider
+    try {
+      console.log('Method 1: Trying with signer provider...');
+      jobData = await contract.getJob(numericJobId);
+      clientOnChain = jobData.client;
+      console.log('✓ Method 1 succeeded. Client:', clientOnChain);
+    } catch (err1) {
+      console.warn('Method 1 failed:', err1);
+      
+      // Method 2: Try with fallback RPC provider
+      try {
+        console.log('Method 2: Trying with fallback RPC provider...');
+        const readOnlyProvider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
+        const readOnlyContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, readOnlyProvider);
+        jobData = await readOnlyContract.getJob(numericJobId);
+        clientOnChain = jobData.client;
+        console.log('✓ Method 2 succeeded. Client:', clientOnChain);
+      } catch (err2) {
+        console.warn('Method 2 failed:', err2);
+        
+        // Method 3: Try with alternative RPC endpoint
+        try {
+          console.log('Method 3: Trying with alternative RPC...');
+          const altProvider = new ethers.JsonRpcProvider('https://polygon-amoy.g.alchemy.com/v2/demo');
+          const altContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, altProvider);
+          jobData = await altContract.getJob(numericJobId);
+          clientOnChain = jobData.client;
+          console.log('✓ Method 3 succeeded. Client:', clientOnChain);
+        } catch (err3) {
+          console.error('Method 3 failed:', err3);
+          
+          // Method 4: Get client address from Supabase as last resort
+          console.log('Method 4: Fetching from Supabase...');
+          try {
+            const { data: dbJob } = await supabase
+              .from('jobs')
+              .select('client:profiles!client_id(wallet_address)')
+              .eq('id', jobId)
+              .single();
+            
+            if (dbJob?.client?.wallet_address) {
+              clientOnChain = dbJob.client.wallet_address;
+              console.log('✓ Method 4 succeeded. Client from DB:', clientOnChain);
+            }
+          } catch (err4) {
+            console.error('Method 4 failed:', err4);
+          }
+        }
+      }
+    }
+
+    // If we still don't have the client address, we can't proceed safely
+    if (!clientOnChain || clientOnChain === '0x0000000000000000000000000000000000000000') {
+      toast({
+        title: "Cannot Verify Job",
+        description: "Unable to verify job details from blockchain. This might be an RPC issue. Please wait a moment and try again.",
+        variant: "destructive",
+        duration: 10000
+      });
+      return { success: false };
+    }
+
+    // Verify the connected wallet matches the client
+    console.log('Comparing addresses:');
+    console.log('  Client on-chain:', clientOnChain.toLowerCase());
+    console.log('  Current wallet:', userAddress.toLowerCase());
+    
+    if (clientOnChain.toLowerCase() !== userAddress.toLowerCase()) {
+      toast({
+        title: "Wrong Wallet Connected",
+        description: `You must use the client's wallet to approve this job.\n\nRequired: ${clientOnChain.substring(0, 6)}...${clientOnChain.substring(38)}\nConnected: ${userAddress.substring(0, 6)}...${userAddress.substring(38)}\n\nPlease switch wallets in MetaMask and try again.`,
+        variant: "destructive",
+        duration: 15000
+      });
+      return { success: false };
+    }
+
+    console.log('✓ Wallet verification passed');
+
+    // Check job status if we have the full job data
+    if (jobData) {
+      console.log('Job status:', jobData.status);
+      // Status 2 = SUBMITTED (work submitted, ready for approval)
+      if (jobData.status !== 2) {
+        const statusNames = ['CREATED', 'FUNDED', 'IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUESTED', 'COMPLETED', 'DISPUTED', 'REFUNDED'];
+        const currentStatus = statusNames[jobData.status] || `Unknown (${jobData.status})`;
+        toast({
+          title: "Invalid Job Status",
+          description: `Job must be in SUBMITTED status to approve.\n\nCurrent status: ${currentStatus}\n\nThe freelancer must submit their work before you can approve.`,
+          variant: "destructive",
+          duration: 10000
+        });
+        return { success: false };
+      }
+    }
+
+    // Pre-flight check: Try to estimate gas
+    console.log('Running pre-flight gas estimation...');
+    try {
+      const gasEstimate = await contract.approveJob.estimateGas(numericJobId);
+      console.log('✓ Gas estimate succeeded:', gasEstimate.toString());
+    } catch (estimateError: any) {
+      console.error('Gas estimation failed:', estimateError);
+      
+      let errorMsg = "Transaction would fail. ";
+      const errStr = (estimateError.message || estimateError.reason || '').toLowerCase();
+      
+      if (errStr.includes('job is already completed') || errStr.includes('completed')) {
+        errorMsg = "This job has already been approved and payment has been released.";
+      } else if (errStr.includes('only client') || errStr.includes('not the client')) {
+        errorMsg = `You are not the client for this job. Only the client (${clientOnChain.substring(0, 6)}...${clientOnChain.substring(38)}) can approve it.`;
+      } else if (errStr.includes('work not submitted') || errStr.includes('not submitted')) {
+        errorMsg = "The freelancer has not submitted their work yet. Work must be submitted before approval.";
+      } else if (errStr.includes('blacklist')) {
+        errorMsg = "USDC transfer blocked. One of the addresses may be blacklisted by the USDC contract. Please contact support.";
+      } else if (estimateError.reason) {
+        errorMsg += estimateError.reason;
+      } else {
+        errorMsg += estimateError.message || "Unknown error";
+      }
+      
+      toast({
+        title: "Cannot Approve Job",
+        description: errorMsg,
+        variant: "destructive",
+        duration: 12000
+      });
+      return { success: false };
+    }
+
+    // All checks passed, proceed with approval
+    toast({
+      title: "Approving Job...",
+      description: "Please confirm the transaction in MetaMask. Payment will be released to the freelancer.",
+    });
+
+    console.log('Sending approveJob transaction...');
+    const tx = await contract.approveJob(numericJobId);
+    console.log('Transaction sent:', tx.hash);
+    
+    toast({
+      title: "Transaction Submitted",
+      description: "Waiting for blockchain confirmation...",
+    });
+
+    const receipt = await tx.wait();
+    console.log('Transaction confirmed:', receipt.hash);
+
+    // Update Supabase
+    await supabase
+      .from('jobs')
+      .update({ 
+        contract_address: receipt.hash,
+        status: 'completed',
+        completed_at: new Date().toISOString()
+      })
+      .eq('id', jobId);
+
+    toast({
+      title: "✅ Job Approved!",
+      description: `Payment released successfully!\n\nTransaction: ${receipt.hash.substring(0, 10)}...`,
+      duration: 8000
+    });
+
+    return { success: true, txHash: receipt.hash };
+    
+  } catch (error: any) {
+    console.error('Approval error:', error);
+
+    let errorTitle = "Approval Failed";
+    let errorMsg = "Failed to approve job. ";
+
+    const errMsg = (error?.message || '').toLowerCase();
+    
+    if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+      errorMsg = "Transaction was rejected in MetaMask.";
+    } else if (errMsg.includes('blacklist')) {
+      errorTitle = "USDC Transfer Blocked";
+      errorMsg = "One of the wallet addresses is blacklisted by the USDC contract. This is a testnet limitation. Please contact support for assistance.";
+    } else if (errMsg.includes('insufficient funds')) {
+      errorMsg = "Insufficient MATIC for gas fees. Please add MATIC to your wallet.";
+    } else if (error.reason) {
+      errorMsg += error.reason;
+    } else if (error.message) {
+      errorMsg += error.message;
+    }
+
+    toast({
+      title: errorTitle,
+      description: errorMsg,
+      variant: "destructive",
+      duration: 12000,
+    });
+    
+    return { success: false };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const raiseDispute = async (jobId: string): Promise<{ success: boolean; txHash?: string }> => {
     setLoading(true);
