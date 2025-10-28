@@ -47,7 +47,7 @@ const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { fundJob, approveJob, submitWork: submitWorkToBlockchain, checkJobFunded, getJobDetails } = useEscrow();
+  const { fundJob, submitWork: submitWorkToBlockchain, checkJobFunded, getJobDetails } = useEscrow();
   const [job, setJob] = useState<any>(null);
   const [bidAmount, setBidAmount] = useState("");
   const [proposal, setProposal] = useState("");
@@ -625,14 +625,8 @@ const JobDetails = () => {
     if (!id || !job) return;
     
     try {
-      // Get freelancer's wallet address from their profile
-      const { data: freelancerProfile } = await supabase
-        .from('profiles')
-        .select('wallet_address')
-        .eq('id', job.freelancer_id)
-        .single();
-
-      if (!freelancerProfile?.wallet_address) {
+      // Check if freelancer submitted their wallet address
+      if (!job.freelancer_wallet_address) {
         toast({
           title: "Missing Wallet Address",
           description: "Freelancer hasn't provided their wallet address yet.",
@@ -646,13 +640,16 @@ const JobDetails = () => {
         description: "Releasing funds to freelancer's wallet...",
       });
 
-      const { success, txHash } = await approveJob(id);
-      if (!success) {
-        // Detailed error toasts already shown by approveJob
-        return;
+      // Call backend edge function to release payment
+      const { data, error } = await supabase.functions.invoke('release-payment', {
+        body: { jobId: id }
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Payment release failed');
       }
 
-      console.log('Payment released on-chain:', txHash);
+      console.log('Payment released:', data.txHash);
 
       // Update job status to completed
       const { error: jobError } = await supabase
@@ -688,7 +685,7 @@ const JobDetails = () => {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.freelancer_id,
-              message: `🎉 Payment released! Funds have been sent to your wallet for "${job.title}". TX: ${txHash.substring(0, 10)}...`,
+              message: `🎉 Payment released! Funds have been sent to your wallet for "${job.title}". TX: ${data.txHash?.substring(0, 10)}...`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Job'
@@ -704,7 +701,7 @@ const JobDetails = () => {
           await supabase.functions.invoke('send-telegram-notification', {
             body: {
               recipient_id: job.client_id,
-              message: `✅ Job "${job.title}" completed! Funds released to freelancer. TX: ${txHash.substring(0, 10)}...`,
+              message: `✅ Job "${job.title}" completed! Funds released to freelancer. TX: ${data.txHash?.substring(0, 10)}...`,
               sender_id: user?.id,
               url: `${window.location.origin}/jobs/${id}`,
               button_text: 'View Job'
@@ -717,7 +714,7 @@ const JobDetails = () => {
 
       toast({
         title: isSocialMediaPurchase() ? "Payment Released" : "Work Approved",
-        description: `Funds released to freelancer. Transaction: ${txHash.substring(0, 10)}...`,
+        description: `Funds released to freelancer. Transaction: ${data.txHash?.substring(0, 10)}...`,
         duration: 8000
       });
 
