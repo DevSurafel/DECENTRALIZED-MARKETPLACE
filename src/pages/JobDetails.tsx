@@ -825,117 +825,59 @@ const JobDetails = () => {
             <Card className="p-6 glass-card shadow-card hover:shadow-glow transition-smooth">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h1 className="text-3xl font-bold">{job.title}</h1>
-                    <Badge variant="secondary">{job.status.replace('_', ' ')}</Badge>
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <h1 className="text-xl md:text-3xl font-bold">{job.title}</h1>
+                    <Badge variant="secondary" className="text-[10px] md:text-xs">{job.status.replace('_', ' ')}</Badge>
                   </div>
-                  <p className="text-muted-foreground">Posted {getTimeAgo(job.created_at)}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Posted {getTimeAgo(job.created_at)}</p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b">
+              <div className="flex flex-wrap gap-3 md:gap-4 mb-6 pb-6 border-b">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                   <div>
-                    <p className="text-sm text-muted-foreground">{isSocialMediaPurchase() ? 'Price' : 'Budget'}</p>
-                    <p className="font-semibold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">{isSocialMediaPurchase() ? 'Price' : 'Budget'}</p>
+                    <p className="text-sm md:text-base font-semibold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</p>
                   </div>
                 </div>
                 {!isSocialMediaPurchase() && (
                   <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-primary" />
+                    <Clock className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Duration</p>
-                      <p className="font-semibold">{durationText}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground">Duration</p>
+                      <p className="text-sm md:text-base font-semibold">{durationText}</p>
                     </div>
                   </div>
                 )}
                 {job.budget_usd && (
                   <div className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-primary" />
+                    <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                     <div>
-                      <p className="text-sm text-muted-foreground">USD Equivalent</p>
-                      <p className="font-semibold">${job.budget_usd}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground">USD Equivalent</p>
+                      <p className="text-sm md:text-base font-semibold">${job.budget_usd}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               <div className="mb-6">
-                <h2 className="text-xl font-semibold mb-3">
+                <h2 className="text-lg md:text-xl font-semibold mb-3">
                   {isSocialMediaPurchase() ? 'Purchase Details' : 'Description'}
                 </h2>
-                {isSocialMediaPurchase() && job.status === 'under_review' && getUserRole() === 'freelancer' ? (
-                  // For sellers: Show credentials with sensitive info hidden
+                {isSocialMediaPurchase() && job.status === 'under_review' ? (
+                  // For both buyers and sellers: Show credentials with view button for sensitive info
                   (() => {
                     try {
                       const credentials = JSON.parse(job.description);
-                      return (
-                        <div className="space-y-4 bg-muted/30 p-4 rounded-lg border border-primary/10">
-                          {credentials.loginEmail && (
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-primary">Login Email:</p>
-                              <p className="text-muted-foreground">{credentials.loginEmail}</p>
-                            </div>
-                          )}
-                          {credentials.loginUsername && (
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-primary">Login Username:</p>
-                              <p className="text-muted-foreground">{credentials.loginUsername}</p>
-                            </div>
-                          )}
-                          {credentials.password && (
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-primary">Password:</p>
-                              <p className="text-muted-foreground font-mono">••••••••</p>
-                            </div>
-                          )}
-                          {credentials.recoveryEmail && (
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-primary">Recovery Email:</p>
-                              <p className="text-muted-foreground">••••••••</p>
-                            </div>
-                          )}
-                          {credentials.recoveryPhone && (
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-primary">Recovery Phone:</p>
-                              <p className="text-muted-foreground">••••••••</p>
-                            </div>
-                          )}
-                          {credentials.twoFactorBackupCodes && (
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-primary">2FA Backup Codes:</p>
-                              <p className="text-muted-foreground font-mono text-sm">••••••••</p>
-                            </div>
-                          )}
-                          {credentials.additionalNotes && (
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-primary">Additional Notes:</p>
-                              <p className="text-muted-foreground whitespace-pre-line">{credentials.additionalNotes}</p>
-                            </div>
-                          )}
-                          <div className="pt-4 border-t border-primary/10">
-                            <p className="text-xs text-muted-foreground">
-                              Platform: <span className="font-semibold">{credentials.platform}</span> • 
-                              Account: <span className="font-semibold">{credentials.accountName}</span> • 
-                              Submitted: <span className="font-semibold">{new Date(credentials.submittedAt).toLocaleString()}</span>
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    } catch (e) {
-                      return (
-                        <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
-                          {job.description}
-                        </p>
-                      );
+                      return <CredentialViewer credentials={credentials} />;
+                    } catch {
+                      return <p className="text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
                     }
                   })()
-                ) : !isSocialMediaPurchase() || job.status !== 'under_review' ? (
-                  <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
-                    {job.description}
-                  </p>
-                ) : null}
+                ) : (
+                  <p className="text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
+                )}
               </div>
 
               {!isSocialMediaPurchase() && skills.length > 0 && (
