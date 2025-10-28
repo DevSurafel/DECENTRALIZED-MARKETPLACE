@@ -211,11 +211,11 @@ const Home = () => {
             <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
           </div>
           
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-8 bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent leading-tight px-4 animate-fade-in">
+          <h1 className="text-4xl md:text-7xl lg:text-8xl font-bold mb-6 md:mb-8 bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent leading-tight px-4 animate-fade-in">
             The Future of<br />Freelancing is Here
           </h1>
           
-          <p className="text-lg md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed px-4">
+          <p className="text-base md:text-2xl text-gray-300 mb-8 md:mb-12 max-w-4xl mx-auto leading-relaxed px-4">
             Hire world-class talent, deliver exceptional projects, and get paid in crypto—all secured by smart contracts and blockchain technology. Welcome to the new era of work.
           </p>
           
@@ -257,11 +257,11 @@ const Home = () => {
       {/* How It Works Section */}
       <section id="how-it-works" className="py-24 px-4 md:px-8 relative">
         <div className="mx-auto max-w-7xl">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <div className="text-center mb-16 md:mb-20">
+            <h2 className="text-3xl md:text-6xl font-bold mb-4 md:mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               How It Works
             </h2>
-            <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-base md:text-xl text-gray-300 max-w-3xl mx-auto">
               Get started in minutes with our simple 4-step process
             </p>
           </div>
@@ -292,11 +292,11 @@ const Home = () => {
       {/* Features Section */}
       <section id="features" className="py-24 px-4 md:px-8 relative">
         <div className="mx-auto max-w-7xl">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <div className="text-center mb-16 md:mb-20">
+            <h2 className="text-3xl md:text-6xl font-bold mb-4 md:mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Why Choose DeFiLance?
             </h2>
-            <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-base md:text-xl text-gray-300 max-w-3xl mx-auto">
               Built on blockchain technology, designed for the future of work
             </p>
           </div>
@@ -328,11 +328,11 @@ const Home = () => {
       {/* Categories Section */}
       <section className="py-24 px-4 md:px-8 relative">
         <div className="mx-auto max-w-7xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <div className="text-center mb-12 md:mb-16">
+            <h2 className="text-3xl md:text-6xl font-bold mb-4 md:mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Popular Categories
             </h2>
-            <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-base md:text-xl text-gray-300 max-w-3xl mx-auto">
               Find opportunities in your area of expertise
             </p>
           </div>
