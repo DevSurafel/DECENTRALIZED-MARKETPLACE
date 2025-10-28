@@ -72,12 +72,13 @@ serve(async (req) => {
     ];
     const escrowContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, escrowAbi, wallet);
 
-    // Convert UUID to numeric ID
-    const uuidBytes = new TextEncoder().encode(jobId);
-    let numericJobId = BigInt(0);
-    for (let i = 0; i < Math.min(uuidBytes.length, 8); i++) {
-      numericJobId = (numericJobId << BigInt(8)) | BigInt(uuidBytes[i]);
-    }
+    // FIXED: Use the same UUID to numeric conversion as the frontend
+    const uuidToNumericId = (uuid: string): bigint => {
+      const hex = uuid.replace(/-/g, '').slice(0, 16);
+      return BigInt('0x' + hex);
+    };
+    
+    const numericJobId = uuidToNumericId(jobId);
 
     console.log(`Numeric Job ID: ${numericJobId.toString()}`);
 
