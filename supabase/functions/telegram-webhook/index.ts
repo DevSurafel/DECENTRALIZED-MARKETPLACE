@@ -42,20 +42,24 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const update = await req.json();
 
-    console.log("Received Telegram update:", update);
+    console.log("Received Telegram update:", JSON.stringify(update));
 
     // Process incoming message from Telegram
     if (update.message) {
       const { chat, from, text, message_id } = update.message;
       const username = from.username || '';
 
+      console.log("Processing message from chat:", chat.id, "user:", from.username, "text:", text);
+
       // Handle /start command to link account
       if (text?.startsWith('/start')) {
+        console.log("Handling /start command");
         // Support deep-link payload: /start <user_id>
         const parts = text.split(' ');
         const payloadUserId = parts.length > 1 ? parts[1] : undefined;
 
         if (payloadUserId) {
+          console.log("Deep link with user ID:", payloadUserId);
           // Link by supplied user id from deep link
           const { data: profileById, error: byIdErr } = await supabase
             .from('profiles')
@@ -70,6 +74,7 @@ serve(async (req) => {
             console.log('Profile not found for user ID:', payloadUserId);
             await sendTelegramMessage(chat.id, '⚠️ Account not found for this link. Please ensure you are signed in to the app, then go to Profile > Connect Bot and try again.');
           } else {
+            console.log('Linking account for user:', profileById.id);
             await supabase
               .from('profiles')
               .update({ telegram_chat_id: chat.id.toString(), telegram_username: profileById.telegram_username || username })
@@ -87,6 +92,7 @@ serve(async (req) => {
         }
 
         // Fallback: Find user by telegram username
+        console.log("Looking up user by username:", username);
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('id, display_name, telegram_chat_id, telegram_username')
@@ -105,6 +111,7 @@ serve(async (req) => {
         }
 
         if (!profile) {
+          console.log("User not found by username");
           // User not found, send instructions
           await sendTelegramMessage(
             chat.id,
@@ -121,6 +128,7 @@ serve(async (req) => {
         }
 
         // Update chat_id and confirm authorization
+        console.log("Updating chat_id for user:", profile.id);
         await supabase
           .from('profiles')
           .update({ telegram_chat_id: chat.id.toString() })
@@ -142,6 +150,7 @@ serve(async (req) => {
       }
 
       // For regular messages, find user by telegram chat_id
+      console.log("Looking up user by chat_id:", chat.id);
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id, display_name, telegram_chat_id, telegram_username")
@@ -156,6 +165,7 @@ serve(async (req) => {
       }
 
       if (!profile) {
+        console.log("User not linked, sending /start instruction");
         await sendTelegramMessage(
           chat.id,
           "⚠️ Your account is not linked. Please send /start to link your Telegram account."
@@ -177,7 +187,10 @@ serve(async (req) => {
       // Clean the message text by removing any leading @mentions (bot and/or user)
       let cleanedText = rawText.replace(/^@+[\w_]+(?:\s+@+[\w_]+)*\s*/, '').trim();
 
+      console.log("Cleaned text:", cleanedText, "Mentioned user:", mentionedUsername);
+
       if (!cleanedText) {
+        console.log("Empty message after cleaning");
         await sendTelegramMessage(
           chat.id,
           "⚠️ Please enter a message to send."
@@ -195,9 +208,11 @@ serve(async (req) => {
         .maybeSingle();
 
       let conversationId = userProfile?.last_notified_conversation_id;
+      console.log("Last notified conversation:", conversationId);
 
       // If no last notified conversation, try to resolve by mentioned username (if any)
       if (!conversationId && mentionedUsername) {
+        console.log("Trying to find conversation with mentioned user:", mentionedUsername);
         const { data: targetProfile, error: targetErr } = await supabase
           .from("profiles")
           .select("id")
@@ -205,6 +220,7 @@ serve(async (req) => {
           .maybeSingle();
 
         if (!targetErr && targetProfile?.id) {
+          console.log("Found target user:", targetProfile.id);
           const { data: convByUser, error: convByUserErr } = await supabase
             .from("conversations")
             .select("id")
@@ -214,12 +230,14 @@ serve(async (req) => {
 
           if (!convByUserErr && convByUser && convByUser.length > 0) {
             conversationId = convByUser[0].id;
+            console.log("Found conversation by user:", conversationId);
           }
         }
       }
 
       // If still no conversation, get most recent one
       if (!conversationId) {
+        console.log("Getting most recent conversation");
         const { data: conversations, error: convError } = await supabase
           .from("conversations")
           .select("id")
@@ -228,6 +246,7 @@ serve(async (req) => {
           .limit(1);
 
         if (convError || !conversations || conversations.length === 0) {
+          console.log("No conversations found");
           await sendTelegramMessage(
             chat.id,
             "⚠️ No active conversations found. Please start a conversation on the platform first."
@@ -238,6 +257,7 @@ serve(async (req) => {
         }
 
         conversationId = conversations[0].id;
+        console.log("Using most recent conversation:", conversationId);
       }
 
       // Save message to database with cleaned content
@@ -264,6 +284,7 @@ serve(async (req) => {
           `❌ Failed to send message: ${messageError.message || 'Unknown error'}\n\nPlease try again or start a conversation on the platform first.`
         );
       } else {
+        console.log("Message saved successfully");
         // Update conversation last message time
         await supabase
           .from("conversations")
@@ -292,7 +313,7 @@ serve(async (req) => {
 
 // Helper function to send messages via Telegram API
 async function sendTelegramMessage(chatId: number, text: string) {
-  if (!TELEGRAM_BOT_TOKEN) {
+  if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN === "YOUR_TELEGRAM_BOT_TOKEN_HERE") {
     console.error("TELEGRAM_BOT_TOKEN not set");
     return;
   }
@@ -300,6 +321,7 @@ async function sendTelegramMessage(chatId: number, text: string) {
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
   
   try {
+    console.log("Sending Telegram message to chat:", chatId, "text:", text);
     const response = await fetch(url, {
       method: "POST",
       headers: {
