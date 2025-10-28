@@ -66,31 +66,31 @@ export const CredentialViewer = ({ credentials }: CredentialViewerProps) => {
     const isCopied = copiedField === fieldKey;
 
     return (
-      <div className="space-y-2 p-3 bg-muted/30 rounded-lg border border-border/50">
+      <div className="space-y-1.5 sm:space-y-2 p-2 sm:p-3 bg-muted/30 rounded-lg border border-border/50">
         <div className="flex items-center justify-between">
-          <label className="text-xs sm:text-sm font-semibold text-foreground">{label}</label>
-          <div className="flex gap-1.5">
+          <label className="text-[10px] sm:text-xs md:text-sm font-semibold text-foreground">{label}</label>
+          <div className="flex gap-1 sm:gap-1.5">
             {isSensitive && (
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 w-7 p-0"
+                className="h-6 w-6 sm:h-7 sm:w-7 p-0"
                 onClick={() => toggleVisibility(fieldKey)}
               >
-                {isVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {isVisible ? <EyeOff className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
               </Button>
             )}
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 w-7 p-0"
+              className="h-6 w-6 sm:h-7 sm:w-7 p-0"
               onClick={() => copyToClipboard(value, label)}
             >
-              {isCopied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+              {isCopied ? <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-500" /> : <Copy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
             </Button>
           </div>
         </div>
-        <div className="text-xs sm:text-sm text-muted-foreground break-all bg-background/50 p-2 rounded font-mono">
+        <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground break-all bg-background/50 p-1.5 sm:p-2 rounded font-mono">
           {isSensitive && !isVisible ? "••••••••••••" : value}
         </div>
       </div>
@@ -98,30 +98,30 @@ export const CredentialViewer = ({ credentials }: CredentialViewerProps) => {
   };
 
   return (
-    <Card className="p-4 sm:p-6 space-y-4 bg-card/50 backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base sm:text-lg font-bold text-foreground">Account Credentials</h3>
+    <Card className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 bg-card/50 backdrop-blur-sm">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h3 className="text-sm sm:text-base md:text-lg font-bold text-foreground">Account Credentials</h3>
         {credentials.submittedAt && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[10px] sm:text-xs text-muted-foreground">
             {new Date(credentials.submittedAt).toLocaleDateString()}
           </span>
         )}
       </div>
 
       {credentials.platform && credentials.accountName && (
-        <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 mb-4">
+        <div className="p-2 sm:p-3 bg-primary/5 rounded-lg border border-primary/20 mb-3 sm:mb-4">
           <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-semibold text-primary">Platform:</span>
-            <span className="text-xs sm:text-sm font-medium capitalize">{credentials.platform}</span>
+            <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-primary">Platform:</span>
+            <span className="text-[10px] sm:text-xs md:text-sm font-medium capitalize">{credentials.platform}</span>
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs sm:text-sm font-semibold text-primary">Account:</span>
-            <span className="text-xs sm:text-sm font-medium">{credentials.accountName}</span>
+            <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-primary">Account:</span>
+            <span className="text-[10px] sm:text-xs md:text-sm font-medium">{credentials.accountName}</span>
           </div>
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {renderField("Login Email", credentials.loginEmail, "loginEmail", false)}
         {renderField("Login Username", credentials.loginUsername, "loginUsername", false)}
         {renderField("Password", credentials.password, "password", true)}
