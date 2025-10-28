@@ -93,7 +93,13 @@ serve(async (req) => {
       });
 
       if (!jobData.exists) {
-        throw new Error('Job does not exist on blockchain. Please fund the escrow first.');
+        throw new Error('⚠️ Job not funded on blockchain.\n\n' +
+          'The job exists in the database but was never funded through the smart contract.\n\n' +
+          'To fix this:\n' +
+          '1. Go to the job details page\n' +
+          '2. Click "Fund Escrow" button\n' +
+          '3. Connect wallet and complete the funding transaction\n' +
+          '4. Then try approving/releasing payment again');
       }
 
       // Status codes: 0=CREATED, 1=FUNDED, 2=IN_PROGRESS, 3=SUBMITTED, 4=REVISION_REQUESTED, 5=COMPLETED, 6=DISPUTED, 7=REFUNDED
