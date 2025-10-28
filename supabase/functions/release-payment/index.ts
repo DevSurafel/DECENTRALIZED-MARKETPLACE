@@ -64,14 +64,14 @@ serve(async (req) => {
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const wallet = new ethers.Wallet(WALLET_PRIVATE_KEY, provider);
 
-    // Escrow contract ABI - just the release function
+    // Escrow contract ABI - including release to address function
     const escrowAbi = [
-      "function releaseAfterTransfer(uint256 jobId) external",
+      "function releaseAfterTransferToAddress(uint256 jobId, address sellerAddress) external",
       "function getJob(uint256 jobId) external view returns (tuple(address client, address freelancer, address token, uint256 amount, uint256 freelancerStake, uint256 platformFee, uint8 status, uint256 deadline, uint256 reviewDeadline, uint256 allowedRevisions, uint256 currentRevisionNumber))"
     ];
     const escrowContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, escrowAbi, wallet);
 
-    console.log('Calling escrow contract to release payment...');
+    console.log(`Calling escrow contract to release payment to ${freelancerWallet}...`);
 
     // Convert UUID to numeric ID
     const uuidBytes = new TextEncoder().encode(jobId);
@@ -80,12 +80,18 @@ serve(async (req) => {
       numericJobId = (numericJobId << BigInt(8)) | BigInt(uuidBytes[i]);
     }
 
-    // Call the escrow contract's release function
-    const releaseTx = await escrowContract.releaseAfterTransfer(numericJobId, {
-      maxPriorityFeePerGas: ethers.parseUnits('50', 'gwei'),
-      maxFeePerGas: ethers.parseUnits('100', 'gwei'),
-      gasLimit: 300000
-    });
+    console.log(`Numeric Job ID: ${numericJobId.toString()}`);
+
+    // Call the escrow contract's release function with freelancer wallet address
+    const releaseTx = await escrowContract.releaseAfterTransferToAddress(
+      numericJobId, 
+      freelancerWallet,
+      {
+        maxPriorityFeePerGas: ethers.parseUnits('50', 'gwei'),
+        maxFeePerGas: ethers.parseUnits('100', 'gwei'),
+        gasLimit: 500000
+      }
+    );
     
     const receipt = await releaseTx.wait();
     const txHash = receipt.hash;
