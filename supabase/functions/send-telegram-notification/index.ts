@@ -1,28 +1,15 @@
 // ============================================
 // SEND TELEGRAM NOTIFICATION
 // ============================================
-// This edge function sends notifications to users via Telegram
-// when they receive new messages in the DeFiLance platform
-// 
-// USAGE:
-// Call this function from your frontend when a new message is sent
-// Example:
-// supabase.functions.invoke('send-telegram-notification', {
-//   body: { 
-//     recipient_id: '[user_id]',
-//     message: 'You have a new message from [sender]'
-//   }
-// })
+// Sends Telegram notifications when users receive new messages
+// Called from frontend via: supabase.functions.invoke('send-telegram-notification', { body: {...} })
 // ============================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// TODO: Replace YOUR_TELEGRAM_BOT_TOKEN_HERE with your actual bot token
-// OR add TELEGRAM_BOT_TOKEN to Lovable Secrets (Settings > Secrets)
-// Get your bot token from @BotFather on Telegram
-// Example: "1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
-const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "YOUR_TELEGRAM_BOT_TOKEN_HERE";
+// CRITICAL: Use only env var — NO fallback
+const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -32,70 +19,102 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Validate bot token
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.error("TELEGRAM_BOT_TOKEN is missing in environment");
+    return new Response(
+      JSON.stringify({ error: "Bot token not configured" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  let body;
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { recipient_id, message, sender_name, sender_id, conversation_id, url, button_text } = await req.json();
+    body = await req.json();
+  } catch (e) {
+    console.error("Invalid JSON payload:", e);
+    return new Response(
+      JSON.stringify({ error: "Invalid JSON" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
-    if (!recipient_id || !message) {
-      throw new Error("recipient_id and message are required");
-    }
+  const {
+    recipient_id,
+    message,
+    sender_name,
+    sender_id,
+    conversation_id,
+    url,
+    button_text,
+  } = body;
 
+  if (!recipient_id || !message) {
+    return new Response(
+      JSON.stringify({ error: "recipient_id and message are required" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  try {
     // Get recipient's Telegram chat ID
-    const { data: profile, error } = await supabase
+    const { data: profile, error: profileErr } = await supabase
       .from("profiles")
-      .select("telegram_chat_id, telegram_username")
+      .select("telegram_chat_id")
       .eq("id", recipient_id)
       .single();
 
-    if (error || !profile?.telegram_chat_id) {
-      console.log("User does not have Telegram linked:", recipient_id);
+    if (profileErr || !profile?.telegram_chat_id) {
+      console.log("No Telegram linked for user:", recipient_id);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: "User does not have Telegram linked" 
-        }),
+        JSON.stringify({ success: false, message: "User has no Telegram linked" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get sender's profile for username
-    let senderUsername = "user";
-    if (sender_id) {
-      const { data: senderProfile } = await supabase
-        .from("profiles")
-        .select("telegram_username, display_name")
-        .eq("id", sender_id)
-        .single();
-      
-      if (senderProfile) {
-        senderUsername = senderProfile.telegram_username || senderProfile.display_name || "user";
-      }
+    const chatId = parseInt(profile.telegram_chat_id);
+
+    // Build notification text
+    const notificationText = sender_name
+      ? `New message from *${sender_name}*:\n\n${message}`
+      : `New message:\n\n${message}`;
+
+    // Send via Telegram
+    const tgResult = await sendTelegramMessage(
+      chatId,
+      notificationText,
+      sender_name || "user",
+      url,
+      button_text
+    );
+
+    if (!tgResult.ok) {
+      console.error("Telegram API error:", tgResult);
+      return new Response(
+        JSON.stringify({ success: false, error: tgResult }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Send notification via Telegram and update last notified conversation
-    if (TELEGRAM_BOT_TOKEN) {
-      const notificationText = sender_name 
-        ? `💬 New message from ${sender_name}:\n\n${message}`
-        : `💬 New message:\n\n${message}`;
+    console.log("Telegram notification sent to chat:", chatId);
 
-      await sendTelegramMessage(
-        parseInt(profile.telegram_chat_id),
-        notificationText,
-        senderUsername,
-        url,
-        button_text
-      );
+    // Update last_notified_conversation_id
+    if (conversation_id) {
+      const { error: updateErr } = await supabase
+        .from("profiles")
+        .update({ last_notified_conversation_id: conversation_id })
+        .eq("id", recipient_id);
 
-      // Store conversation ID for reply context
-      if (conversation_id) {
-        await supabase
-          .from("profiles")
-          .update({ last_notified_conversation_id: conversation_id })
-          .eq("id", recipient_id);
+      if (updateErr) {
+        console.error("Failed to update last_notified_conversation_id:", updateErr);
+        // Don't fail the whole thing
       }
     }
 
@@ -104,55 +123,57 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error sending notification:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("FATAL ERROR in send-telegram-notification:", error);
+    const msg = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ error: msg }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
 
+// Helper: Send message to Telegram
 async function sendTelegramMessage(
   chatId: number,
   text: string,
-  senderUsername?: string,
+  senderUsername: string,
   detailsUrl?: string,
   buttonText?: string
-) {
+): Promise<any> {
   const apiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-  
+
   const messageBody: any = {
     chat_id: chatId,
-    text: text,
-    parse_mode: "HTML",
+    text,
+    parse_mode: "Markdown",
   };
 
-  // Add inline reply button and/or View Details button
   const inline_keyboard: any[] = [];
+
+  // View Details button
   if (detailsUrl) {
     inline_keyboard.push([
       {
-        text: senderUsername ? `🔎 ${buttonText || 'View Details'}` : (buttonText || 'View Details'),
+        text: buttonText || "View Details",
         url: detailsUrl,
       },
     ]);
   }
-  if (senderUsername) {
+
+  // Reply button
+  if (senderUsername && senderUsername !== "user") {
     inline_keyboard.push([
       {
-        text: "💬 Reply",
+        text: "Reply",
         switch_inline_query_current_chat: `@${senderUsername} `,
       },
     ]);
   }
+
   if (inline_keyboard.length > 0) {
     messageBody.reply_markup = { inline_keyboard };
   }
-  
+
   const response = await fetch(apiUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
