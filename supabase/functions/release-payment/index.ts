@@ -15,19 +15,35 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    try {
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
 
-    const { jobId, freelancerWallet, amount } = await req.json();
+      const { jobId } = await req.json();
 
-    console.log(`Release Payment - Job: ${jobId}, Freelancer: ${freelancerWallet}, Amount: ${amount}`);
+      console.log(`Release Payment - Job: ${jobId}`);
 
-    if (!freelancerWallet || !amount) {
-      throw new Error('Missing freelancer wallet address or amount');
-    }
+      // Fetch job details including freelancer wallet address
+      const { data: job, error: jobError } = await supabase
+        .from('jobs')
+        .select('freelancer_wallet_address, budget_usdc, freelancer_id')
+        .eq('id', jobId)
+        .single();
+
+      if (jobError || !job) {
+        throw new Error('Job not found or error fetching job details');
+      }
+
+      const freelancerWallet = job.freelancer_wallet_address;
+      const amount = job.budget_usdc;
+
+      console.log(`Payment details - Freelancer: ${freelancerWallet}, Amount: ${amount}`);
+
+      if (!freelancerWallet || !amount) {
+        throw new Error('Missing freelancer wallet address or amount');
+      }
 
     // Calculate amounts
     const platformFee = amount * PLATFORM_FEE_PERCENTAGE;
