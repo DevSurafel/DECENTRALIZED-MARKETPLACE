@@ -103,8 +103,8 @@ export const WalletConnectFunding = ({
     if (wcUri && qrCodeRef.current) {
       if (!qrCodeInstance.current) {
         qrCodeInstance.current = new QRCodeStyling({
-          width: window.innerWidth < 640 ? 200 : 300,
-          height: window.innerWidth < 640 ? 200 : 300,
+          width: window.innerWidth < 640 ? 200 : 220,
+          height: window.innerWidth < 640 ? 200 : 220,
           data: wcUri,
           margin: 10,
           qrOptions: {
@@ -579,74 +579,74 @@ export const WalletConnectFunding = ({
       }
       onClose();
     }}>
-      <DialogContent className="max-w-[95vw] sm:max-w-md md:max-w-xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background/95 to-primary/5 border-2 border-primary/30 shadow-2xl backdrop-blur-xl">
+      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background/95 to-primary/5 border-2 border-primary/30 shadow-2xl backdrop-blur-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            <Wallet className="h-5 w-5 text-primary" />
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <Wallet className="h-5 w-5 sm:h-4 sm:w-4 text-primary" />
             Fund Escrow via WalletConnect
           </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
+          <DialogDescription className="text-xs sm:text-xs text-muted-foreground">
             Scan the QR code with your mobile wallet or use MetaMask
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 sm:space-y-6 py-2 sm:py-4">
+        <div className="space-y-4 sm:space-y-3 py-2 sm:py-2">
           {/* Amount Display */}
-          <div className="text-center p-4 sm:p-6 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl border border-primary/20 shadow-lg">
-            <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2 font-medium">You're paying</p>
-            <p className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">${amountUSDC}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground font-semibold">USDC</p>
+          <div className="text-center p-4 sm:p-4 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl border border-primary/20 shadow-lg">
+            <p className="text-xs sm:text-xs text-muted-foreground mb-1 sm:mb-1 font-medium">You're paying</p>
+            <p className="text-3xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">${amountUSDC}</p>
+            <p className="text-xs sm:text-xs text-muted-foreground font-semibold">USDC</p>
           </div>
 
           {/* Status Display */}
           {status === 'connecting' && (
-            <div className="flex flex-col items-center gap-3 sm:gap-4">
+            <div className="flex flex-col items-center gap-3 sm:gap-3">
               {wcUri ? (
                 <>
-                  <div className="p-2 sm:p-4 bg-white dark:bg-gray-800 rounded-xl border-2 sm:border-4 border-primary shadow-lg">
-                    <div ref={qrCodeRef} className="flex items-center justify-center w-[200px] h-[200px] sm:w-[300px] sm:h-[300px]" />
+                  <div className="p-2 sm:p-2 bg-white dark:bg-gray-800 rounded-xl border-2 sm:border-2 border-primary shadow-lg">
+                    <div ref={qrCodeRef} className="flex items-center justify-center w-[200px] h-[200px] sm:w-[220px] sm:h-[220px]" />
                   </div>
 
-                  <div className="text-center space-y-1 sm:space-y-2">
-                    <p className="text-xs sm:text-sm font-semibold flex items-center justify-center gap-2">
-                      <Smartphone className="h-3 w-3 sm:h-4 sm:w-4 text-primary animate-pulse" />
+                  <div className="text-center space-y-1 sm:space-y-1">
+                    <p className="text-xs sm:text-xs font-semibold flex items-center justify-center gap-2">
+                      <Smartphone className="h-3 w-3 sm:h-3 sm:w-3 text-primary animate-pulse" />
                       Scan with your wallet app
                     </p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                    <p className="text-[10px] sm:text-[10px] text-muted-foreground">
                       MetaMask • Trust Wallet • Coinbase Wallet • Rainbow
                     </p>
                   </div>
 
-                  <div className="w-full p-2 sm:p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-[10px] sm:text-xs text-center">
+                  <div className="w-full p-2 sm:p-2 bg-blue-50 dark:bg-blue-950 rounded-lg text-[10px] sm:text-[10px] text-center">
                     <p className="text-blue-700 dark:text-blue-300 animate-pulse">
                       💡 Waiting for wallet connection...
                     </p>
                   </div>
                 </>
               ) : (
-                <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
-                  <Loader2 className="h-10 w-10 sm:h-12 sm:w-12 animate-spin text-primary" />
-                  <p className="text-xs sm:text-sm text-muted-foreground">Generating QR code...</p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">This may take a few seconds</p>
+                <div className="flex flex-col items-center gap-3 sm:gap-3 py-4 sm:py-4">
+                  <Loader2 className="h-10 w-10 sm:h-10 sm:w-10 animate-spin text-primary" />
+                  <p className="text-xs sm:text-xs text-muted-foreground">Generating QR code...</p>
+                  <p className="text-[10px] sm:text-[10px] text-muted-foreground">This may take a few seconds</p>
                 </div>
               )}
             </div>
           )}
 
           {status === 'approving' && (
-            <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
+            <div className="flex flex-col items-center gap-3 sm:gap-3 py-4 sm:py-4">
               <div className="relative">
-                <Loader2 className="h-12 w-12 sm:h-16 sm:w-16 animate-spin text-primary" />
+                <Loader2 className="h-12 w-12 sm:h-12 sm:w-12 animate-spin text-primary" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+                  <CheckCircle2 className="h-6 w-6 sm:h-6 sm:w-6 text-primary" />
                 </div>
               </div>
               <div className="text-center">
-                <p className="font-semibold text-base sm:text-lg mb-1">Step 1 of 2</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">
+                <p className="font-semibold text-base sm:text-sm mb-1">Step 1 of 2</p>
+                <p className="text-xs sm:text-xs text-muted-foreground">
                   Approve USDC spending
                 </p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
+                <p className="text-[10px] sm:text-[10px] text-muted-foreground mt-2">
                   Check your wallet app for approval request
                 </p>
               </div>
@@ -654,19 +654,19 @@ export const WalletConnectFunding = ({
           )}
 
           {status === 'funding' && (
-            <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
+            <div className="flex flex-col items-center gap-3 sm:gap-3 py-4 sm:py-4">
               <div className="relative">
-                <Loader2 className="h-12 w-12 sm:h-16 sm:w-16 animate-spin text-primary" />
+                <Loader2 className="h-12 w-12 sm:h-12 sm:w-12 animate-spin text-primary" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+                  <Wallet className="h-6 w-6 sm:h-6 sm:w-6 text-primary" />
                 </div>
               </div>
               <div className="text-center">
-                <p className="font-semibold text-base sm:text-lg mb-1">Step 2 of 2</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">
+                <p className="font-semibold text-base sm:text-sm mb-1">Step 2 of 2</p>
+                <p className="text-xs sm:text-xs text-muted-foreground">
                   Confirm payment of ${amountUSDC} USDC
                 </p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
+                <p className="text-[10px] sm:text-[10px] text-muted-foreground mt-2">
                   Check your wallet app to confirm the transaction
                 </p>
               </div>
@@ -674,13 +674,13 @@ export const WalletConnectFunding = ({
           )}
 
           {status === 'success' && (
-            <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
-              <div className="rounded-full bg-green-500/10 p-4 sm:p-6">
-                <CheckCircle2 className="h-12 w-12 sm:h-16 sm:w-16 text-green-500" />
+            <div className="flex flex-col items-center gap-3 sm:gap-3 py-4 sm:py-4">
+              <div className="rounded-full bg-green-500/10 p-4 sm:p-4">
+                <CheckCircle2 className="h-12 w-12 sm:h-12 sm:w-12 text-green-500" />
               </div>
               <div className="text-center">
-                <h3 className="text-lg sm:text-2xl font-bold text-green-500 mb-2">Payment Complete!</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground">
+                <h3 className="text-lg sm:text-lg font-bold text-green-500 mb-2">Payment Complete!</h3>
+                <p className="text-xs sm:text-xs text-muted-foreground">
                   Successfully paid ${amountUSDC} USDC
                 </p>
               </div>
@@ -688,17 +688,17 @@ export const WalletConnectFunding = ({
           )}
 
           {status === 'error' && (
-            <div className="flex flex-col items-center gap-3 sm:gap-4 py-4 sm:py-8">
-              <div className="rounded-full bg-red-500/10 p-4 sm:p-6">
-                <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-red-500" />
+            <div className="flex flex-col items-center gap-3 sm:gap-3 py-4 sm:py-4">
+              <div className="rounded-full bg-red-500/10 p-4 sm:p-4">
+                <AlertCircle className="h-12 w-12 sm:h-12 sm:w-12 text-red-500" />
               </div>
               <div className="text-center">
-                <h3 className="text-base sm:text-xl font-bold text-red-500 mb-2">Something Went Wrong</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground px-2 sm:px-4 whitespace-pre-line">
+                <h3 className="text-base sm:text-base font-bold text-red-500 mb-2">Something Went Wrong</h3>
+                <p className="text-xs sm:text-xs text-muted-foreground px-2 sm:px-4 whitespace-pre-line">
                   {errorMessage}
                 </p>
                 {errorMessage.includes('⛽ Insufficient MATIC') && (
-                  <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-[10px] sm:text-xs text-left space-y-2">
+                  <div className="mt-3 sm:mt-3 p-2 sm:p-2 bg-amber-50 dark:bg-amber-950 rounded-lg text-[10px] sm:text-[10px] text-left space-y-2">
                     <p className="font-semibold text-amber-900 dark:text-amber-100">💡 How to fix:</p>
                     <ol className="list-decimal list-inside space-y-1 text-amber-800 dark:text-amber-200">
                       <li>Get free test MATIC from <a href="https://www.alchemy.com/faucets/polygon-amoy" target="_blank" rel="noopener noreferrer" className="underline">Alchemy Faucet</a></li>
@@ -708,7 +708,7 @@ export const WalletConnectFunding = ({
                   </div>
                 )}
                 {errorMessage.includes('allowance') && (
-                  <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-[10px] sm:text-xs text-left space-y-2">
+                  <div className="mt-3 sm:mt-3 p-2 sm:p-2 bg-blue-50 dark:bg-blue-950 rounded-lg text-[10px] sm:text-[10px] text-left space-y-2">
                     <p className="font-semibold text-blue-900 dark:text-blue-100">💡 What to do:</p>
                     <ol className="list-decimal list-inside space-y-1 text-blue-800 dark:text-blue-200">
                       <li>Wait 60 seconds for blockchain to sync</li>
@@ -723,8 +723,8 @@ export const WalletConnectFunding = ({
 
           {/* Help Text */}
           {(status === 'connecting' || status === 'approving' || status === 'funding') && (
-            <div className="p-2 sm:p-4 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
-              <p className="text-[10px] sm:text-xs text-amber-900 dark:text-amber-100">
+            <div className="p-2 sm:p-2 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-[10px] sm:text-[10px] text-amber-900 dark:text-amber-100">
                 <strong>📱 Need a wallet?</strong>
                 <br />
                 Download MetaMask, Trust Wallet, or any WalletConnect-compatible wallet from your app store.
@@ -733,7 +733,7 @@ export const WalletConnectFunding = ({
           )}
         </div>
 
-        <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
+        <div className="flex gap-2 sm:gap-2 pt-3 sm:pt-2 border-t">
           <Button
             variant="outline"
             onClick={() => {
@@ -742,7 +742,7 @@ export const WalletConnectFunding = ({
               }
               onClose();
             }}
-            className="flex-1 text-xs sm:text-sm"
+            className="flex-1 text-xs sm:text-xs"
           >
             Cancel
           </Button>
@@ -754,7 +754,7 @@ export const WalletConnectFunding = ({
                 setWcUri('');
                 initializeWalletConnect();
               }}
-              className="flex-1 text-xs sm:text-sm"
+              className="flex-1 text-xs sm:text-xs"
             >
               Try Again
             </Button>
