@@ -260,42 +260,143 @@ serve(async (req) => {
         console.log("Using most recent conversation:", conversationId);
       }
 
+      // ============================================
+      // UPDATED SECTION - Enhanced error handling
+      // ============================================
+      
+      // First, verify the conversation exists and user is a participant
+      const { data: conversationCheck, error: convCheckError } = await supabase
+        .from("conversations")
+        .select("id, participant_1_id, participant_2_id")
+        .eq("id", conversationId)
+        .maybeSingle();
+
+      if (convCheckError) {
+        console.error("Error checking conversation:", convCheckError);
+        await sendTelegramMessage(
+          chat.id,
+          `❌ Database error while checking conversation: ${convCheckError.message}`
+        );
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!conversationCheck) {
+        console.error("Conversation not found:", conversationId);
+        await sendTelegramMessage(
+          chat.id,
+          "❌ Conversation not found. Please start a new conversation on the platform first."
+        );
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Verify user is a participant
+      const isParticipant = 
+        conversationCheck.participant_1_id === profile.id || 
+        conversationCheck.participant_2_id === profile.id;
+
+      if (!isParticipant) {
+        console.error("User not a participant in conversation:", {
+          userId: profile.id,
+          conversationId: conversationId,
+          participant1: conversationCheck.participant_1_id,
+          participant2: conversationCheck.participant_2_id
+        });
+        await sendTelegramMessage(
+          chat.id,
+          "❌ You are not a participant in this conversation."
+        );
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Save message to database with cleaned content
       console.log("Attempting to insert message:", {
         conversation_id: conversationId,
         sender_id: profile.id,
-        content: cleanedText
+        content: cleanedText,
+        telegram_message_id: message_id.toString(),
       });
 
-      const { error: messageError } = await supabase
+      const { data: insertedMessage, error: messageError } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversationId,
           sender_id: profile.id,
           content: cleanedText,
           telegram_message_id: message_id.toString(),
-        });
+        })
+        .select()
+        .single();
 
       if (messageError) {
         console.error("Error saving message:", messageError);
-        console.error("Message error details:", JSON.stringify(messageError));
-        await sendTelegramMessage(
-          chat.id,
-          `❌ Failed to send message: ${messageError.message || 'Unknown error'}\n\nPlease try again or start a conversation on the platform first.`
-        );
+        console.error("Message error details:", {
+          code: messageError.code,
+          message: messageError.message,
+          details: messageError.details,
+          hint: messageError.hint
+        });
+        
+        // More specific error messages
+        let errorMsg = "❌ Failed to send message: ";
+        if (messageError.code === "23503") {
+          errorMsg += "Foreign key constraint violation. The conversation may have been deleted.";
+        } else if (messageError.code === "23505") {
+          errorMsg += "This message was already sent.";
+        } else {
+          errorMsg += messageError.message || 'Unknown error';
+        }
+        errorMsg += "\n\nPlease try again or start a conversation on the platform first.";
+        
+        await sendTelegramMessage(chat.id, errorMsg);
       } else {
-        console.log("Message saved successfully");
+        console.log("Message saved successfully:", insertedMessage);
+        
         // Update conversation last message time
-        await supabase
+        const { error: updateError } = await supabase
           .from("conversations")
           .update({ last_message_at: new Date().toISOString() })
           .eq("id", conversationId);
+        
+        if (updateError) {
+          console.error("Error updating conversation timestamp:", updateError);
+        }
 
         await sendTelegramMessage(
           chat.id,
           "✅ Message sent successfully!"
         );
+        
+        // Get recipient info and send them a notification
+        const recipientId = conversationCheck.participant_1_id === profile.id 
+          ? conversationCheck.participant_2_id 
+          : conversationCheck.participant_1_id;
+        
+        // Trigger notification to recipient (optional)
+        try {
+          await supabase.functions.invoke('send-telegram-notification', {
+            body: {
+              recipient_id: recipientId,
+              message: cleanedText,
+              sender_name: profile.display_name,
+              sender_id: profile.id,
+              conversation_id: conversationId,
+            }
+          });
+        } catch (notifError) {
+          console.error("Error sending notification:", notifError);
+          // Don't fail the whole operation if notification fails
+        }
       }
+      
+      // ============================================
+      // END OF UPDATED SECTION
+      // ============================================
     }
 
     return new Response(JSON.stringify({ ok: true }), {
