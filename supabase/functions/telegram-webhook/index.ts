@@ -35,10 +35,13 @@ serve(async (req) => {
   // Helper: Send message to Telegram
   const reply = async (chatId: number, text: string) => {
     if (!TELEGRAM_BOT_TOKEN) {
-      console.error("TELEGRAM_BOT_TOKEN missing");
-      return null;
+      console.error("❌ TELEGRAM_BOT_TOKEN missing");
+      return { ok: false, error: "Bot token not configured" };
     }
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    
+    console.log(`📤 Sending message to chat ${chatId}:`, text.substring(0, 100));
+    
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -49,12 +52,19 @@ serve(async (req) => {
           parse_mode: "Markdown",
         }),
       });
+      
       const json = await res.json();
-      console.log("Telegram reply →", json.ok ? "OK" : "FAIL", JSON.stringify(json));
+      
+      if (!res.ok || !json.ok) {
+        console.error("❌ Telegram API error:", JSON.stringify(json));
+        return json;
+      }
+      
+      console.log("✅ Telegram reply sent successfully");
       return json;
     } catch (e) {
-      console.error("Error sending Telegram message:", e);
-      return null;
+      console.error("❌ Fatal error sending Telegram message:", e);
+      return { ok: false, error: String(e) };
     }
   };
 
@@ -67,20 +77,30 @@ serve(async (req) => {
       const chatId = chat.id;
       const payload = text.trim().split(" ")[1]; // User ID after /start
 
+      console.log(`🚀 /start command from chat ${chatId}, payload: ${payload || "none"}`);
+
       if (!payload) {
-        await reply(
+        console.log("ℹ️ No payload, sending welcome message");
+        const result = await reply(
           chatId,
           "*Welcome to DeFiLance!*\n\n" +
             "To connect your account:\n" +
             "1. Sign in on the web app\n" +
             "2. Go to *Profile → Connect Bot*\n" +
-            "3. Click **Connect** – you’ll be redirected here.",
+            "3. Click **Connect** – you'll be redirected here.",
         );
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send welcome message:", result);
+        }
+        
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      console.log(`🔍 Looking up user with ID: ${payload}`);
 
       // Find user by ID
       const { data: profile, error: pErr } = await supabase
@@ -90,15 +110,29 @@ serve(async (req) => {
         .single();
 
       if (pErr || !profile) {
-        await reply(chatId, "Account not found. Please sign up on the web app first.");
+        console.error("❌ User not found:", pErr);
+        const result = await reply(chatId, "Account not found. Please sign up on the web app first.");
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send error message:", result);
+        }
+        
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
+      console.log(`✅ Found user: ${profile.display_name}, current chat_id: ${profile.telegram_chat_id}`);
+
       if (profile.telegram_chat_id && profile.telegram_chat_id !== chatId.toString()) {
-        await reply(chatId, "This account is already linked to another Telegram chat.");
+        console.log("⚠️ Account already linked to different chat");
+        const result = await reply(chatId, "This account is already linked to another Telegram chat.");
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send already-linked message:", result);
+        }
+        
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -106,15 +140,23 @@ serve(async (req) => {
       }
 
       if (profile.telegram_chat_id === chatId.toString()) {
-        await reply(
+        console.log("ℹ️ Account already linked to this chat");
+        const result = await reply(
           chatId,
           `Your account is already linked!\n\nHi *${profile.display_name || "there"}*!`,
         );
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send already-linked message:", result);
+        }
+        
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      console.log(`🔗 Linking account ${profile.id} to chat ${chatId}`);
 
       // Link account
       const { error: updErr } = await supabase
@@ -123,16 +165,25 @@ serve(async (req) => {
         .eq("id", profile.id);
 
       if (updErr) {
-        console.error("Failed to update profile:", updErr);
-        await reply(chatId, "Failed to link account. Please try again.");
+        console.error("❌ Failed to update profile:", updErr);
+        const result = await reply(chatId, "Failed to link account. Please try again.");
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send error message:", result);
+        }
       } else {
-        await reply(
+        console.log("✅ Successfully linked account");
+        const result = await reply(
           chatId,
           `*Success!* Your account is now linked!\n\n` +
             `Hi *${profile.display_name || "there"}*! ` +
-            "You’ll receive message notifications here.\n\n" +
+            "You'll receive message notifications here.\n\n" +
             "Just send a message to reply.",
         );
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send success message:", result);
+        }
       }
 
       return new Response(JSON.stringify({ ok: true }), {
@@ -149,13 +200,23 @@ serve(async (req) => {
       const chatId = chat.id;
       const content = text.trim();
 
+      console.log(`💬 Regular message from chat ${chatId}: ${content.substring(0, 50)}`);
+
       if (!content) {
-        await reply(chatId, "Please type a message.");
+        console.log("⚠️ Empty message received");
+        const result = await reply(chatId, "Please type a message.");
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send empty-message error:", result);
+        }
+        
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      console.log(`🔍 Looking up sender by chat_id: ${chatId}`);
 
       // Find sender by telegram_chat_id
       const { data: sender, error: sErr } = await supabase
@@ -165,19 +226,29 @@ serve(async (req) => {
         .single();
 
       if (sErr || !sender) {
-        await reply(
+        console.error("❌ Sender not found or not linked:", sErr);
+        const result = await reply(
           chatId,
-          "Your account isn’t linked yet.\n\n" +
+          "Your account isn't linked yet.\n\n" +
             "Use **/start** with the link from the web app to connect.",
         );
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send not-linked message:", result);
+        }
+        
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
+      console.log(`✅ Found sender: ${sender.display_name} (${sender.id})`);
+
       // Determine conversation
       let convId = sender.last_notified_conversation_id;
+
+      console.log(`🔍 Looking for conversation, last_notified: ${convId || "none"}`);
 
       if (!convId) {
         const { data: recent } = await supabase
@@ -189,19 +260,28 @@ serve(async (req) => {
           .maybeSingle();
 
         convId = recent?.id;
+        console.log(`🔍 Found recent conversation: ${convId || "none"}`);
       }
 
       if (!convId) {
-        await reply(
+        console.log("⚠️ No conversation found");
+        const result = await reply(
           chatId,
           "No active conversation found.\n\n" +
             "Please start a conversation on the web app first.",
         );
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send no-conversation message:", result);
+        }
+        
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      console.log(`💾 Inserting message into conversation ${convId}`);
 
       // Insert message
       const { error: msgErr } = await supabase
@@ -214,23 +294,40 @@ serve(async (req) => {
         });
 
       if (msgErr) {
-        console.error("Failed to insert message:", msgErr);
-        await reply(chatId, "Failed to send message. Try again.");
+        console.error("❌ Failed to insert message:", msgErr);
+        const result = await reply(chatId, "Failed to send message. Try again.");
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send error message:", result);
+        }
+        
         return new Response(JSON.stringify({ ok: false, error: msgErr.message }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
+      console.log("✅ Message inserted successfully");
+
       // Update conversation timestamp
-      await supabase
+      const { error: updateErr } = await supabase
         .from("conversations")
         .update({ last_message_at: new Date().toISOString() })
         .eq("id", convId);
 
-      await reply(chatId, "Message sent!");
+      if (updateErr) {
+        console.error("⚠️ Failed to update conversation timestamp:", updateErr);
+      }
 
-      // Notify recipient
+      const result = await reply(chatId, "✅ Message sent!");
+      
+      if (!result.ok) {
+        console.error("❌ Failed to send confirmation:", result);
+      }
+
+      console.log("📤 Notifying recipient...");
+
+      // Notify recipient directly via Telegram (avoid nested function invoke)
       const { data: conv } = await supabase
         .from("conversations")
         .select("participant_1_id, participant_2_id")
@@ -241,18 +338,25 @@ serve(async (req) => {
         const recipientId =
           conv.participant_1_id === sender.id ? conv.participant_2_id : conv.participant_1_id;
 
-        try {
-          await supabase.functions.invoke("send-telegram-notification", {
-            body: {
-              recipient_id: recipientId,
-              message: content,
-              sender_name: sender.display_name || "Someone",
-              sender_id: sender.id,
-              conversation_id: convId,
-            },
-          });
-        } catch (e) {
-          console.error("Failed to send notification:", e);
+        console.log(`📧 Preparing notification for recipient: ${recipientId}`);
+
+        // Fetch recipient chat id
+        const { data: recipientProfile, error: rErr } = await supabase
+          .from("profiles")
+          .select("telegram_chat_id, display_name")
+          .eq("id", recipientId)
+          .single();
+
+        if (rErr || !recipientProfile?.telegram_chat_id) {
+          console.warn("⚠️ Recipient has no linked Telegram, skipping notification");
+        } else {
+          const notifyText = `${sender.display_name || "Someone"} sent:\n\n${content}`;
+          const sent = await reply(parseInt(recipientProfile.telegram_chat_id), notifyText);
+          if (!sent?.ok) {
+            console.error("❌ Failed to notify recipient:", sent);
+          } else {
+            console.log("✅ Recipient notified successfully");
+          }
         }
       }
 
