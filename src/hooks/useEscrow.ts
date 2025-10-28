@@ -10,7 +10,7 @@ const USDC_CONTRACT_ADDRESS = '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582'; // P
 // If you encounter blacklist errors, use fresh wallet addresses or deploy your own test token
 
 // Your deployed escrow contract address on Polygon Amoy Testnet
-const ESCROW_CONTRACT_ADDRESS = '0xb95A71b5EfDb52eEa055eBD27168DC49E6c6685b';
+const ESCROW_CONTRACT_ADDRESS = '0x0CC3Fb461bC523d51403d1DB97CB09b49510ceB9';
 
 // Network configuration
 const POLYGON_AMOY_CHAIN_ID = 80002n;
