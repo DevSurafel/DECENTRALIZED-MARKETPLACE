@@ -11,16 +11,20 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders, status: 200 });
+  }
 
+  // CRITICAL: Use SERVICE_ROLE_KEY for anonymous webhook requests from Telegram
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   
   let update;
   try {
     update = await req.json();
-    console.log("Received update:", JSON.stringify(update, null, 2));
+    console.log("📨 Received Telegram update:", JSON.stringify(update, null, 2));
   } catch (e) {
-    console.error("Failed to parse JSON:", e);
+    console.error("❌ Failed to parse JSON:", e);
     return new Response(JSON.stringify({ ok: false, error: "Invalid JSON" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -29,8 +33,8 @@ serve(async (req) => {
 
   const reply = async (chatId: number, text: string) => {
     if (!TELEGRAM_BOT_TOKEN) {
-      console.error("TELEGRAM_BOT_TOKEN not set");
-      return;
+      console.error("❌ TELEGRAM_BOT_TOKEN not set");
+      return null;
     }
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     try {
@@ -44,25 +48,27 @@ serve(async (req) => {
         }),
       });
       const json = await res.json();
-      console.log("Telegram reply →", json.ok ? "OK" : "FAIL", JSON.stringify(json));
+      console.log("📤 Telegram reply →", json.ok ? "✅ OK" : "❌ FAIL", JSON.stringify(json));
       return json;
     } catch (e) {
-      console.error("Error sending Telegram message:", e);
+      console.error("❌ Error sending Telegram message:", e);
       return null;
     }
   };
 
   try {
-    // Handle /start command - link Telegram account
+    // ===========================================
+    // HANDLE /START COMMAND - Link Telegram Account
+    // ===========================================
     if (update.message?.text?.startsWith("/start")) {
       const { chat, text } = update.message;
-      console.log("Received /start command:", { chat_id: chat.id, text });
+      console.log("🚀 Received /start command:", { chat_id: chat.id, text });
       
       const parts = text.trim().split(" ");
       const payloadUserId = parts[1];
 
       if (payloadUserId) {
-        console.log("Attempting to link user:", payloadUserId);
+        console.log("🔗 Attempting to link user:", payloadUserId);
         
         const { data: profile, error } = await supabase
           .from("profiles")
@@ -70,39 +76,42 @@ serve(async (req) => {
           .eq("id", payloadUserId)
           .maybeSingle();
 
-        console.log("Profile lookup result:", { profile, error });
+        console.log("👤 Profile lookup result:", { profile, error });
 
         if (error || !profile) {
-          console.error("Profile not found:", error);
+          console.error("❌ Profile not found:", error);
           await reply(chat.id, "❌ Account not found. Please sign up on the platform first.");
         } else if (profile.telegram_chat_id && profile.telegram_chat_id !== chat.id.toString()) {
           await reply(chat.id, "⚠️ This account is already linked to another Telegram account!");
         } else if (profile.telegram_chat_id === chat.id.toString()) {
           await reply(chat.id, `✅ Your account is already linked!\n\nHi ${profile.display_name || 'there'}! You will receive notifications here.`);
         } else {
+          // Link the Telegram account
           const { error: updErr } = await supabase
             .from("profiles")
             .update({ telegram_chat_id: chat.id.toString() })
             .eq("id", profile.id);
 
-          console.log("Profile update result:", { error: updErr });
+          console.log("💾 Profile update result:", { error: updErr });
 
           if (updErr) {
-            console.error("DB UPDATE ERROR:", updErr);
+            console.error("❌ DB UPDATE ERROR:", updErr);
             await reply(chat.id, "❌ Failed to link your account. Please try again or contact support.");
           } else {
             await reply(
               chat.id, 
-              `✅ Success! Your account is now linked!\n\n` +
-              `Hi ${profile.display_name || 'there'}! You will receive message notifications here.\n\n` +
-              `To reply to messages, just send your message as a regular text. The bot will send it to your most recent conversation.`
+              `✅ *Success!* Your account is now linked!\n\n` +
+              `Hi *${profile.display_name || 'there'}*! You will receive message notifications here.\n\n` +
+              `💬 To reply to messages, just send your message as regular text.`
             );
+            console.log("✅ Successfully linked Telegram account");
           }
         }
       } else {
+        // No payload, show welcome message
         await reply(
           chat.id, 
-          "👋 Welcome to DeFiLance!\n\n" +
+          "👋 *Welcome to DeFiLance!*\n\n" +
           "To connect your account:\n" +
           "1. Sign in to the platform\n" +
           "2. Go to Profile → Connect Bot\n" +
@@ -113,17 +122,20 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
       });
     }
 
-    // Handle regular messages (replies to conversations)
+    // ===========================================
+    // HANDLE REGULAR MESSAGES - Reply to Conversations
+    // ===========================================
     if (update.message?.text && !update.message.text.startsWith("/")) {
       const { chat, text, message_id } = update.message;
       const chatId = chat.id;
 
-      console.log("Received message:", { chat_id: chatId, text, message_id });
+      console.log("💬 Received message:", { chat_id: chatId, text, message_id });
 
-      // Find the user by telegram_chat_id
+      // Find user by telegram_chat_id
       const { data: sender, error: sErr } = await supabase
         .from("profiles")
         .select("id, display_name, last_notified_conversation_id")
@@ -131,31 +143,37 @@ serve(async (req) => {
         .maybeSingle();
 
       if (sErr || !sender) {
-        console.log("Sender not found:", { chatId, error: sErr });
-        await reply(chatId, "❌ Your account isn't linked yet.\n\nSend /start to connect your Telegram account.");
+        console.log("❌ Sender not found:", { chatId, error: sErr });
+        await reply(
+          chatId, 
+          "❌ Your account isn't linked yet.\n\n" +
+          "Send /start to connect your Telegram account."
+        );
         return new Response(JSON.stringify({ ok: true }), { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
         });
       }
 
-      console.log("Sender found:", { sender_id: sender.id, display_name: sender.display_name });
+      console.log("👤 Sender found:", { sender_id: sender.id, display_name: sender.display_name });
 
       const messageContent = text.trim();
       
       if (!messageContent) {
         await reply(chatId, "⚠️ Please type a message.");
         return new Response(JSON.stringify({ ok: true }), { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
         });
       }
 
-      // Use last_notified_conversation_id as the conversation to reply to
+      // Get conversation ID from last notification
       let convId = sender.last_notified_conversation_id;
-      console.log("Using conversation ID from last notification:", convId);
+      console.log("🔍 Last notified conversation:", convId);
 
-      // If no last_notified_conversation_id, get the most recent conversation
+      // Fallback: Get most recent conversation
       if (!convId) {
-        console.log("No last notification conversation, looking for most recent");
+        console.log("⚠️ No last notification conversation, looking for most recent");
         
         const { data: recent, error: recentErr } = await supabase
           .from("conversations")
@@ -165,23 +183,24 @@ serve(async (req) => {
           .limit(1)
           .maybeSingle();
         
-        console.log("Recent conversation result:", { recent, error: recentErr });
+        console.log("📋 Recent conversation result:", { recent, error: recentErr });
         convId = recent?.id;
       }
 
       if (!convId) {
-        console.log("No conversation found for user");
+        console.log("❌ No conversation found for user");
         await reply(
           chatId, 
           "❌ No active conversation found.\n\n" +
           "Please start a conversation on the platform first, then you can reply here."
         );
         return new Response(JSON.stringify({ ok: true }), { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
         });
       }
 
-      console.log("Sending message to conversation:", convId);
+      console.log("📨 Sending message to conversation:", convId);
 
       // Insert message into database
       const { data: newMessage, error: msgErr } = await supabase
@@ -196,7 +215,7 @@ serve(async (req) => {
         .single();
 
       if (msgErr) {
-        console.error("DB insert error:", msgErr);
+        console.error("❌ DB insert error:", msgErr);
         await reply(chatId, "❌ Failed to send message. Please try again.");
         return new Response(JSON.stringify({ ok: false, error: msgErr.message }), {
           status: 500,
@@ -204,7 +223,7 @@ serve(async (req) => {
         });
       }
 
-      console.log("Message saved successfully:", newMessage);
+      console.log("✅ Message saved successfully:", newMessage?.id);
       
       // Update conversation timestamp
       const { error: updateErr } = await supabase
@@ -213,12 +232,12 @@ serve(async (req) => {
         .eq("id", convId);
 
       if (updateErr) {
-        console.error("Failed to update conversation timestamp:", updateErr);
+        console.error("⚠️ Failed to update conversation timestamp:", updateErr);
       }
 
       await reply(chatId, "✅ Message sent!");
 
-      // Get conversation details to notify recipient
+      // Notify recipient
       const { data: conv, error: convErr } = await supabase
         .from("conversations")
         .select("participant_1_id, participant_2_id")
@@ -230,9 +249,8 @@ serve(async (req) => {
           ? conv.participant_2_id 
           : conv.participant_1_id;
         
-        console.log("Sending notification to recipient:", recipientId);
+        console.log("📤 Sending notification to recipient:", recipientId);
 
-        // Send notification to recipient
         try {
           await supabase.functions.invoke("send-telegram-notification", {
             body: {
@@ -243,28 +261,32 @@ serve(async (req) => {
               conversation_id: convId,
             },
           });
-          console.log("Notification sent successfully");
+          console.log("✅ Notification sent successfully");
         } catch (notifErr) {
-          console.error("Failed to send notification:", notifErr);
+          console.error("⚠️ Failed to send notification:", notifErr);
         }
       } else {
-        console.error("Failed to fetch conversation details:", convErr);
+        console.error("❌ Failed to fetch conversation details:", convErr);
       }
 
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
       });
     }
 
-    // No action needed for this update
+    // Unknown update type - acknowledge
+    console.log("ℹ️ Unknown update type, acknowledging");
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
     });
+
   } catch (e) {
-    console.error("FATAL ERROR:", e);
+    console.error("💥 FATAL ERROR:", e);
     const errorMessage = e instanceof Error ? e.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: errorMessage, ok: false }), {
+      status: 200, // Return 200 to Telegram to avoid retries
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
