@@ -60,34 +60,36 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button className="relative overflow-hidden group bg-gradient-to-r from-primary via-primary to-secondary hover:shadow-lg hover:shadow-primary/50 transition-all duration-300">
+          <Button className="relative overflow-hidden group bg-gradient-to-r from-primary via-primary to-secondary hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 text-sm h-9">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-            <Briefcase className="h-4 w-4 mr-2" />
+            <Briefcase className="h-3.5 w-3.5 mr-1.5" />
             <span className="font-semibold">Post a Job</span>
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[650px] max-h-[95vh] overflow-hidden p-0 gap-0 bg-gradient-to-br from-background via-background to-primary/5 border border-primary/20 shadow-2xl">
-        {/* Header with gradient background */}
-        <DialogHeader className="px-6 py-6 pb-4 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-b border-primary/20">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-br from-primary to-secondary rounded-xl shadow-lg">
-              <Sparkles className="h-5 w-5 text-white" />
+      <DialogContent className="max-w-[96vw] sm:max-w-[550px] max-h-[92vh] overflow-hidden p-0 gap-0 bg-gradient-to-br from-background via-background to-primary/5 border border-primary/20 shadow-2xl">
+        {/* Compact Header */}
+        <DialogHeader className="px-4 py-3 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-b border-primary/20">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-gradient-to-br from-primary to-secondary rounded-lg shadow-lg">
+              <Sparkles className="h-3.5 w-3.5 text-white" />
             </div>
-            <DialogTitle className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-              Post a New Job
-            </DialogTitle>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
+                Post a New Job
+              </DialogTitle>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Find the perfect freelancer</p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground mt-2">Fill in the details to find the perfect freelancer</p>
         </DialogHeader>
 
-        {/* Scrollable form content */}
-        <div className="overflow-y-auto max-h-[calc(95vh-180px)] px-6 py-6">
-          <div className="space-y-6">
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto max-h-[calc(92vh-130px)] px-4 py-3">
+          <div className="space-y-3">
             {/* Job Title */}
-            <div className="space-y-2.5">
-              <Label htmlFor="title" className="text-sm font-semibold flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-primary" />
+            <div className="space-y-1.5">
+              <Label htmlFor="title" className="text-xs font-semibold flex items-center gap-1.5">
+                <Briefcase className="h-3 w-3 text-primary" />
                 Job Title
               </Label>
               <Input
@@ -96,32 +98,31 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g., Build DeFi Dashboard"
                 required
-                className="h-12 text-base bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200 placeholder:text-muted-foreground/60"
+                className="h-9 text-sm bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
               />
             </div>
 
             {/* Description */}
-            <div className="space-y-2.5">
-              <Label htmlFor="description" className="text-sm font-semibold">
+            <div className="space-y-1.5">
+              <Label htmlFor="description" className="text-xs font-semibold">
                 Project Description
               </Label>
               <Textarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe your project requirements, expected deliverables, and any specific details..."
-                rows={6}
+                placeholder="Describe your project requirements..."
+                rows={4}
                 required
-                className="text-base bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200 resize-none placeholder:text-muted-foreground/60"
+                className="text-sm bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200 resize-none"
               />
-              <p className="text-xs text-muted-foreground">Be as detailed as possible to attract the right talent</p>
             </div>
 
             {/* Budget and Duration Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2.5">
-                <Label htmlFor="budget" className="text-sm font-semibold flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-green-500" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="budget" className="text-xs font-semibold flex items-center gap-1.5">
+                  <DollarSign className="h-3 w-3 text-green-500" />
                   Budget (USDC)
                 </Label>
                 <div className="relative">
@@ -133,15 +134,15 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
                     onChange={(e) => setBudget(e.target.value)}
                     placeholder="1000.00"
                     required
-                    className="h-12 text-base bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-green-500 focus:ring-2 focus:ring-green-500/20 rounded-xl transition-all duration-200 pl-8"
+                    className="h-9 text-sm bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-green-500 focus:ring-2 focus:ring-green-500/20 rounded-lg transition-all duration-200 pl-7"
                   />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">$</span>
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">$</span>
                 </div>
               </div>
               
-              <div className="space-y-2.5">
-                <Label htmlFor="duration" className="text-sm font-semibold flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-blue-500" />
+              <div className="space-y-1.5">
+                <Label htmlFor="duration" className="text-xs font-semibold flex items-center gap-1.5">
+                  <Clock className="h-3 w-3 text-blue-500" />
                   Duration (weeks)
                 </Label>
                 <Input
@@ -150,14 +151,14 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
                   placeholder="2"
-                  className="h-12 text-base bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl transition-all duration-200"
+                  className="h-9 text-sm bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg transition-all duration-200"
                 />
               </div>
             </div>
 
             {/* Skills Section */}
-            <div className="space-y-3">
-              <Label htmlFor="skills" className="text-sm font-semibold">
+            <div className="space-y-2">
+              <Label htmlFor="skills" className="text-xs font-semibold">
                 Required Skills
               </Label>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -166,51 +167,47 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
                   value={skillInput}
                   onChange={(e) => setSkillInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
-                  placeholder="e.g., React, Web3, Smart Contracts"
-                  className="h-11 text-base flex-1 bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
+                  placeholder="e.g., React, Web3"
+                  className="h-9 text-sm flex-1 bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
                 />
                 <Button 
                   type="button" 
                   onClick={handleAddSkill} 
-                  className="h-11 px-6 bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 rounded-xl"
+                  className="h-9 px-4 text-xs bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 rounded-lg"
                 >
-                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <Plus className="h-3 w-3 sm:mr-1.5" />
                   <span className="hidden sm:inline">Add</span>
                 </Button>
               </div>
               
               {/* Skills Display */}
               {skills.length > 0 && (
-                <div className="flex flex-wrap gap-2 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                <div className="flex flex-wrap gap-1.5 p-2.5 bg-primary/5 rounded-lg border border-primary/10">
                   {skills.map((skill) => (
                     <Badge 
                       key={skill} 
-                      className="gap-1.5 px-3 py-1.5 text-sm font-medium bg-gradient-to-r from-primary/90 to-secondary/90 hover:from-primary hover:to-secondary text-white border-0 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg"
+                      className="gap-1 px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-primary/90 to-secondary/90 hover:from-primary hover:to-secondary text-white border-0 shadow-sm hover:shadow-md transition-all duration-200 rounded"
                     >
                       {skill}
                       <X
-                        className="h-3.5 w-3.5 cursor-pointer hover:text-red-200 transition-colors"
+                        className="h-2.5 w-2.5 cursor-pointer hover:text-red-200 transition-colors"
                         onClick={() => handleRemoveSkill(skill)}
                       />
                     </Badge>
                   ))}
                 </div>
               )}
-              
-              {skills.length === 0 && (
-                <p className="text-xs text-muted-foreground italic px-1">Add skills to help freelancers understand your requirements</p>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="px-6 py-4 bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30 border-t border-primary/10 flex flex-col-reverse sm:flex-row justify-end gap-3">
+        {/* Compact Footer */}
+        <div className="px-4 py-2.5 bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30 border-t border-primary/10 flex flex-col-reverse sm:flex-row justify-end gap-2">
           <Button 
             type="button" 
             variant="outline" 
             onClick={() => setOpen(false)} 
-            className="h-11 px-6 border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 rounded-xl transition-all duration-200"
+            className="h-9 px-4 text-xs border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 rounded-lg transition-all duration-200"
           >
             Cancel
           </Button>
@@ -218,7 +215,7 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
             type="button" 
             disabled={loading} 
             onClick={handleSubmit}
-            className="h-11 px-8 bg-gradient-to-r from-primary via-secondary to-primary hover:shadow-lg hover:shadow-primary/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition-all duration-300 relative overflow-hidden group"
+            className="h-9 px-6 text-xs bg-gradient-to-r from-primary via-secondary to-primary hover:shadow-lg hover:shadow-primary/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold transition-all duration-300 relative overflow-hidden group"
           >
             {loading ? (
               <>
