@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSocialMedia, SocialMediaPlatform } from "@/hooks/useSocialMedia";
-import { Plus, Upload, X, CheckCircle2, AlertCircle, Info } from "lucide-react";
+import { Plus, Upload, X, CheckCircle2, AlertCircle, Info, Sparkles, Shield, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { validateSocialMediaURL } from "@/utils/socialMediaValidator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface SocialMediaListingDialogProps {
   onSuccess?: () => void;
@@ -76,7 +76,6 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       return { isValid: false, message: 'Please enter a username or channel ID' };
     }
 
-    // Check if it's a valid format
     const isUsername = /^@?[a-zA-Z0-9_]{5,}$/.test(trimmed);
     const isChannelId = /^-100\d{10,}$/.test(trimmed);
     const hasAtSymbol = trimmed.startsWith('@');
@@ -89,7 +88,6 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       return { isValid: true, message: hasAtSymbol ? 'Valid username with @' : 'Valid username (@ will be added)' };
     }
     
-    // Check if it looks like a display name (has spaces or special chars)
     if (/\s/.test(trimmed) || trimmed.length < 5) {
       return { 
         isValid: false, 
@@ -125,7 +123,7 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
     }
   };
 
-  // Real-time link validation (without auto-verification)
+  // Real-time link validation
   useEffect(() => {
     if (!accountLink) {
       setLinkValidation(null);
@@ -133,7 +131,6 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
     }
 
     const validateLink = async () => {
-      // For Telegram, validate the identifier format
       if (platform === 'telegram') {
         const telegramValidation = validateTelegramIdentifier(accountLink);
         setLinkValidation(telegramValidation);
@@ -148,7 +145,6 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
         return;
       }
 
-    // For other platforms, validate URL format
       const validationResult = validateSocialMediaURL(accountLink, platform);
       if (validationResult.isValid) {
         setLinkValidation({ 
@@ -165,12 +161,12 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
 
     const timeoutId = setTimeout(() => {
       validateLink();
-    }, 500); // Debounce
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [accountLink, platform]);
 
-  // Fetch account data function (called manually or on verify button click)
+  // Fetch account data function
   const fetchAccountData = async () => {
     if (!accountLink) return;
 
@@ -178,7 +174,6 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
     try {
       let cleanedLink = accountLink.trim();
       
-      // For Telegram, ensure proper format
       if (platform === 'telegram') {
         if (!cleanedLink.startsWith('@') && !cleanedLink.startsWith('-')) {
           cleanedLink = '@' + cleanedLink;
@@ -192,21 +187,11 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       if (error) throw error;
 
       if (data?.success && data?.data) {
-        // Auto-fill fields
-        if (data.data.accountName) {
-          setAccountName(data.data.accountName);
-        }
-        if (data.data.followers !== undefined) {
-          setFollowersCount(data.data.followers.toString());
-        }
-        if (data.data.isVerified !== undefined) {
-          setIsVerified(data.data.isVerified);
-        }
-        if (data.data.videoCount !== undefined && platform === 'youtube') {
-          setTotalVideos(data.data.videoCount.toString());
-        }
+        if (data.data.accountName) setAccountName(data.data.accountName);
+        if (data.data.followers !== undefined) setFollowersCount(data.data.followers.toString());
+        if (data.data.isVerified !== undefined) setIsVerified(data.data.isVerified);
+        if (data.data.videoCount !== undefined && platform === 'youtube') setTotalVideos(data.data.videoCount.toString());
 
-        // Check verification
         if (data.data.verificationCodeFound) {
           setVerificationStatus({ 
             verified: true, 
@@ -218,35 +203,34 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
             title: "✓ Account verified",
             description: "Fields auto-filled with account information",
           });
-      } else {
-        // For platforms with limited scraping, still allow verification if account exists
-        const allowManualVerification = ['twitter', 'facebook'].includes(platform);
-        
-        if (allowManualVerification && data.data.accountExists) {
-          setVerificationStatus({ 
-            verified: true, 
-            message: `Account found. Due to ${platform} anti-scraping measures, please upload screenshots showing the verification code in your bio.`
-          });
-          toast({
-            title: "⚠ Manual verification required",
-            description: `Please upload screenshots showing "${verificationCode}" in your account bio`,
-          });
         } else {
-          setVerificationStatus({ 
-            verified: false, 
-            message: platform === 'telegram'
-              ? 'Verification code not found. Please add it to your channel/group description.'
-              : 'Verification code not found. Please add it to your account bio/description.'
-          });
-          toast({
-            title: "⚠ Verification code not found",
-            description: platform === 'telegram'
-              ? "Please add the code to your Telegram channel/group description and try again"
-              : "Please add the code to your account bio/description and try again",
-            variant: "destructive"
-          });
+          const allowManualVerification = ['twitter', 'facebook'].includes(platform);
+          
+          if (allowManualVerification && data.data.accountExists) {
+            setVerificationStatus({ 
+              verified: true, 
+              message: `Account found. Due to ${platform} anti-scraping measures, please upload screenshots showing the verification code in your bio.`
+            });
+            toast({
+              title: "⚠ Manual verification required",
+              description: `Please upload screenshots showing "${verificationCode}" in your account bio`,
+            });
+          } else {
+            setVerificationStatus({ 
+              verified: false, 
+              message: platform === 'telegram'
+                ? 'Verification code not found. Please add it to your channel/group description.'
+                : 'Verification code not found. Please add it to your account bio/description.'
+            });
+            toast({
+              title: "⚠ Verification code not found",
+              description: platform === 'telegram'
+                ? "Please add the code to your Telegram channel/group description and try again"
+                : "Please add the code to your account bio/description and try again",
+              variant: "destructive"
+            });
+          }
         }
-      }
       } else if (data?.error) {
         toast({
           title: "Could not fetch data",
@@ -305,7 +289,6 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate account link before submission
     if (!linkValidation?.isValid) {
       toast({
         title: "Invalid account identifier",
@@ -317,7 +300,6 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       return;
     }
 
-    // Verification check - Only for Telegram (other platforms disabled for testing)
     if (platform === 'telegram') {
       if (!hasVerified) {
         toast({
@@ -338,51 +320,10 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       }
     }
     
-    /* Verification checks for other platforms - Temporarily disabled for testing
-    if (platform !== 'facebook' && platform !== 'telegram') {
-      if (!hasVerified) {
-        toast({
-          title: "Verification Required",
-          description: "Please click the 'Verify Account' button to verify ownership before listing",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (!verificationStatus?.verified) {
-        if (platform === 'twitter' && screenshotFiles.length > 0) {
-          toast({
-            title: "⚠ Manual verification",
-            description: "Proceeding with screenshot verification for Twitter/X",
-          });
-        } else {
-          toast({
-            title: "Verification Failed",
-            description: platform === 'twitter'
-              ? "Please upload screenshots showing the verification code in your bio."
-              : `Verification code not found. Please add "${verificationCode}" to your bio and verify again.`,
-            variant: "destructive"
-          });
-          return;
-        }
-      }
-    }
-    
-    if (platform === 'facebook' && !screenshotFiles.length) {
-      toast({
-        title: "Screenshots Recommended",
-        description: "Please upload screenshots showing the verification code in your Facebook page/group description.",
-        variant: "destructive"
-      });
-      return;
-    }
-    */
-    
     setUploading(true);
     
     const screenshotUrls: string[] = [];
     
-    // Upload all screenshots if provided
     if (screenshotFiles.length > 0) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -417,7 +358,6 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
       }
     }
     
-    // Build platform-specific metadata
     const metadata: Record<string, any> = {};
     if (niche) metadata.niche = niche;
     if (isVerified) metadata.isVerified = isVerified;
@@ -431,10 +371,8 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
     if (accountType) metadata.accountType = accountType;
     if (monthlyReach) metadata.monthlyReach = parseInt(monthlyReach);
     
-    // For Telegram, ensure the account_name has proper format
     let finalAccountName = accountName.trim();
     if (platform === 'telegram') {
-      // Ensure @ prefix for usernames (not for channel IDs)
       if (!finalAccountName.startsWith('@') && !finalAccountName.startsWith('-')) {
         finalAccountName = '@' + finalAccountName;
       }
@@ -453,6 +391,7 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
 
     if (result) {
       setOpen(false);
+      // Reset all fields
       setAccountName("");
       setFollowersCount("");
       setDescription("");
@@ -480,464 +419,449 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 shadow-glow text-sm md:text-base h-10 md:h-12 px-4 md:px-6">
+        <Button className="relative overflow-hidden group gap-2 bg-gradient-to-r from-primary via-primary to-secondary hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 text-sm md:text-base h-10 md:h-12 px-4 md:px-6">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
           <Plus className="w-4 h-4" />
-          List Account
+          <span className="font-semibold">List Account</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-[95vw] md:max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background/95 to-primary/5 border-2 border-primary/30 shadow-2xl backdrop-blur-xl">
-        <DialogHeader className="space-y-2 pb-4 border-b border-primary/10">
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-            List Social Media Account for Sale
-          </DialogTitle>
-          <p className="text-sm text-muted-foreground">Fill in the details to list your social media account on the marketplace</p>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="platform">Platform</Label>
-            <Select value={platform} onValueChange={(value) => setPlatform(value as SocialMediaPlatform)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select platform" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="facebook">Facebook</SelectItem>
-                <SelectItem value="telegram">Telegram</SelectItem>
-                <SelectItem value="youtube">YouTube</SelectItem>
-                <SelectItem value="tiktok">TikTok</SelectItem>
-                <SelectItem value="twitter">Twitter/X</SelectItem>
-                <SelectItem value="instagram">Instagram</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Verification Code - Currently commented out for testing (except Telegram) */}
-          {platform === 'telegram' && (
-            <Alert className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 shadow-lg">
-              <Info className="h-4 w-4 text-primary" />
-              <AlertDescription className="text-sm">
-                <strong className="text-primary">Verification Required:</strong> To prove you own this account, add this code to your channel/group description:
-                <div className="mt-3 p-3 bg-background/80 backdrop-blur-sm rounded-lg font-mono text-lg font-bold text-center border border-primary/20 shadow-inner">
-                  {verificationCode}
-                </div>
-                <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-                  This code changes every time you change the platform. Add this to your Telegram channel/group description, then click "Verify Account" below.
-                </p>
-                {verificationStatus && (
-                  <div className={`mt-3 p-3 rounded-lg flex items-center gap-3 shadow-md ${verificationStatus.verified ? 'bg-green-500/20 text-green-600 border border-green-500/30' : 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/30'}`}>
-                    {verificationStatus.verified ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-                    <span className="font-medium">{verificationStatus.message}</span>
-                  </div>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {/* Verification code for other platforms - Temporarily disabled for testing */}
-          {/* 
-          {platform !== 'facebook' && platform !== 'telegram' && (
-            <Alert className="bg-primary/10 border-primary/20">
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                <strong>Verification Required:</strong> To prove you own this account, add this code to your account bio/description:
-                <div className="mt-2 p-2 bg-background rounded font-mono text-lg font-bold text-center">
-                  {verificationCode}
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  This code changes every time you change the platform. Add this to your account bio/description, then click "Verify Account" below.
-                </p>
-                {verificationStatus && (
-                  <div className={`mt-2 p-2 rounded flex items-center gap-2 ${verificationStatus.verified ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
-                    {verificationStatus.verified ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                    <span>{verificationStatus.message}</span>
-                  </div>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
-          */}
-
-          {/* Facebook verification - Temporarily disabled for testing */}
-          {/* 
-          {platform === 'facebook' && (
-            <Alert className="bg-primary/10 border-primary/20">
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                <strong>Verification Required:</strong> To prove you own this account, add this code to your page/group description:
-                <div className="mt-2 p-2 bg-background rounded font-mono text-lg font-bold text-center">
-                  {verificationCode}
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  This code changes every time you change the platform. For Facebook, please add this to your page/group description and include screenshots as proof.
-                </p>
-              </AlertDescription>
-            </Alert>
-          )}
-          */}
-
-          {platform === 'telegram' && (
-            <Alert className="bg-gradient-to-r from-blue-500/15 to-blue-400/10 border-blue-500/30 shadow-md">
-              <Info className="h-4 w-4 text-blue-500" />
-              <AlertDescription className="text-sm space-y-2">
-                <p><strong className="text-blue-600">For Telegram:</strong> Enter your channel/group username (@username) or channel ID (-100123456789).</p>
-                <p><strong className="text-blue-600">Example:</strong> @mychannel or -1001234567890</p>
-                <p><strong className="text-blue-600">How to find:</strong> Open your channel → Info → Look for "t.me/username" or use @userinfobot for the ID</p>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="accountLink">
-              {platform === 'telegram' ? 'Channel/Group Username or ID' : 'Account Link'} 
-              <span className="text-destructive">*</span>
-            </Label>
-            <div className="relative">
-              <Input
-                id="accountLink"
-                value={accountLink}
-                onChange={(e) => setAccountLink(e.target.value)}
-                placeholder={
-                  platform === 'telegram' 
-                    ? '@yourchannel or -1001234567890' 
-                    : `Enter your ${platform} account URL`
-                }
-                required
-                disabled={isFetchingData}
-                className={linkValidation ? (linkValidation.isValid ? 'border-green-500' : 'border-destructive') : ''}
-              />
-              {isFetchingData ? (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : linkValidation && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {linkValidation.isValid ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 text-destructive" />
-                  )}
-                </div>
-              )}
+      <DialogContent className="max-w-[95vw] sm:max-w-[700px] max-h-[95vh] overflow-hidden p-0 gap-0 bg-gradient-to-br from-background via-background to-primary/5 border border-primary/20 shadow-2xl">
+        {/* Header */}
+        <DialogHeader className="px-4 sm:px-6 py-5 pb-4 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-b border-primary/20">
+          <div className="flex items-center gap-3">
+            <div className="p-2 sm:p-2.5 bg-gradient-to-br from-primary to-secondary rounded-xl shadow-lg">
+              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
             </div>
-            {isFetchingData && (
-              <p className="text-xs text-primary">Fetching account data...</p>
-            )}
-            {!isFetchingData && linkValidation && (
-              <p className={`text-xs ${linkValidation.isValid ? 'text-green-500' : 'text-destructive'}`}>
-                {linkValidation.message}
-              </p>
-            )}
-            
-            {/* Verify Account button - Only shown for Telegram */}
-            {platform === 'telegram' && linkValidation?.isValid && (
-              <Button
-                type="button"
-                onClick={handleManualVerify}
-                disabled={isVerifying || isFetchingData}
-                className="w-full mt-2 shadow-lg hover:shadow-xl transition-all duration-300"
-                variant={verificationStatus?.verified ? "default" : "outline"}
-              >
-                {isVerifying ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
-                    Verifying...
-                  </>
-                ) : verificationStatus?.verified ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Verified
-                  </>
-                ) : (
-                  <>
-                    <Info className="w-4 h-4 mr-2" />
-                    Verify Account
-                  </>
-                )}
-              </Button>
-            )}
-            
-            {/* Verify button for other platforms - Temporarily disabled for testing */}
-            {/* 
-            {platform !== 'facebook' && platform !== 'telegram' && linkValidation?.isValid && (
-              <Button
-                type="button"
-                onClick={handleManualVerify}
-                disabled={isVerifying || isFetchingData}
-                className="w-full mt-2"
-                variant={verificationStatus?.verified ? "default" : "outline"}
-              >
-                {isVerifying ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
-                    Verifying...
-                  </>
-                ) : verificationStatus?.verified ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Verified
-                  </>
-                ) : (
-                  <>
-                    <Info className="w-4 h-4 mr-2" />
-                    Verify Account
-                  </>
-                )}
-              </Button>
-            )}
-            */}
+            <div>
+              <DialogTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
+                List Social Media Account
+              </DialogTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Fill in the details to list your account on the marketplace</p>
+            </div>
           </div>
+        </DialogHeader>
 
-          <div className="space-y-2">
-            <Label htmlFor="accountName">
-              {platform === 'telegram' ? 'Channel/Group Username or ID' : 'Account Name/Handle'}
-            </Label>
-            <Input
-              id="accountName"
-              value={accountName}
-              onChange={(e) => setAccountName(e.target.value)}
-              placeholder={platform === 'telegram' ? '@yourchannel or -1001234567890' : '@username or account name'}
-              required
-              disabled={platform === 'telegram' && !!accountLink}
-            />
-            {platform === 'telegram' && (
-              <p className="text-xs text-muted-foreground">
-                This will be auto-filled from the username/ID you entered above
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="followersCount">
-              {platform === 'youtube' ? 'Subscribers Count' : 
-               platform === 'telegram' ? 'Members Count' : 
-               platform === 'facebook' && accountType === 'Group' ? 'Members Count' : 
-               'Followers Count'}
-            </Label>
-            <Input
-              id="followersCount"
-              type="number"
-              value={followersCount}
-              onChange={(e) => setFollowersCount(e.target.value)}
-              placeholder="e.g., 10000"
-              required
-            />
-          </div>
-
-          {/* Platform-specific fields */}
-          {(platform === 'facebook' || platform === 'telegram') && (
-            <div className="space-y-2">
-              <Label htmlFor="accountType">Account Type</Label>
-              <Select value={accountType} onValueChange={setAccountType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto max-h-[calc(95vh-160px)] px-4 sm:px-6 py-5">
+          <div className="space-y-5">
+            {/* Platform Selection */}
+            <div className="space-y-2.5">
+              <Label htmlFor="platform" className="text-sm font-semibold">Platform</Label>
+              <Select value={platform} onValueChange={(value) => setPlatform(value as SocialMediaPlatform)}>
+                <SelectTrigger className="h-12 text-base bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl">
+                  <SelectValue placeholder="Select platform" />
                 </SelectTrigger>
                 <SelectContent>
-                  {platform === 'facebook' ? (
-                    <>
-                      <SelectItem value="Page">Page</SelectItem>
-                      <SelectItem value="Group">Group</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="Channel">Channel</SelectItem>
-                      <SelectItem value="Group">Group</SelectItem>
-                    </>
-                  )}
+                  <SelectItem value="facebook">Facebook</SelectItem>
+                  <SelectItem value="telegram">Telegram</SelectItem>
+                  <SelectItem value="youtube">YouTube</SelectItem>
+                  <SelectItem value="tiktok">TikTok</SelectItem>
+                  <SelectItem value="twitter">Twitter/X</SelectItem>
+                  <SelectItem value="instagram">Instagram</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          )}
 
-          {(platform === 'youtube' || platform === 'instagram' || platform === 'tiktok' || platform === 'telegram' || platform === 'facebook') && (
-            <div className="space-y-2">
-              <Label htmlFor="niche">Niche/Category</Label>
-              <Input
-                id="niche"
-                value={niche}
-                onChange={(e) => setNiche(e.target.value)}
-                placeholder="e.g., Gaming, Fashion, Tech, Education"
-              />
-            </div>
-          )}
+            {/* Verification Alert - Only for Telegram */}
+            {platform === 'telegram' && (
+              <Alert className="bg-gradient-to-r from-blue-500/10 to-blue-400/5 border-blue-500/30 shadow-md">
+                <Shield className="h-4 w-4 text-blue-500" />
+                <AlertDescription className="text-sm space-y-3">
+                  <div>
+                    <strong className="text-blue-600">Verification Required:</strong> Add this code to your channel/group description:
+                  </div>
+                  <div className="p-3 bg-background/90 backdrop-blur-sm rounded-lg font-mono text-base font-bold text-center border-2 border-blue-500/30 shadow-inner">
+                    {verificationCode}
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    This code changes when you switch platforms. Add it to your Telegram description, then click "Verify Account".
+                  </p>
+                  {verificationStatus && (
+                    <div className={`p-3 rounded-lg flex items-center gap-2 shadow-sm ${verificationStatus.verified ? 'bg-green-500/15 text-green-600 border border-green-500/30' : 'bg-yellow-500/15 text-yellow-600 border border-yellow-500/30'}`}>
+                      {verificationStatus.verified ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+                      <span className="text-xs font-medium">{verificationStatus.message}</span>
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
 
-          {(platform === 'instagram' || platform === 'twitter' || platform === 'tiktok' || platform === 'facebook') && (
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isVerified"
-                checked={isVerified}
-                onChange={(e) => setIsVerified(e.target.checked)}
-                className="w-4 h-4 rounded border-input"
-              />
-              <Label htmlFor="isVerified" className="cursor-pointer">
-                Verified Account
+            {/* Telegram Instructions */}
+            {platform === 'telegram' && (
+              <Alert className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 shadow-sm">
+                <Info className="h-4 w-4 text-primary" />
+                <AlertDescription className="text-xs sm:text-sm space-y-2">
+                  <p><strong className="text-primary">For Telegram:</strong> Enter @username or -100... channel ID</p>
+                  <p><strong className="text-primary">Example:</strong> @mychannel or -1001234567890</p>
+                  <p><strong className="text-primary">Find ID:</strong> Channel Info → @userinfobot</p>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Account Link/Username */}
+            <div className="space-y-2.5">
+              <Label htmlFor="accountLink" className="text-sm font-semibold">
+                {platform === 'telegram' ? 'Channel/Group Username or ID' : 'Account Link'} 
+                <span className="text-destructive ml-1">*</span>
               </Label>
+              <div className="relative">
+                <Input
+                  id="accountLink"
+                  value={accountLink}
+                  onChange={(e) => setAccountLink(e.target.value)}
+                  placeholder={
+                    platform === 'telegram' 
+                      ? '@yourchannel or -1001234567890' 
+                      : `Enter your ${platform} account URL`
+                  }
+                  required
+                  disabled={isFetchingData}
+                  className={`h-12 text-base bg-background/60 backdrop-blur-sm border-2 pr-10 rounded-xl transition-all duration-200 ${
+                    linkValidation 
+                      ? linkValidation.isValid 
+                        ? 'border-green-500 focus:border-green-500 focus:ring-2 focus:ring-green-500/20' 
+                        : 'border-destructive focus:border-destructive focus:ring-2 focus:ring-destructive/20'
+                      : 'border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20'
+                  }`}
+                />
+                {isFetchingData ? (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                  </div>
+                ) : linkValidation && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {linkValidation.isValid ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-destructive" />
+                    )}
+                  </div>
+                )}
+              </div>
+              {isFetchingData && (
+                <p className="text-xs text-primary">Fetching account data...</p>
+              )}
+              {!isFetchingData && linkValidation && (
+                <p className={`text-xs ${linkValidation.isValid ? 'text-green-600' : 'text-destructive'}`}>
+                  {linkValidation.message}
+                </p>
+              )}
+              
+              {/* Verify Button - Only for Telegram */}
+              {platform === 'telegram' && linkValidation?.isValid && (
+                <Button
+                  type="button"
+                  onClick={handleManualVerify}
+                  disabled={isVerifying || isFetchingData}
+                  className={`w-full h-11 mt-2 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl ${
+                    verificationStatus?.verified 
+                      ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                      : 'bg-gradient-to-r from-primary to-secondary'
+                  }`}
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : verificationStatus?.verified ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Verified
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-4 h-4 mr-2" />
+                      Verify Account
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
-          )}
 
-          {(platform === 'instagram' || platform === 'twitter' || platform === 'telegram') && (
-            <div className="space-y-2">
-              <Label htmlFor="engagementRate">Engagement Rate (%)</Label>
+            {/* Account Name */}
+            <div className="space-y-2.5">
+              <Label htmlFor="accountName" className="text-sm font-semibold">
+                {platform === 'telegram' ? 'Channel/Group Username or ID' : 'Account Name/Handle'}
+              </Label>
               <Input
-                id="engagementRate"
-                value={engagementRate}
-                onChange={(e) => setEngagementRate(e.target.value)}
-                placeholder="e.g., 5.2"
+                id="accountName"
+                value={accountName}
+                onChange={(e) => setAccountName(e.target.value)}
+                placeholder={platform === 'telegram' ? '@yourchannel or -1001234567890' : '@username or account name'}
+                required
+                disabled={platform === 'telegram' && !!accountLink}
+                className="h-12 text-base bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
               />
+              {platform === 'telegram' && (
+                <p className="text-xs text-muted-foreground">
+                  Auto-filled from the username/ID you entered above
+                </p>
+              )}
             </div>
-          )}
 
-          {platform === 'youtube' && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="totalVideos">Total Videos</Label>
-                <Input
-                  id="totalVideos"
-                  type="number"
-                  value={totalVideos}
-                  onChange={(e) => setTotalVideos(e.target.value)}
-                  placeholder="e.g., 150"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="averageViews">Average Views per Video</Label>
-                <Input
-                  id="averageViews"
-                  type="number"
-                  value={averageViews}
-                  onChange={(e) => setAverageViews(e.target.value)}
-                  placeholder="e.g., 50000"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="monetizationStatus">Monetization Status</Label>
-                <Select value={monetizationStatus} onValueChange={setMonetizationStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Monetized">Monetized</SelectItem>
-                    <SelectItem value="Not Monetized">Not Monetized</SelectItem>
-                    <SelectItem value="Eligible">Eligible</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-
-          {(platform === 'tiktok' || platform === 'telegram') && (
-            <div className="space-y-2">
-              <Label htmlFor="averageViews">Average Views per Post</Label>
+            {/* Followers Count */}
+            <div className="space-y-2.5">
+              <Label htmlFor="followersCount" className="text-sm font-semibold">
+                {platform === 'youtube' ? 'Subscribers Count' : 
+                 platform === 'telegram' ? 'Members Count' : 
+                 platform === 'facebook' && accountType === 'Group' ? 'Members Count' : 
+                 'Followers Count'}
+              </Label>
               <Input
-                id="averageViews"
+                id="followersCount"
                 type="number"
-                value={averageViews}
-                onChange={(e) => setAverageViews(e.target.value)}
-                placeholder="e.g., 25000"
+                value={followersCount}
+                onChange={(e) => setFollowersCount(e.target.value)}
+                placeholder="e.g., 10000"
+                required
+                className="h-12 text-base bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
               />
             </div>
-          )}
 
-          {platform === 'tiktok' && (
-            <div className="space-y-2">
-              <Label htmlFor="totalLikes">Total Likes</Label>
-              <Input
-                id="totalLikes"
-                type="number"
-                value={totalLikes}
-                onChange={(e) => setTotalLikes(e.target.value)}
-                placeholder="e.g., 500000"
+            {/* Platform-specific fields in a compact grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Account Type */}
+              {(platform === 'facebook' || platform === 'telegram') && (
+                <div className="space-y-2.5">
+                  <Label htmlFor="accountType" className="text-sm font-semibold">Account Type</Label>
+                  <Select value={accountType} onValueChange={setAccountType}>
+                    <SelectTrigger className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {platform === 'facebook' ? (
+                        <>
+                          <SelectItem value="Page">Page</SelectItem>
+                          <SelectItem value="Group">Group</SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="Channel">Channel</SelectItem>
+                          <SelectItem value="Group">Group</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Niche */}
+              {(platform === 'youtube' || platform === 'instagram' || platform === 'tiktok' || platform === 'telegram' || platform === 'facebook') && (
+                <div className="space-y-2.5">
+                  <Label htmlFor="niche" className="text-sm font-semibold">Niche/Category</Label>
+                  <Input
+                    id="niche"
+                    value={niche}
+                    onChange={(e) => setNiche(e.target.value)}
+                    placeholder="e.g., Gaming, Tech"
+                    className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl"
+                  />
+                </div>
+              )}
+
+              {/* Engagement Rate */}
+              {(platform === 'instagram' || platform === 'twitter' || platform === 'telegram') && (
+                <div className="space-y-2.5">
+                  <Label htmlFor="engagementRate" className="text-sm font-semibold">Engagement Rate (%)</Label>
+                  <Input
+                    id="engagementRate"
+                    value={engagementRate}
+                    onChange={(e) => setEngagementRate(e.target.value)}
+                    placeholder="e.g., 5.2"
+                    className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl"
+                  />
+                </div>
+              )}
+
+              {/* YouTube specific */}
+              {platform === 'youtube' && (
+                <>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="totalVideos" className="text-sm font-semibold">Total Videos</Label>
+                    <Input
+                      id="totalVideos"
+                      type="number"
+                      value={totalVideos}
+                      onChange={(e) => setTotalVideos(e.target.value)}
+                      placeholder="e.g., 150"
+                      className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="averageViews" className="text-sm font-semibold">Avg Views/Video</Label>
+                    <Input
+                      id="averageViews"
+                      type="number"
+                      value={averageViews}
+                      onChange={(e) => setAverageViews(e.target.value)}
+                      placeholder="e.g., 50000"
+                      className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2.5 sm:col-span-2">
+                    <Label htmlFor="monetizationStatus" className="text-sm font-semibold">Monetization</Label>
+                    <Select value={monetizationStatus} onValueChange={setMonetizationStatus}>
+                      <SelectTrigger className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Monetized">Monetized</SelectItem>
+                        <SelectItem value="Not Monetized">Not Monetized</SelectItem>
+                        <SelectItem value="Eligible">Eligible</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+
+              {/* TikTok/Telegram Views */}
+              {(platform === 'tiktok' || platform === 'telegram') && (
+                <div className="space-y-2.5">
+                  <Label htmlFor="averageViews" className="text-sm font-semibold">Avg Views/Post</Label>
+                  <Input
+                    id="averageViews"
+                    type="number"
+                    value={averageViews}
+                    onChange={(e) => setAverageViews(e.target.value)}
+                    placeholder="e.g., 25000"
+                    className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl"
+                  />
+                </div>
+              )}
+
+              {/* TikTok Likes */}
+              {platform === 'tiktok' && (
+                <div className="space-y-2.5">
+                  <Label htmlFor="totalLikes" className="text-sm font-semibold">Total Likes</Label>
+                  <Input
+                    id="totalLikes"
+                    type="number"
+                    value={totalLikes}
+                    onChange={(e) => setTotalLikes(e.target.value)}
+                    placeholder="e.g., 500000"
+                    className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl"
+                  />
+                </div>
+              )}
+
+              {/* Twitter specific */}
+              {platform === 'twitter' && (
+                <>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="tweetsCount" className="text-sm font-semibold">Total Tweets</Label>
+                    <Input
+                      id="tweetsCount"
+                      type="number"
+                      value={tweetsCount}
+                      onChange={(e) => setTweetsCount(e.target.value)}
+                      placeholder="e.g., 2500"
+                      className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="accountAge" className="text-sm font-semibold">Account Age</Label>
+                    <Input
+                      id="accountAge"
+                      value={accountAge}
+                      onChange={(e) => setAccountAge(e.target.value)}
+                      placeholder="e.g., 3 years"
+                      className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Facebook Reach */}
+              {platform === 'facebook' && (
+                <div className="space-y-2.5">
+                  <Label htmlFor="monthlyReach" className="text-sm font-semibold">Monthly Reach</Label>
+                  <Input
+                    id="monthlyReach"
+                    type="number"
+                    value={monthlyReach}
+                    onChange={(e) => setMonthlyReach(e.target.value)}
+                    placeholder="e.g., 100000"
+                    className="h-11 bg-background/60 border-2 border-primary/20 rounded-xl"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Verified Badge Checkbox */}
+            {(platform === 'instagram' || platform === 'twitter' || platform === 'tiktok' || platform === 'facebook') && (
+              <div className="flex items-center space-x-3 p-3 bg-primary/5 rounded-xl border border-primary/10">
+                <input
+                  type="checkbox"
+                  id="isVerified"
+                  checked={isVerified}
+                  onChange={(e) => setIsVerified(e.target.checked)}
+                  className="w-5 h-5 rounded border-primary/30 text-primary focus:ring-primary focus:ring-offset-0"
+                />
+                <Label htmlFor="isVerified" className="cursor-pointer text-sm font-medium flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                  Verified Account (Blue Check)
+                </Label>
+              </div>
+            )}
+
+            {/* Description */}
+            <div className="space-y-2.5">
+              <Label htmlFor="description" className="text-sm font-semibold">Description</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe your account, audience, posting frequency..."
+                className="min-h-[120px] text-base bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl resize-none"
+                required
               />
             </div>
-          )}
 
-          {platform === 'twitter' && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="tweetsCount">Total Tweets</Label>
+            {/* Price */}
+            <div className="space-y-2.5">
+              <Label htmlFor="priceUsdc" className="text-sm font-semibold">Price (USDC)</Label>
+              <div className="relative">
                 <Input
-                  id="tweetsCount"
+                  id="priceUsdc"
                   type="number"
-                  value={tweetsCount}
-                  onChange={(e) => setTweetsCount(e.target.value)}
-                  placeholder="e.g., 2500"
+                  step="0.01"
+                  value={priceUsdc}
+                  onChange={(e) => setPriceUsdc(e.target.value)}
+                  placeholder="500.00"
+                  required
+                  className="h-12 text-base bg-background/60 backdrop-blur-sm border-2 border-primary/20 focus:border-green-500 focus:ring-2 focus:ring-green-500/20 rounded-xl pl-8"
                 />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">$</span>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="accountAge">Account Age</Label>
-                <Input
-                  id="accountAge"
-                  value={accountAge}
-                  onChange={(e) => setAccountAge(e.target.value)}
-                  placeholder="e.g., 3 years"
-                />
-              </div>
-            </>
-          )}
-
-          {platform === 'facebook' && (
-            <div className="space-y-2">
-              <Label htmlFor="monthlyReach">Monthly Reach</Label>
-              <Input
-                id="monthlyReach"
-                type="number"
-                value={monthlyReach}
-                onChange={(e) => setMonthlyReach(e.target.value)}
-                placeholder="e.g., 100000"
-              />
             </div>
-          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe your account, target audience, posting frequency, etc."
-              className="min-h-[100px]"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="priceUsdc">Price (USDC)</Label>
-            <Input
-              id="priceUsdc"
-              type="number"
-              step="0.01"
-              value={priceUsdc}
-              onChange={(e) => setPriceUsdc(e.target.value)}
-              placeholder="e.g., 500"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="screenshot">Account Screenshots (Optional - Multiple)</Label>
-            <div className="flex flex-col gap-3">
+            {/* Screenshots */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Account Screenshots (Optional)</Label>
               {screenshotPreviews.length > 0 && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {screenshotPreviews.map((preview, index) => (
-                    <div key={index} className="relative">
+                    <div key={index} className="relative group">
                       <img 
                         src={preview} 
                         alt={`Screenshot ${index + 1}`} 
-                        className="w-full h-32 object-cover rounded-lg border border-primary/20"
+                        className="w-full h-28 object-cover rounded-lg border-2 border-primary/20 shadow-sm"
                       />
                       <Button
                         type="button"
                         variant="destructive"
                         size="icon"
-                        className="absolute top-2 right-2 h-6 w-6"
+                        className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                         onClick={() => removeScreenshot(index)}
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-4 h-4" />
                       </Button>
                     </div>
                   ))}
                 </div>
               )}
-              <div className="border-2 border-dashed border-primary/20 rounded-lg p-6 text-center">
+              <div className="border-2 border-dashed border-primary/20 rounded-xl p-6 text-center hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 cursor-pointer">
                 <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
                 <Label htmlFor="screenshot-upload" className="cursor-pointer text-sm text-muted-foreground hover:text-primary">
                   Click to upload screenshots (multiple)
@@ -950,26 +874,46 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
                   className="hidden"
                   onChange={handleScreenshotChange}
                 />
+                <p className="text-xs text-muted-foreground mt-2">Max 5MB per image</p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Upload screenshots of your account (Max 5MB each). First image will be shown as thumbnail.
-            </p>
           </div>
+        </div>
 
-          <div className="flex gap-3 justify-end">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={loading || uploading || !linkValidation?.isValid || (platform === 'telegram' && !verificationStatus?.verified)}
-              className="shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              {uploading ? "Uploading..." : loading ? "Creating..." : "List Account"}
-            </Button>
-          </div>
-        </form>
+        {/* Footer */}
+        <div className="px-4 sm:px-6 py-4 bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30 border-t border-primary/10 flex flex-col-reverse sm:flex-row justify-end gap-3">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => setOpen(false)}
+            className="h-11 px-6 border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 rounded-xl transition-all duration-200"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading || uploading || !linkValidation?.isValid || (platform === 'telegram' && !verificationStatus?.verified)}
+            className="h-11 px-8 bg-gradient-to-r from-primary via-secondary to-primary hover:shadow-lg hover:shadow-primary/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition-all duration-300 relative overflow-hidden group"
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                <span>List Account</span>
+              </>
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
