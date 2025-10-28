@@ -480,12 +480,12 @@ export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialog
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 shadow-glow">
+        <Button className="gap-2 shadow-glow text-sm md:text-base h-10 md:h-12 px-4 md:px-6">
           <Plus className="w-4 h-4" />
           List Account
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background/95 to-primary/5 border-2 border-primary/30 shadow-2xl backdrop-blur-xl">
+      <DialogContent className="max-w-[95vw] md:max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background/95 to-primary/5 border-2 border-primary/30 shadow-2xl backdrop-blur-xl">
         <DialogHeader className="space-y-2 pb-4 border-b border-primary/10">
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
             List Social Media Account for Sale
