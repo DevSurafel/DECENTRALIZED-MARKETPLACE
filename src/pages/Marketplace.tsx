@@ -260,10 +260,6 @@ const Marketplace = () => {
                 className="pl-12 h-12 glass-card border-primary/20 focus:border-primary/40 shadow-card"
               />
             </div>
-            <Button variant="outline" className="gap-2 h-12 px-6 border-primary/20 hover:border-primary/40 shadow-card hidden md:flex">
-              <Filter className="w-4 h-4" />
-              Filters
-            </Button>
             <JobPostDialog onSuccess={loadJobs} />
           </div>
 
