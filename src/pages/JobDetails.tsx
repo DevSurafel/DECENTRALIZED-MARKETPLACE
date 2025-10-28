@@ -865,8 +865,8 @@ const JobDetails = () => {
                 <h2 className="text-xl font-semibold mb-3">
                   {isSocialMediaPurchase() ? 'Purchase Details' : 'Description'}
                 </h2>
-                {isSocialMediaPurchase() && job.status === 'under_review' ? (
-                  // Parse and display credentials in a formatted way
+                {isSocialMediaPurchase() && job.status === 'under_review' && getUserRole() === 'freelancer' ? (
+                  // For sellers: Show credentials with sensitive info hidden
                   (() => {
                     try {
                       const credentials = JSON.parse(job.description);
@@ -887,31 +887,25 @@ const JobDetails = () => {
                           {credentials.password && (
                             <div className="space-y-1">
                               <p className="text-sm font-semibold text-primary">Password:</p>
-                              <p className="text-muted-foreground font-mono">{credentials.password}</p>
+                              <p className="text-muted-foreground font-mono">••••••••</p>
                             </div>
                           )}
                           {credentials.recoveryEmail && (
                             <div className="space-y-1">
                               <p className="text-sm font-semibold text-primary">Recovery Email:</p>
-                              <p className="text-muted-foreground">{credentials.recoveryEmail}</p>
+                              <p className="text-muted-foreground">••••••••</p>
                             </div>
                           )}
                           {credentials.recoveryPhone && (
                             <div className="space-y-1">
                               <p className="text-sm font-semibold text-primary">Recovery Phone:</p>
-                              <p className="text-muted-foreground">{credentials.recoveryPhone}</p>
+                              <p className="text-muted-foreground">••••••••</p>
                             </div>
                           )}
                           {credentials.twoFactorBackupCodes && (
                             <div className="space-y-1">
                               <p className="text-sm font-semibold text-primary">2FA Backup Codes:</p>
-                              <p className="text-muted-foreground whitespace-pre-line font-mono text-sm">{credentials.twoFactorBackupCodes}</p>
-                            </div>
-                          )}
-                          {credentials.securityQuestions && (
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold text-primary">Security Questions:</p>
-                              <p className="text-muted-foreground whitespace-pre-line">{credentials.securityQuestions}</p>
+                              <p className="text-muted-foreground font-mono text-sm">••••••••</p>
                             </div>
                           )}
                           {credentials.additionalNotes && (
@@ -930,7 +924,6 @@ const JobDetails = () => {
                         </div>
                       );
                     } catch (e) {
-                      // If not valid JSON, show as plain text
                       return (
                         <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
                           {job.description}
@@ -938,11 +931,11 @@ const JobDetails = () => {
                       );
                     }
                   })()
-                ) : (
+                ) : !isSocialMediaPurchase() || job.status !== 'under_review' ? (
                   <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
                     {job.description}
                   </p>
-                )}
+                ) : null}
               </div>
 
               {!isSocialMediaPurchase() && skills.length > 0 && (

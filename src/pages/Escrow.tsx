@@ -140,27 +140,28 @@ const Escrow = () => {
   };
 
   const renderEscrowCard = (escrow: any, showActions = false) => (
-    <Card key={escrow._id} className="p-6 glass-card shadow-card hover:shadow-glow transition-smooth">
-      <div className="flex items-start justify-between mb-4">
+    <Card key={escrow._id} className="p-4 md:p-6 glass-card shadow-card hover:shadow-glow transition-smooth">
+      <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 gap-3">
         <div className="flex-1">
-          <h3 className="text-xl font-semibold mb-2">{escrow.jobTitle}</h3>
+          <h3 className="text-lg md:text-xl font-semibold mb-2 line-clamp-2">{escrow.jobTitle}</h3>
           {getStatusBadge(escrow.status)}
         </div>
-        <div className="text-right">
-          <p className="text-sm font-bold">Amount</p>
-          <p className="text-xl font-bold text-primary">${escrow.amountUsdc} USDC</p>
+        <div className="text-left md:text-right">
+          <p className="text-xs md:text-sm font-bold">Amount</p>
+          <p className="text-lg md:text-xl font-bold text-primary">${escrow.amountUsdc} USDC</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4 pb-4 border-b">
         <div>
-          <p className="text-sm text-muted-foreground">Transaction Hash</p>
+          <p className="text-xs md:text-sm text-muted-foreground">Transaction Hash</p>
           <div className="flex items-center gap-1">
-            <p className="font-mono text-sm truncate">{escrow.transactionHash}</p>
+            <p className="font-mono text-xs md:text-sm truncate">{escrow.transactionHash}</p>
             {escrow.status !== 'awaiting_funding' && escrow.transactionHash !== 'N/A' && (
               <Button
                 variant="default"
                 size="sm"
+                className="text-xs h-7"
                 onClick={() => window.open(`https://amoy.polygonscan.com/tx/${escrow.transactionHash}`, '_blank')}
               >
                 View
@@ -169,8 +170,8 @@ const Escrow = () => {
           </div>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Created</p>
-          <p className="font-semibold">
+          <p className="text-xs md:text-sm text-muted-foreground">Created</p>
+          <p className="text-sm md:text-base font-semibold">
             {new Date(escrow.createdAt).toLocaleDateString()} at {new Date(escrow.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
@@ -178,9 +179,9 @@ const Escrow = () => {
 
       {escrow.submissionDeadline && (
         <div className="bg-muted/50 rounded-lg p-3 mb-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Submission Deadline:</span>
+          <div className="flex items-center gap-2 text-xs md:text-sm">
+            <Clock className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Deadline:</span>
             <span className="font-semibold">
               {new Date(escrow.submissionDeadline).toLocaleDateString()}
             </span>
@@ -189,18 +190,18 @@ const Escrow = () => {
       )}
 
       {escrow.status === 'awaiting_funding' && (
-        <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+        <div className="mt-4 p-3 md:p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
           <div className="flex items-center gap-2 text-yellow-500">
-            <Clock className="h-5 w-5" />
-            <span className="font-semibold">Awaiting Escrow Funding</span>
+            <Clock className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="text-sm md:text-base font-semibold">Awaiting Escrow Funding</span>
           </div>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-xs md:text-sm text-muted-foreground mt-2">
             The proposal has been accepted. {escrow.isClient ? 'Please fund the escrow to start the project.' : 'Waiting for client to fund the escrow.'}
           </p>
           {escrow.isClient && (
             <Button 
               onClick={() => navigate(`/jobs/${escrow.jobId}`)} 
-              className="mt-3 w-full"
+              className="mt-3 w-full text-sm h-9"
             >
               Fund Escrow Now
             </Button>
@@ -209,12 +210,12 @@ const Escrow = () => {
       )}
 
       {escrow.status === 'locked' && (
-        <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+        <div className="mt-4 p-3 md:p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
           <div className="flex items-center gap-2 text-blue-500">
-            <Lock className="h-5 w-5" />
-            <span className="font-semibold">Funds Securely Locked</span>
+            <Lock className="h-4 w-4 md:h-5 md:w-5" />
+            <span className="text-sm md:text-base font-semibold">Funds Securely Locked</span>
           </div>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-xs md:text-sm text-muted-foreground mt-2">
             Payment is held in escrow until work is completed and approved by both parties.
           </p>
         </div>
@@ -272,10 +273,10 @@ const Escrow = () => {
       
       <main className="container mx-auto px-4 py-8 pt-24">
         <div className="mb-8 animate-fade-in">
-          <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <h1 className="text-3xl md:text-4xl lg:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             Escrow Management
           </h1>
-          <p className="text-base md:text-lg text-muted-foreground">
+          <p className="text-sm md:text-base lg:text-lg text-muted-foreground">
             Secure smart contract escrow for all your jobs
           </p>
         </div>

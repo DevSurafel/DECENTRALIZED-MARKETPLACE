@@ -232,60 +232,80 @@ const Dashboard = () => {
                 <Card className="p-6 text-center">
                   <p className="text-muted-foreground">No active projects. Start by posting a job!</p>
                 </Card>
-              ) : activeJobs.map((job, idx) => (
-                <Card key={idx} className="p-6 hover:shadow-glow transition-all duration-300 bg-card/50 backdrop-blur group">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">{job.title}</h3>
-                        <Badge variant="default" className="text-xs">
-                          {job.status}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-3">{job.description.substring(0, 100)}...</p>
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        <span className="flex items-center gap-1 text-muted-foreground">
-                          <DollarSign className="h-4 w-4" />
-                          {job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC
-                        </span>
-                        <span className="flex items-center gap-1 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          {job.duration_weeks ? `${job.duration_weeks} weeks` : 'Flexible'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
+              ) : activeJobs.map((job, idx) => {
+                // Check if it's a social media purchase and parse description
+                const isSocialMedia = job.title?.toLowerCase().includes('instagram') || 
+                                      job.title?.toLowerCase().includes('telegram') || 
+                                      job.title?.toLowerCase().includes('facebook') ||
+                                      job.title?.toLowerCase().includes('twitter') ||
+                                      job.title?.toLowerCase().includes('tiktok');
+                
+                let displayDescription = job.description;
+                if (isSocialMedia && job.status === 'under_review') {
+                  try {
+                    const credentials = JSON.parse(job.description);
+                    displayDescription = `${credentials.platform || 'Social Media'} account: ${credentials.accountName || 'N/A'}`;
+                  } catch (e) {
+                    displayDescription = job.description.substring(0, 100);
+                  }
+                } else {
+                  displayDescription = job.description.substring(0, 100);
+                }
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="hover-scale"
-                        onClick={() => window.location.href = `/jobs/${job.id}`}
-                      >
-                        View Details
-                      </Button>
-                      {job.status === 'assigned' && job.client_id === user?.id && !job.escrow_address && (
+                return (
+                  <Card key={idx} className="p-4 md:p-6 hover:shadow-glow transition-all duration-300 bg-card/50 backdrop-blur group">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 md:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <h3 className="text-base md:text-lg font-semibold group-hover:text-primary transition-colors line-clamp-1">{job.title}</h3>
+                          <Badge variant="default" className="text-[10px] md:text-xs whitespace-nowrap">
+                            {job.status.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        <p className="text-xs md:text-sm text-muted-foreground mb-3 line-clamp-2">{displayDescription}...</p>
+                        <div className="flex flex-wrap gap-3 md:gap-4 text-xs md:text-sm">
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <DollarSign className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="text-xs md:text-sm">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</span>
+                          </span>
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="text-xs md:text-sm">{job.duration_weeks ? `${job.duration_weeks} weeks` : 'Flexible'}</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button
+                          variant="outline"
                           size="sm"
-                          className="shadow-glow"
+                          className="hover-scale text-xs md:text-sm h-8 md:h-9 w-full sm:w-auto"
                           onClick={() => window.location.href = `/jobs/${job.id}`}
                         >
-                          Fund Escrow Now
+                          View Details
                         </Button>
-                      )}
+                        {job.status === 'assigned' && job.client_id === user?.id && !job.escrow_address && (
+                          <Button
+                            size="sm"
+                            className="shadow-glow text-xs md:text-sm h-8 md:h-9 w-full sm:w-auto"
+                            onClick={() => window.location.href = `/jobs/${job.id}`}
+                          >
+                            Fund Escrow
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           </div>
 
           {/* Quick Actions Sidebar */}
           <div>
-            <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
-            <div className="space-y-4">
+            <h2 className="text-xl md:text-2xl font-bold mb-4">Quick Actions</h2>
+            <div className="space-y-3 md:space-y-4">
               <Card
-                className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
+                className="p-3 md:p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
                 onClick={async () => {
                   const { data: { user } } = await supabase.auth.getUser();
                   if (!user) return;
@@ -304,19 +324,19 @@ const Dashboard = () => {
                   }
                 }}
               >
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <MessageSquare className="h-5 w-5 text-primary" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <MessageSquare className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium">Messages</p>
-                    <p className="text-sm text-muted-foreground">View conversations</p>
+                    <p className="font-medium text-sm md:text-base">Messages</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">View conversations</p>
                   </div>
                 </div>
               </Card>
 
               <Card
-                className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
+                className="p-3 md:p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
                 onClick={async () => {
                   const { data: { user } } = await supabase.auth.getUser();
                   if (!user) return;
@@ -339,35 +359,35 @@ const Dashboard = () => {
                   }
                 }}
               >
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
-                    <AlertCircle className="h-5 w-5 text-accent" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                    <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-accent" />
                   </div>
                   <div>
-                    <p className="font-medium">Pending Reviews</p>
-                    <p className="text-sm text-muted-foreground">Check jobs</p>
+                    <p className="font-medium text-sm md:text-base">Pending Reviews</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">Check jobs</p>
                   </div>
                 </div>
               </Card>
 
               {/* Completed jobs for both clients and freelancers */}
               <Card
-                className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
+                className="p-3 md:p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
                 onClick={handleReviewClick}
               >
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <CheckCircle className="h-5 w-5 text-primary" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <CheckCircle className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium">Leave a Review</p>
-                    <p className="text-sm text-muted-foreground">For your latest completed job</p>
+                    <p className="font-medium text-sm md:text-base">Leave a Review</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">For your latest completed job</p>
                   </div>
                 </div>
               </Card>
 
               <Card
-                className="p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
+                className="p-3 md:p-4 hover:shadow-glow transition-all cursor-pointer group bg-card/50 backdrop-blur"
                 onClick={async () => {
                   const { data: { user } } = await supabase.auth.getUser();
                   if (!user) return;
@@ -389,13 +409,13 @@ const Dashboard = () => {
                   }
                 }}
               >
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center group-hover:bg-success/20 transition-colors">
-                    <Users className="h-5 w-5 text-success" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-success/10 flex items-center justify-center group-hover:bg-success/20 transition-colors">
+                    <Users className="h-4 w-4 md:h-5 md:w-5 text-success" />
                   </div>
                   <div>
-                    <p className="font-medium">New Bids</p>
-                    <p className="text-sm text-muted-foreground">View proposals</p>
+                    <p className="font-medium text-sm md:text-base">New Bids</p>
+                    <p className="text-xs md:text-sm text-muted-foreground">View proposals</p>
                   </div>
                 </div>
               </Card>

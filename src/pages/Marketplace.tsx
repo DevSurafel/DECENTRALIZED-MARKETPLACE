@@ -200,14 +200,14 @@ const Marketplace = () => {
         <div className="max-w-full md:container mx-auto md:max-w-7xl">
           {/* Header */}
           <div className="mb-10 animate-fade-in">
-            <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full glass-card border border-primary/20">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">{jobCounts.all} Active Projects</span>
+            <div className="inline-flex items-center gap-2 mb-4 px-3 md:px-4 py-1.5 md:py-2 rounded-full glass-card border border-primary/20">
+              <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-primary" />
+              <span className="text-xs md:text-sm font-medium">{jobCounts.all} Active Projects</span>
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl lg:text-6xl font-bold mb-3 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Job Marketplace
             </h1>
-            <p className="text-base md:text-lg text-muted-foreground">
+            <p className="text-sm md:text-base lg:text-lg text-muted-foreground">
               Browse and bid on blockchain development projects from verified clients
             </p>
           </div>
