@@ -54,10 +54,10 @@ serve(async (req) => {
     // Get environment variables for blockchain interaction
     const RPC_URL = Deno.env.get('RPC_URL');
     const WALLET_PRIVATE_KEY = Deno.env.get('WALLET_PRIVATE_KEY');
-    const ESCROW_CONTRACT_ADDRESS = Deno.env.get('VITE_ESCROW_CONTRACT_ADDRESS');
+    const ESCROW_CONTRACT_ADDRESS = Deno.env.get('CONTRACT_ADDRESS');
 
     if (!RPC_URL || !WALLET_PRIVATE_KEY || !ESCROW_CONTRACT_ADDRESS) {
-      throw new Error('Missing RPC_URL, WALLET_PRIVATE_KEY, or ESCROW_CONTRACT_ADDRESS environment variables');
+      throw new Error('Missing RPC_URL, WALLET_PRIVATE_KEY, or CONTRACT_ADDRESS environment variables');
     }
 
     // Initialize provider and wallet
