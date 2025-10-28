@@ -21,7 +21,7 @@ import { useEscrow } from "@/hooks/useEscrow";
 
 const Escrow = () => {
   const navigate = useNavigate();
-  const { approveJob, raiseDispute, loading } = useEscrow();
+  const { raiseDispute, loading } = useEscrow();
   const [activeEscrows, setActiveEscrows] = useState<any[]>([]);
   const [historyEscrows, setHistoryEscrows] = useState<any[]>([]);
 
@@ -106,9 +106,34 @@ const Escrow = () => {
   };
 
   const handleApprove = async (jobId: string) => {
-    const result = await approveJob(jobId);
-    if (result.success) {
+    try {
+      toast({
+        title: "Processing Payment",
+        description: "Releasing funds...",
+      });
+
+      // Call backend edge function to release payment
+      const { data, error } = await supabase.functions.invoke('release-payment', {
+        body: { jobId }
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Payment release failed');
+      }
+
+      toast({
+        title: "Payment Released",
+        description: `Funds released successfully. TX: ${data.txHash?.substring(0, 10)}...`,
+      });
+
       fetchEscrows();
+    } catch (error: any) {
+      console.error('Error releasing payment:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to release payment",
+        variant: "destructive"
+      });
     }
   };
 
