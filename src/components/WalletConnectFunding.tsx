@@ -579,23 +579,23 @@ export const WalletConnectFunding = ({
       }
       onClose();
     }}>
-      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto glass-card border-primary/20">
+      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background/95 to-primary/5 border-2 border-primary/30 shadow-2xl backdrop-blur-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
-            Scan to Pay
+          <DialogTitle className="flex items-center gap-2 text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <Wallet className="h-5 w-5 text-primary" />
+            Fund Escrow via WalletConnect
           </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm">
-            Scan QR code with your mobile wallet
+          <DialogDescription className="text-xs sm:text-sm text-muted-foreground">
+            Scan the QR code with your mobile wallet or use MetaMask
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 sm:space-y-6 py-2 sm:py-4">
           {/* Amount Display */}
-          <div className="text-center p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-xl">
-            <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">You're paying</p>
-            <p className="text-3xl sm:text-5xl font-bold text-primary mb-1">${amountUSDC}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">USDC</p>
+          <div className="text-center p-4 sm:p-6 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-xl border border-primary/20 shadow-lg">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2 font-medium">You're paying</p>
+            <p className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-1">${amountUSDC}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground font-semibold">USDC</p>
           </div>
 
           {/* Status Display */}
