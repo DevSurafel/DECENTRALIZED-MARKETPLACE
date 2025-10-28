@@ -55,6 +55,15 @@ serve(async (req) => {
       throw new Error('Missing freelancer wallet address or amount');
     }
 
+    // Verify we have a transaction hash - this is proof the job was funded
+    if (!job.contract_address || job.contract_address === 'N/A') {
+      throw new Error(
+        '⚠️ No funding transaction found.\n\n' +
+        'This job has not been funded through the escrow contract.\n\n' +
+        'Please fund the escrow first before releasing payment.'
+      );
+    }
+
     // Calculate amounts
     const platformFee = amount * PLATFORM_FEE_PERCENTAGE;
     const freelancerAmount = amount - platformFee;
@@ -84,95 +93,113 @@ serve(async (req) => {
     ];
     const escrowContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, escrowAbi, wallet);
 
-    // Convert UUID to numeric ID
-    const numericJobId = uuidToNumericId(jobId);
+    // CRITICAL: Look up the actual jobId from the funding transaction
+    console.log(`\n=== Looking up job ID from funding transaction ===`);
+    console.log(`TX Hash: ${job.contract_address}`);
     
-    console.log(`\n=== Job ID Conversion ===`);
-    console.log(`UUID: ${jobId}`);
-    console.log(`Numeric Job ID (decimal): ${numericJobId.toString()}`);
-    console.log(`Numeric Job ID (hex): 0x${numericJobId.toString(16)}`);
-
-    // NEW APPROACH: Look up the actual jobId from the funding transaction
-    let actualJobId: bigint = numericJobId;
-    let jobData: any = null;
-
-    // First, try to find the job by parsing the transaction that funded it
-    if (job.contract_address && job.contract_address !== 'N/A') {
-      try {
-        console.log(`\n=== Looking up funding transaction ===`);
-        console.log(`TX Hash: ${job.contract_address}`);
-        
-        const txReceipt = await provider.getTransactionReceipt(job.contract_address);
-        
-        if (txReceipt && txReceipt.logs) {
-          console.log(`Found ${txReceipt.logs.length} logs in transaction`);
+    let actualJobId: bigint | null = null;
+    
+    try {
+      const txReceipt = await provider.getTransactionReceipt(job.contract_address);
+      
+      if (!txReceipt) {
+        throw new Error('Transaction receipt not found. The transaction may still be pending.');
+      }
+      
+      console.log(`Found transaction with ${txReceipt.logs.length} logs`);
+      
+      // Parse logs to find JobFunded event
+      for (const log of txReceipt.logs) {
+        try {
+          const parsedLog = escrowContract.interface.parseLog({
+            topics: log.topics as string[],
+            data: log.data
+          });
           
-          // Parse logs to find JobFunded event
-          for (const log of txReceipt.logs) {
-            try {
-              const parsedLog = escrowContract.interface.parseLog({
-                topics: log.topics as string[],
-                data: log.data
-              });
-              
-              if (parsedLog && parsedLog.name === 'JobFunded') {
-                actualJobId = parsedLog.args.jobId;
-                console.log(`✅ FOUND JobFunded event with jobId: ${actualJobId.toString()}`);
-                break;
-              }
-            } catch (parseError) {
-              // Not a JobFunded event, continue
-              continue;
-            }
+          if (parsedLog && parsedLog.name === 'JobFunded') {
+            actualJobId = parsedLog.args.jobId;
+            console.log(`✅ FOUND JobFunded event with jobId: ${actualJobId.toString()}`);
+            console.log(`Event details:`, {
+              jobId: actualJobId.toString(),
+              client: parsedLog.args.client,
+              freelancer: parsedLog.args.freelancer,
+              amount: parsedLog.args.amount.toString()
+            });
+            break;
           }
+        } catch (parseError) {
+          // Not a JobFunded event, continue
+          continue;
         }
-      } catch (txError) {
-        console.error('Error looking up transaction:', txError);
-        // Continue with original numericJobId
+      }
+      
+      if (!actualJobId) {
+        throw new Error('JobFunded event not found in transaction logs');
+      }
+    } catch (txError: any) {
+      console.error('Error looking up transaction:', txError);
+      
+      // Fallback: try the UUID conversion method
+      console.log('⚠️ Falling back to UUID conversion method');
+      const calculatedId = uuidToNumericId(jobId);
+      console.log(`Calculated Job ID from UUID: ${calculatedId.toString()}`);
+      
+      // Try to verify this ID exists on-chain
+      try {
+        const jobData = await escrowContract.jobs(calculatedId);
+        if (jobData.exists) {
+          console.log('✅ Found job on-chain using calculated ID');
+          actualJobId = calculatedId;
+        }
+      } catch (verifyError) {
+        console.error('Could not verify calculated ID:', verifyError);
+      }
+      
+      if (!actualJobId) {
+        throw new Error(
+          `⚠️ Cannot determine on-chain job ID.\n\n` +
+          `Transaction: ${job.contract_address}\n` +
+          `Error: ${txError.message}\n\n` +
+          `The funding transaction exists but we cannot parse its job ID. ` +
+          `Please contact support with this transaction hash.`
+        );
       }
     }
 
-    // Now check the job on-chain
-    console.log(`\n=== Checking job on-chain with ID: ${actualJobId.toString()} ===`);
+    // Now verify the job on-chain
+    console.log(`\n=== Verifying job on-chain with ID: ${actualJobId.toString()} ===`);
     
+    let jobData: any;
     try {
       jobData = await escrowContract.jobs(actualJobId);
       console.log('Job on-chain data:', {
         exists: jobData.exists,
         client: jobData.client,
         freelancer: jobData.freelancer,
-        amount: jobData.amount.toString(),
+        amount: ethers.formatUnits(jobData.amount, 6),
         status: jobData.status.toString()
       });
-    } catch (readError) {
-      console.error('Error reading job from contract:', readError);
       
-      // If we can't read the job but we have a valid transaction hash, proceed anyway
-      if (job.contract_address && job.contract_address !== 'N/A') {
-        console.log('⚠️ Cannot verify on-chain but transaction exists. Proceeding with release...');
-        jobData = { exists: true, status: 3 }; // Assume SUBMITTED status
-      } else {
-        throw new Error('Cannot verify job on blockchain and no transaction hash available');
+      if (!jobData.exists) {
+        throw new Error('Job not found on-chain despite valid transaction hash');
       }
-    }
-
-    // Verify job exists and is in correct status
-    if (!jobData.exists) {
+    } catch (readError: any) {
+      console.error('Error reading job from contract:', readError);
       throw new Error(
-        `⚠️ Job not found on blockchain.\n\n` +
-        `UUID: ${jobId}\n` +
-        `Calculated Job ID: ${numericJobId.toString()}\n` +
-        `Tried Job ID: ${actualJobId.toString()}\n` +
-        `TX Hash: ${job.contract_address || 'N/A'}\n\n` +
-        `The job may not have been funded through the smart contract yet.\n\n` +
-        `If you see a transaction hash above, please wait a few minutes for blockchain sync.`
+        `⚠️ Cannot read job from blockchain.\n\n` +
+        `Job ID: ${actualJobId.toString()}\n` +
+        `Error: ${readError.message}\n\n` +
+        `The RPC endpoint may be temporarily unavailable. Please try again in a few minutes.`
       );
     }
 
     // Status codes: 0=CREATED, 1=FUNDED, 2=IN_PROGRESS, 3=SUBMITTED, 4=REVISION_REQUESTED, 5=COMPLETED, 6=DISPUTED, 7=REFUNDED
+    console.log(`Job status on-chain: ${jobData.status}`);
+    
     // Allow release for IN_PROGRESS (2) or SUBMITTED (3) status
     if (jobData.status !== 2 && jobData.status !== 3) {
-      console.log(`⚠️ Warning: Job status is ${jobData.status}, but proceeding with release`);
+      console.log(`⚠️ Warning: Job status is ${jobData.status}, expected 2 (IN_PROGRESS) or 3 (SUBMITTED)`);
+      console.log(`Proceeding with release anyway - smart contract will enforce correct status`);
     }
 
     console.log(`\n=== Releasing Payment ===`);
