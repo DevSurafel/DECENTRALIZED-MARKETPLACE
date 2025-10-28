@@ -40,6 +40,7 @@ export function SocialMediaCredentialSubmitPanel({
   const [loginEmail, setLoginEmail] = useState("");
   const [loginUsername, setLoginUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
   
   // Platform-specific fields
   const [recoveryEmail, setRecoveryEmail] = useState("");
@@ -135,6 +136,25 @@ export function SocialMediaCredentialSubmitPanel({
       return;
     }
 
+    if (!walletAddress) {
+      toast({
+        title: "Wallet Address Required",
+        description: "Please provide your wallet address for payment",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate wallet address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      toast({
+        title: "Invalid Wallet Address",
+        description: "Please provide a valid Ethereum wallet address (0x...)",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       // Store credentials securely in job metadata
@@ -158,6 +178,7 @@ export function SocialMediaCredentialSubmitPanel({
         .update({
           description: JSON.stringify(credentials), // Store temporarily in description
           status: 'under_review',
+          freelancer_wallet_address: walletAddress,
           review_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         })
         .eq('id', jobId);
@@ -270,6 +291,26 @@ export function SocialMediaCredentialSubmitPanel({
             />
           </div>
 
+          <div>
+            <Label htmlFor="walletAddress" className="flex items-center gap-2">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              Payment Wallet Address *
+            </Label>
+            <Input
+              id="walletAddress"
+              type="text"
+              value={walletAddress}
+              onChange={(e) => setWalletAddress(e.target.value)}
+              placeholder="0x..."
+              className="mt-1 font-mono"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Your Ethereum wallet address where payment will be released (USDC on Polygon)
+            </p>
+          </div>
+
           {requirements.fields.includes('recoveryEmail') && (
             <div>
               <Label htmlFor="recoveryEmail" className="flex items-center gap-2">
@@ -370,7 +411,7 @@ export function SocialMediaCredentialSubmitPanel({
           onClick={() => setShowConfirmDialog(true)}
           className="w-full shadow-glow"
           size="lg"
-          disabled={!password || (!loginEmail && !loginUsername)}
+          disabled={!password || (!loginEmail && !loginUsername) || !walletAddress}
         >
           <Shield className="h-4 w-4 mr-2" />
           Submit Credentials to Buyer
