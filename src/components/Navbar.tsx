@@ -87,7 +87,7 @@ const Navbar = () => {
 
   const connectWallet = async () => {
     if (!window.ethereum) {
-      toast.error('Please install MetaMask to connect your wallet');
+      // Silently return without showing notification
       return;
     }
 
@@ -102,11 +102,8 @@ const Navbar = () => {
       if (accounts.length === 0) return;
 
       const selected = accounts[0];
-      // If this user has a bound wallet in their profile, enforce it
+      // Silently handle wrong wallet without showing notification
       if (walletAddress && walletAddress.toLowerCase() !== selected.toLowerCase()) {
-        toast.error('Wrong wallet for this account', {
-          description: `This profile is bound to ${truncateAddress(walletAddress)}. Please switch in MetaMask.`,
-        });
         setConnectedWallet('');
         return;
       }
@@ -170,13 +167,10 @@ const Navbar = () => {
         return;
       }
 
-      // If profile has bound wallet, enforce it
+      // Silently handle wrong wallet without showing notification
       if (walletAddress && walletAddress.toLowerCase() !== current) {
         setConnectedWallet('');
         localStorage.removeItem(`wallet:connected:${user.id}`);
-        toast.error('Wrong wallet connected', {
-          description: `Please switch to ${truncateAddress(walletAddress)} in MetaMask`,
-        });
         return;
       }
 

@@ -865,9 +865,84 @@ const JobDetails = () => {
                 <h2 className="text-xl font-semibold mb-3">
                   {isSocialMediaPurchase() ? 'Purchase Details' : 'Description'}
                 </h2>
-                <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {job.description}
-                </p>
+                {isSocialMediaPurchase() && job.status === 'under_review' ? (
+                  // Parse and display credentials in a formatted way
+                  (() => {
+                    try {
+                      const credentials = JSON.parse(job.description);
+                      return (
+                        <div className="space-y-4 bg-muted/30 p-4 rounded-lg border border-primary/10">
+                          {credentials.loginEmail && (
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-primary">Login Email:</p>
+                              <p className="text-muted-foreground">{credentials.loginEmail}</p>
+                            </div>
+                          )}
+                          {credentials.loginUsername && (
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-primary">Login Username:</p>
+                              <p className="text-muted-foreground">{credentials.loginUsername}</p>
+                            </div>
+                          )}
+                          {credentials.password && (
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-primary">Password:</p>
+                              <p className="text-muted-foreground font-mono">{credentials.password}</p>
+                            </div>
+                          )}
+                          {credentials.recoveryEmail && (
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-primary">Recovery Email:</p>
+                              <p className="text-muted-foreground">{credentials.recoveryEmail}</p>
+                            </div>
+                          )}
+                          {credentials.recoveryPhone && (
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-primary">Recovery Phone:</p>
+                              <p className="text-muted-foreground">{credentials.recoveryPhone}</p>
+                            </div>
+                          )}
+                          {credentials.twoFactorBackupCodes && (
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-primary">2FA Backup Codes:</p>
+                              <p className="text-muted-foreground whitespace-pre-line font-mono text-sm">{credentials.twoFactorBackupCodes}</p>
+                            </div>
+                          )}
+                          {credentials.securityQuestions && (
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-primary">Security Questions:</p>
+                              <p className="text-muted-foreground whitespace-pre-line">{credentials.securityQuestions}</p>
+                            </div>
+                          )}
+                          {credentials.additionalNotes && (
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-primary">Additional Notes:</p>
+                              <p className="text-muted-foreground whitespace-pre-line">{credentials.additionalNotes}</p>
+                            </div>
+                          )}
+                          <div className="pt-4 border-t border-primary/10">
+                            <p className="text-xs text-muted-foreground">
+                              Platform: <span className="font-semibold">{credentials.platform}</span> • 
+                              Account: <span className="font-semibold">{credentials.accountName}</span> • 
+                              Submitted: <span className="font-semibold">{new Date(credentials.submittedAt).toLocaleString()}</span>
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    } catch (e) {
+                      // If not valid JSON, show as plain text
+                      return (
+                        <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
+                          {job.description}
+                        </p>
+                      );
+                    }
+                  })()
+                ) : (
+                  <p className="text-muted-foreground whitespace-pre-line leading-relaxed">
+                    {job.description}
+                  </p>
+                )}
               </div>
 
               {!isSocialMediaPurchase() && skills.length > 0 && (
@@ -1050,25 +1125,7 @@ const JobDetails = () => {
               </Card>
             )}
 
-            {/* Warning: Escrow Not Funded - Only show if we can actually verify */}
-            {getUserRole() === 'freelancer' && job.status === 'in_progress' && isJobFundedOnChain === false && (
-              <Card className="p-6 bg-amber-500/10 border-amber-500/50">
-                <div className="flex items-start gap-4">
-                  <AlertCircle className="h-8 w-8 text-amber-500 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-amber-600 mb-2">⚠️ Blockchain Verification</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Unable to verify escrow status on blockchain (RPC indexing delay).
-                      If client has funded the escrow, you can proceed safely - the smart contract will enforce all rules.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Once the client funds the escrow, the locked funds will be held securely in the smart contract 
-                      and released to you upon successful completion.
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            )}
+            {/* Blockchain verification warning removed as requested */}
 
             {/* Freelancer/Seller View - Submit Work / Transfer Ownership / Submit Credentials */}
             {getUserRole() === 'freelancer' && (job.status === 'in_progress' || job.status === 'revision_requested') && (

@@ -171,21 +171,21 @@ const Chat = () => {
           <p className="text-lg text-gray-300">Connect with clients and freelancers</p>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Conversations List - Hidden on mobile when chat is open */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          {/* Conversations List - Always visible on mobile, sidebar on desktop */}
           <Card className={`col-span-1 p-0 glass-card shadow-card border-primary/10 overflow-hidden ${selectedConv ? 'hidden lg:block' : 'block'}`}>
-            <div className="p-4 border-b bg-card/80">
+            <div className="p-3 lg:p-4 border-b bg-card/80">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search conversations..."
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-9 text-sm"
                 />
               </div>
             </div>
-            <div className="overflow-y-auto max-h-[300px] lg:max-h-[calc(100vh-250px)]">
+            <div className="overflow-y-auto max-h-[60vh] lg:max-h-[calc(100vh-250px)]">
               {conversations.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                   No conversations yet
@@ -199,34 +199,34 @@ const Chat = () => {
                   <div
                     key={conv.id}
                     onClick={() => setSelectedConversation(conv.id)}
-                    className={`p-4 border-b cursor-pointer transition-all hover:bg-accent/50 ${
+                    className={`p-3 lg:p-4 border-b cursor-pointer transition-all hover:bg-accent/50 active:scale-[0.98] ${
                       selectedConversation === conv.id ? "bg-accent/30 border-l-4 border-l-primary" : ""
                     }`}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-2 lg:gap-3">
                       <div className="relative">
-                        <Avatar>
+                        <Avatar className="h-10 w-10 lg:h-12 lg:w-12">
                           {other.avatar_url ? (
                             <AvatarImage src={other.avatar_url} alt={other.display_name || 'User avatar'} />
                           ) : null}
-                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
                             {other.display_name?.substring(0, 2).toUpperCase() || 'U'}
                           </AvatarFallback>
                         </Avatar>
                         {hasUnread && (
-                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full animate-pulse" />
+                          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 lg:w-3 lg:h-3 bg-green-500 border-2 border-background rounded-full animate-pulse" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start mb-1">
-                          <h3 className={`font-semibold truncate ${hasUnread ? 'text-foreground' : ''}`}>
+                        <div className="flex justify-between items-start mb-0.5">
+                          <h3 className={`font-semibold truncate text-sm lg:text-base ${hasUnread ? 'text-foreground' : ''}`}>
                             {other.display_name || 'Unknown User'}
                           </h3>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                          <span className="text-[10px] lg:text-xs text-muted-foreground whitespace-nowrap ml-2">
                             {lastMsg ? new Date(lastMsg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                           </span>
                         </div>
-                        <p className={`text-sm truncate ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                        <p className={`text-xs lg:text-sm truncate ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
                           {lastMsg?.content || 'No messages yet'}
                         </p>
                       </div>
@@ -237,28 +237,28 @@ const Chat = () => {
             </div>
           </Card>
           
-          {/* Chat Window - Shown on mobile when conversation is selected */}
+          {/* Chat Window - Responsive for mobile */}
           {!selectedConv ? (
-            <Card className="col-span-1 lg:col-span-2 p-8 flex items-center justify-center h-[400px] lg:h-[calc(100vh-200px)] glass-card shadow-card border-primary/10">
-              <p className="text-gray-300">Select a conversation to start messaging</p>
+            <Card className="col-span-1 lg:col-span-2 p-8 flex items-center justify-center h-[60vh] lg:h-[calc(100vh-200px)] glass-card shadow-card border-primary/10">
+              <p className="text-sm lg:text-base text-gray-300">Select a conversation to start messaging</p>
             </Card>
           ) : (
-            <Card className={`col-span-1 lg:col-span-2 p-0 flex flex-col h-[400px] lg:h-[calc(100vh-200px)] glass-card shadow-card border-primary/10 overflow-hidden ${!selectedConv ? 'hidden lg:flex' : 'flex'}`}>
+            <Card className={`col-span-1 lg:col-span-2 p-0 flex flex-col h-[75vh] lg:h-[calc(100vh-200px)] glass-card shadow-card border-primary/10 overflow-hidden ${!selectedConv ? 'hidden lg:flex' : 'flex'}`}>
               {/* Chat Header */}
-              <div className="p-4 border-b bg-card/80 backdrop-blur">
+              <div className="p-3 lg:p-4 border-b bg-card/80 backdrop-blur">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 lg:gap-3">
                     {/* Back button for mobile */}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="lg:hidden"
+                      className="lg:hidden h-8 w-8"
                       onClick={() => setSelectedConversation(null)}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                     </Button>
                     <Avatar 
-                      className="cursor-pointer hover:opacity-80 transition-opacity"
+                      className="cursor-pointer hover:opacity-80 transition-opacity h-9 w-9 lg:h-10 lg:w-10"
                       onClick={() => {
                         const other = getOtherParticipant(selectedConv);
                         if (other?.id) navigate(`/profile/${other.id}`);
@@ -267,13 +267,13 @@ const Chat = () => {
                       {getOtherParticipant(selectedConv)?.avatar_url ? (
                         <AvatarImage src={getOtherParticipant(selectedConv)?.avatar_url} alt={getOtherParticipant(selectedConv)?.display_name || 'User avatar'} />
                       ) : null}
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
                         {getOtherParticipant(selectedConv)?.display_name?.substring(0, 2).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <h2 
-                        className="text-xl font-semibold cursor-pointer hover:underline"
+                        className="text-base lg:text-xl font-semibold cursor-pointer hover:underline"
                         onClick={() => {
                           const other = getOtherParticipant(selectedConv);
                           if (other?.id) navigate(`/profile/${other.id}`);
@@ -283,22 +283,22 @@ const Chat = () => {
                       </h2>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="hover:bg-accent">
-                      <Phone className="h-5 w-5" />
+                  <div className="flex items-center gap-1 lg:gap-2">
+                    <Button variant="ghost" size="icon" className="hover:bg-accent h-8 w-8 lg:h-10 lg:w-10 hidden sm:flex">
+                      <Phone className="h-4 w-4 lg:h-5 lg:w-5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="hover:bg-accent">
-                      <Video className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" className="hover:bg-accent h-8 w-8 lg:h-10 lg:w-10 hidden sm:flex">
+                      <Video className="h-4 w-4 lg:h-5 lg:w-5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="hover:bg-accent">
-                      <MoreVertical className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" className="hover:bg-accent h-8 w-8 lg:h-10 lg:w-10">
+                      <MoreVertical className="h-4 w-4 lg:h-5 lg:w-5" />
                     </Button>
                   </div>
                 </div>
               </div>
               
               {/* Messages */}
-              <div className="flex-1 p-6 overflow-y-auto space-y-3 bg-gradient-to-b from-muted/10 to-muted/30">
+              <div className="flex-1 p-3 lg:p-6 overflow-y-auto space-y-2 lg:space-y-3 bg-gradient-to-b from-muted/10 to-muted/30">
                 {messages.map((msg) => {
                   const isOwn = user && msg.sender_id === user.id;
                   return (
@@ -307,22 +307,22 @@ const Chat = () => {
                       className={`flex ${isOwn ? "justify-end" : "justify-start"} animate-fade-in`}
                     >
                       <div
-                        className={`max-w-[75%] px-5 py-3 rounded-3xl shadow-md transition-all hover:shadow-lg ${
+                        className={`max-w-[80%] lg:max-w-[75%] px-3 py-2 lg:px-5 lg:py-3 rounded-2xl lg:rounded-3xl shadow-md transition-all hover:shadow-lg ${
                           isOwn
                             ? "bg-gradient-to-br from-primary via-primary to-accent text-primary-foreground rounded-br-md"
                             : "bg-muted text-foreground rounded-bl-md"
                         }`}
                       >
-                        <p className="text-[15px] leading-relaxed break-words">{msg.content}</p>
-                        <div className="flex items-center justify-end gap-2 mt-2">
-                          <span className={`text-[11px] font-medium ${isOwn ? 'opacity-80' : 'text-muted-foreground'}`}>
+                        <p className="text-sm lg:text-[15px] leading-relaxed break-words">{msg.content}</p>
+                        <div className="flex items-center justify-end gap-1.5 lg:gap-2 mt-1 lg:mt-2">
+                          <span className={`text-[10px] lg:text-[11px] font-medium ${isOwn ? 'opacity-80' : 'text-muted-foreground'}`}>
                             {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </span>
                           {isOwn && (
                             msg.is_read ? (
-                              <CheckCheck className="w-3.5 h-3.5 opacity-80" />
+                              <CheckCheck className="w-3 h-3 lg:w-3.5 lg:h-3.5 opacity-80" />
                             ) : (
-                              <Check className="w-3.5 h-3.5 opacity-80" />
+                              <Check className="w-3 h-3 lg:w-3.5 lg:h-3.5 opacity-80" />
                             )
                           )}
                         </div>
@@ -334,19 +334,19 @@ const Chat = () => {
               </div>
               
               {/* Message Input */}
-              <div className="p-4 border-t bg-card/80 backdrop-blur">
+              <div className="p-3 lg:p-4 border-t bg-card/80 backdrop-blur">
                 <div className="flex gap-2">
                   <Input
                     placeholder="Type a message..."
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    className="flex-1 bg-background"
+                    className="flex-1 bg-background h-9 lg:h-10 text-sm"
                   />
                   <Button 
                     size="icon" 
                     onClick={handleSendMessage}
-                    className="shadow-glow hover-scale"
+                    className="shadow-glow hover-scale h-9 w-9 lg:h-10 lg:w-10"
                     disabled={!currentMessage.trim()}
                   >
                     <Send className="h-4 w-4" />
