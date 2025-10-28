@@ -66,37 +66,39 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] glass-card border-primary/20">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-gradient-to-br from-background via-background/95 to-primary/5 border-2 border-primary/30 shadow-2xl backdrop-blur-xl">
         <DialogHeader>
-          <DialogTitle>Post a New Job</DialogTitle>
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Post a New Job</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="title">Job Title</Label>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-sm font-semibold text-foreground">Job Title</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Build DeFi Dashboard"
               required
+              className="h-12 bg-background/50 border-primary/20 focus:border-primary/40 shadow-sm"
             />
           </div>
 
-          <div>
-            <Label htmlFor="description">Description</Label>
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-sm font-semibold text-foreground">Description</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the project requirements..."
-              rows={4}
+              rows={5}
               required
+              className="bg-background/50 border-primary/20 focus:border-primary/40 shadow-sm resize-none"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="budget">Budget (USDC)</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="budget" className="text-sm font-semibold text-foreground">Budget (USDC)</Label>
               <Input
                 id="budget"
                 type="number"
@@ -105,22 +107,24 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
                 onChange={(e) => setBudget(e.target.value)}
                 placeholder="1000"
                 required
+                className="h-12 bg-background/50 border-primary/20 focus:border-primary/40 shadow-sm"
               />
             </div>
-            <div>
-              <Label htmlFor="duration">Duration (weeks)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="duration" className="text-sm font-semibold text-foreground">Duration (weeks)</Label>
               <Input
                 id="duration"
                 type="number"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
                 placeholder="2"
+                className="h-12 bg-background/50 border-primary/20 focus:border-primary/40 shadow-sm"
               />
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="skills">Required Skills</Label>
+          <div className="space-y-2">
+            <Label htmlFor="skills" className="text-sm font-semibold text-foreground">Required Skills</Label>
             <div className="flex gap-2">
               <Input
                 id="skills"
@@ -128,17 +132,18 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
                 onChange={(e) => setSkillInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
                 placeholder="Add a skill and press Enter"
+                className="h-12 bg-background/50 border-primary/20 focus:border-primary/40 shadow-sm"
               />
-              <Button type="button" onClick={handleAddSkill} variant="outline">
+              <Button type="button" onClick={handleAddSkill} variant="outline" className="h-12 px-6 border-primary/20 hover:border-primary/40">
                 Add
               </Button>
             </div>
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-3">
               {skills.map((skill) => (
-                <Badge key={skill} variant="secondary" className="gap-1">
+                <Badge key={skill} variant="secondary" className="gap-1 px-3 py-1.5 text-sm hover:bg-primary/20 transition-colors">
                   {skill}
                   <X
-                    className="h-3 w-3 cursor-pointer"
+                    className="h-3 w-3 cursor-pointer hover:text-destructive transition-colors"
                     onClick={() => handleRemoveSkill(skill)}
                   />
                 </Badge>
@@ -146,11 +151,11 @@ export const JobPostDialog = ({ trigger, onSuccess }: JobPostDialogProps) => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-primary/10">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="h-12 px-6 border-primary/20 hover:border-primary/40">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="h-12 px-8 shadow-glow">
               {loading ? "Posting..." : "Post Job"}
             </Button>
           </div>
