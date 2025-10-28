@@ -21,6 +21,7 @@ import { SocialMediaCredentialSubmitPanel } from "@/components/SocialMediaCreden
 import { RatingDialog } from "@/components/RatingDialog";
 import { PlatformReviewDialog } from "@/components/PlatformReviewDialog";
 import { WalletConnectFunding } from "@/components/WalletConnectFunding";
+import { CredentialViewer } from "@/components/CredentialViewer";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
@@ -826,7 +827,7 @@ const JobDetails = () => {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h1 className="text-xl md:text-3xl font-bold">{job.title}</h1>
+                    <h1 className="text-lg sm:text-xl md:text-3xl font-bold">{job.title}</h1>
                     <Badge variant="secondary" className="text-[10px] md:text-xs">{job.status.replace('_', ' ')}</Badge>
                   </div>
                   <p className="text-xs md:text-sm text-muted-foreground">Posted {getTimeAgo(job.created_at)}</p>
@@ -862,7 +863,7 @@ const JobDetails = () => {
               </div>
 
               <div className="mb-6">
-                <h2 className="text-lg md:text-xl font-semibold mb-3">
+                <h2 className="text-base sm:text-lg md:text-xl font-semibold mb-3">
                   {isSocialMediaPurchase() ? 'Purchase Details' : 'Description'}
                 </h2>
                 {isSocialMediaPurchase() && job.status === 'under_review' ? (
@@ -882,10 +883,10 @@ const JobDetails = () => {
 
               {!isSocialMediaPurchase() && skills.length > 0 && (
                 <div>
-                  <h2 className="text-xl font-semibold mb-3">Required Skills</h2>
+                  <h2 className="text-base sm:text-lg md:text-xl font-semibold mb-3">Required Skills</h2>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill: string, idx: number) => (
-                      <Badge key={idx} variant="secondary">
+                      <Badge key={idx} variant="secondary" className="text-xs sm:text-sm">
                         {skill}
                       </Badge>
                     ))}
@@ -901,17 +902,17 @@ const JobDetails = () => {
 
             {/* Client View - Fund Escrow */}
             {getUserRole() === 'client' && job.status === 'assigned' && (
-              <Card className="p-6 glass-card shadow-card">
-                <h2 className="text-2xl font-bold mb-4">Fund Escrow</h2>
-                <p className="text-muted-foreground mb-6">
+              <Card className="p-4 sm:p-6 glass-card shadow-card">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4">Fund Escrow</h2>
+                <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
                   {isSocialMediaPurchase() 
                     ? "You've initiated the purchase. Fund the escrow to begin the account transfer process."
                     : "You've accepted a proposal. Now fund the escrow to allow the freelancer to start working."}
                 </p>
-                <div className="mb-6 p-4 bg-muted/50 rounded-lg">
+                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Escrow Amount</span>
-                    <span className="text-lg font-bold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</span>
+                    <span className="text-xs sm:text-sm font-medium">Escrow Amount</span>
+                    <span className="text-base sm:text-lg font-bold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {isSocialMediaPurchase()
@@ -921,10 +922,10 @@ const JobDetails = () => {
                 </div>
                 <Button 
                   onClick={() => setShowWalletConnectQR(true)} 
-                  className="w-full shadow-glow" 
+                  className="w-full shadow-glow text-sm sm:text-base" 
                   size="lg"
                 >
-                  <Wallet className="h-4 w-4 mr-2" />
+                  <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
                   Scan QR to Fund Escrow
                 </Button>
               </Card>
@@ -970,42 +971,42 @@ const JobDetails = () => {
 
             {/* Client/Buyer View - Awaiting Escrow Verification (Telegram only) */}
             {getUserRole() === 'client' && job.status === 'awaiting_escrow_verification' && (
-              <Card className="p-6 bg-primary/5 border-primary/20">
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Clock className="h-6 w-6 text-primary animate-spin" />
+              <Card className="p-4 sm:p-6 bg-primary/5 border-primary/20">
+                <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary animate-spin" />
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold mb-2">Automated Transfer in Progress</h2>
-                    <p className="text-muted-foreground">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">Automated Transfer in Progress</h2>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Seller has confirmed the transfer to escrow. Our system is automatically processing the ownership transfer to you and releasing payment to the seller.
                     </p>
                   </div>
                 </div>
-                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                <div className="bg-muted/50 rounded-lg p-3 sm:p-4 space-y-2 sm:space-y-3">
+                  <h3 className="font-semibold text-xs sm:text-sm flex items-center gap-2">
                     <span>⚡</span>
                     Automated Process Status
                   </h3>
                   <ul className="text-xs text-muted-foreground space-y-2">
                     <li className="flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-success mt-0.5" />
+                      <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success mt-0.5" />
                       <span>Seller transferred ownership to escrow admin</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Clock className="h-4 w-4 text-primary mt-0.5 animate-spin" />
+                      <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary mt-0.5 animate-spin" />
                       <span>Escrow verifying and transferring ownership to you</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Clock className="h-4 w-4 text-primary mt-0.5 animate-spin" />
+                      <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary mt-0.5 animate-spin" />
                       <span>Smart contract auto-releasing payment to seller</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <AlertCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground mt-0.5" />
                       <span>You'll be notified once complete (usually within minutes)</span>
                     </li>
                   </ul>
-                  <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded">
+                  <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-blue-500/10 border border-blue-500/20 rounded">
                     <p className="text-xs text-muted-foreground">
                       <strong className="text-foreground">No action needed:</strong> This entire process is fully automated. The ownership will be transferred to your Telegram account and payment will be released to the seller automatically.
                     </p>
@@ -1016,18 +1017,18 @@ const JobDetails = () => {
 
             {/* Client View - Completed */}
             {getUserRole() === 'client' && job.status === 'completed' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
-              <Card className="p-6 bg-primary/5 border-primary/20">
-                <div className="text-center mb-6">
-                  <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold mb-2">
+              <Card className="p-4 sm:p-6 bg-primary/5 border-primary/20">
+                <div className="text-center mb-4 sm:mb-6">
+                  <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-success mx-auto mb-3 sm:mb-4" />
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">
                     {isSocialMediaPurchase() ? 'Purchase Complete!' : 'Project Completed!'}
                   </h2>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
                     {isSocialMediaPurchase()
                       ? 'Payment has been released to the seller'
                       : 'Funds have been released to the freelancer'}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Please leave your reviews below
                   </p>
                 </div>
@@ -1121,31 +1122,31 @@ const JobDetails = () => {
 
             {/* Freelancer/Seller View - Waiting for Review */}
             {getUserRole() === 'freelancer' && job.status === 'under_review' && (
-              <Card className="p-6 glass-card shadow-card">
+              <Card className="p-4 sm:p-6 glass-card shadow-card">
                 <div className="text-center">
-                  <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold mb-2">
+                  <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-success mx-auto mb-3 sm:mb-4" />
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">
                     {isSocialMediaPurchase() ? 'Ownership Transferred ✓' : 'Work Submitted ✓'}
                   </h2>
-                  <p className="text-muted-foreground mb-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
                     {isSocialMediaPurchase()
                       ? 'The ownership transfer has been confirmed. Waiting for buyer to verify and confirm receipt.'
                       : 'Your work has been submitted and is under review by the client.'}
                   </p>
-                  <div className="p-4 bg-muted/50 rounded-lg mb-4">
+                  <div className="p-3 sm:p-4 bg-muted/50 rounded-lg mb-3 sm:mb-4">
                     {!isSocialMediaPurchase() && (
                       <>
-                        <div className="flex items-start gap-3 mb-2">
+                        <div className="flex items-start gap-2 sm:gap-3 mb-2">
                           <div className="flex-1 text-left">
-                            <p className="font-semibold text-sm mb-1">IPFS Hash</p>
-                            <p className="font-mono text-xs text-muted-foreground break-all">{job.ipfs_hash}</p>
+                            <p className="font-semibold text-xs sm:text-sm mb-1">IPFS Hash</p>
+                            <p className="font-mono text-[10px] sm:text-xs text-muted-foreground break-all">{job.ipfs_hash}</p>
                           </div>
                         </div>
                         {job.git_commit_hash && (
-                          <div className="flex items-start gap-3">
+                          <div className="flex items-start gap-2 sm:gap-3">
                             <div className="flex-1 text-left">
-                              <p className="font-semibold text-sm mb-1">Git Commit</p>
-                              <p className="font-mono text-xs text-muted-foreground break-all">{job.git_commit_hash}</p>
+                              <p className="font-semibold text-xs sm:text-sm mb-1">Git Commit</p>
+                              <p className="font-mono text-[10px] sm:text-xs text-muted-foreground break-all">{job.git_commit_hash}</p>
                             </div>
                           </div>
                         )}
@@ -1166,14 +1167,14 @@ const JobDetails = () => {
 
             {/* Freelancer/Seller View - Completed */}
             {getUserRole() === 'freelancer' && job.status === 'completed' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
-              <Card className="p-6 glass-card shadow-card border-primary/20">
-                <div className="text-center mb-6">
-                  <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold mb-2">Payment Received!</h2>
-                  <p className="text-muted-foreground mb-4">
+              <Card className="p-4 sm:p-6 glass-card shadow-card border-primary/20">
+                <div className="text-center mb-4 sm:mb-6">
+                  <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-success mx-auto mb-3 sm:mb-4" />
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">Payment Received!</h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
                     You've received {job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Please leave your reviews below
                   </p>
                 </div>
@@ -1209,22 +1210,22 @@ const JobDetails = () => {
             {/* Non-participant View - Bid Form or Already Submitted */}
             {!getUserRole() && user && job.client_id !== user.id && job.status === 'open' && (
               hasSubmittedBid ? (
-                <Card className="p-6 glass-card shadow-card border-primary/20">
-                  <div className="text-center py-8">
-                    <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold mb-2">Proposal Submitted</h2>
-                    <p className="text-muted-foreground">
+                <Card className="p-4 sm:p-6 glass-card shadow-card border-primary/20">
+                  <div className="text-center py-6 sm:py-8">
+                    <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-success mx-auto mb-3 sm:mb-4" />
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">Proposal Submitted</h2>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       You've already submitted a proposal for this job. The client will review it and contact you if interested.
                     </p>
                   </div>
                 </Card>
               ) : (
-                  <Card className="p-6 glass-card shadow-card">
-                    <h2 className="text-2xl font-bold mb-4">Submit Your Proposal</h2>
+                  <Card className="p-4 sm:p-6 glass-card shadow-card">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-4">Submit Your Proposal</h2>
                     
                     <div className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium mb-2 block">
+                        <label className="text-xs sm:text-sm font-medium mb-2 block">
                           Your Bid Amount (USDC)
                         </label>
                         <Input
