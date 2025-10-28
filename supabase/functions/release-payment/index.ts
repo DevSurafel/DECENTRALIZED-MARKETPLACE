@@ -67,11 +67,10 @@ serve(async (req) => {
     // Escrow contract ABI - including release to address function
     const escrowAbi = [
       "function releaseAfterTransferToAddress(uint256 jobId, address sellerAddress) external",
-      "function getJob(uint256 jobId) external view returns (tuple(address client, address freelancer, address token, uint256 amount, uint256 freelancerStake, uint256 platformFee, uint8 status, uint256 deadline, uint256 reviewDeadline, uint256 allowedRevisions, uint256 currentRevisionNumber))"
+      "function getJob(uint256 jobId) external view returns (tuple(address client, address freelancer, address token, uint256 amount, uint256 freelancerStake, uint256 platformFee, uint8 status, uint256 submissionDeadline, uint256 reviewDeadline, uint256 approvalDeadline, string ipfsHash, string gitCommitHash, uint256 currentRevisionNumber, uint256 allowedRevisions, bool autoReleaseEnabled, uint8 jobStatus, bool exists))",
+      "function jobs(uint256) external view returns (address client, address freelancer, address token, uint256 amount, uint256 platformFee, uint256 freelancerStake, uint256 arbitrationDeposit, uint256 submissionDeadline, uint256 reviewDeadline, uint256 approvalDeadline, string ipfsHash, string gitCommitHash, uint256 currentRevisionNumber, uint256 allowedRevisions, bool autoReleaseEnabled, uint8 status, bool exists)"
     ];
     const escrowContract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS, escrowAbi, wallet);
-
-    console.log(`Calling escrow contract to release payment to ${freelancerWallet}...`);
 
     // Convert UUID to numeric ID
     const uuidBytes = new TextEncoder().encode(jobId);
@@ -81,6 +80,32 @@ serve(async (req) => {
     }
 
     console.log(`Numeric Job ID: ${numericJobId.toString()}`);
+
+    // First, check if job exists on-chain
+    try {
+      const jobData = await escrowContract.jobs(numericJobId);
+      console.log('Job on-chain data:', {
+        exists: jobData.exists,
+        client: jobData.client,
+        freelancer: jobData.freelancer,
+        amount: jobData.amount.toString(),
+        status: jobData.status.toString()
+      });
+
+      if (!jobData.exists) {
+        throw new Error('Job does not exist on blockchain. Please fund the escrow first.');
+      }
+
+      // Status codes: 0=CREATED, 1=FUNDED, 2=IN_PROGRESS, 3=SUBMITTED, 4=REVISION_REQUESTED, 5=COMPLETED, 6=DISPUTED, 7=REFUNDED
+      if (jobData.status !== 2 && jobData.status !== 3) {
+        throw new Error(`Invalid job status: ${jobData.status}. Expected IN_PROGRESS(2) or SUBMITTED(3). Please ensure the job is properly funded and in correct state.`);
+      }
+    } catch (error) {
+      console.error('Job validation error:', error);
+      throw error;
+    }
+
+    console.log(`Calling escrow contract to release payment to ${freelancerWallet}...`);
 
     // Call the escrow contract's release function with freelancer wallet address
     const releaseTx = await escrowContract.releaseAfterTransferToAddress(
