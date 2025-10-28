@@ -352,19 +352,12 @@ const JobDetails = () => {
           ipfs_hash: ipfsHash,
           git_commit_hash: gitHash,
           repository_url: repositoryUrl || null,
+          freelancer_wallet_address: walletAddress,
           review_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
         })
         .eq('id', id);
 
       if (error) throw error;
-
-      // Store freelancer wallet address in their profile for payment release
-      if (user?.id && walletAddress) {
-        await supabase
-          .from('profiles')
-          .update({ wallet_address: walletAddress })
-          .eq('id', user.id);
-      }
 
       // Notify client via Telegram
       if (job.client_id) {
@@ -518,6 +511,7 @@ const JobDetails = () => {
         .from('jobs')
         .update({
           status: newStatus as any,
+          freelancer_wallet_address: sellerWalletAddress,
           review_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         })
         .eq('id', id);
@@ -546,8 +540,7 @@ const JobDetails = () => {
               {
                 body: {
                   jobId: id,
-                  channelUsername: '', // Let the edge function get it from the listing
-                  sellerWalletAddress: sellerWalletAddress // Pass seller's wallet for payment release
+                  channelUsername: '' // Let the edge function get it from the listing and wallet from jobs table
                 }
               }
             );
