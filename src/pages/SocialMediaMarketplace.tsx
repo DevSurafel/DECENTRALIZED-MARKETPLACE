@@ -360,9 +360,10 @@ const SocialMediaMarketplace = () => {
                     </div>
                     <div className="flex gap-1">
                       {listing.verification_proof && (
-                        <Badge variant="secondary" className="gap-1 text-[8px] md:text-xs px-1 py-0">
+                        <Badge variant="secondary" className="gap-1 text-[8px] md:text-xs px-1 md:px-2 py-0">
                           <CheckCircle2 className="w-2 h-2 md:w-3 md:h-3" />
-                          V
+                          <span className="hidden md:inline">Verified</span>
+                          <span className="md:hidden">V</span>
                         </Badge>
                       )}
                       <Button
