@@ -66,8 +66,7 @@ export const useJobs = () => {
         .from('jobs')
         .select(`
           *,
-          client:profiles!client_id(display_name, wallet_address),
-          bids!bids_job_id_fkey(count)
+          client:profiles!client_id(display_name, wallet_address)
         `)
         .order('created_at', { ascending: false });
 
@@ -77,6 +76,23 @@ export const useJobs = () => {
 
       const { data, error } = await query;
       if (error) throw error;
+      
+      // Fetch bid counts for all jobs using the new function
+      if (data && data.length > 0) {
+        const jobsWithCounts = await Promise.all(
+          data.map(async (job) => {
+            const { data: countData } = await supabase.rpc('get_job_bid_count', { 
+              job_id_param: job.id 
+            });
+            return {
+              ...job,
+              bids: [{ count: countData || 0 }]
+            };
+          })
+        );
+        return jobsWithCounts;
+      }
+      
       return data;
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -99,14 +115,22 @@ export const useJobs = () => {
         .select(`
           *,
           client:profiles!client_id(display_name, wallet_address, avatar_url),
-          freelancer:profiles!freelancer_id(display_name, wallet_address, avatar_url),
-          bids!bids_job_id_fkey(count)
+          freelancer:profiles!freelancer_id(display_name, wallet_address, avatar_url)
         `)
         .eq('id', id)
         .single();
 
       if (error) throw error;
-      return data;
+      
+      // Fetch bid count using the new function
+      const { data: bidCount } = await supabase.rpc('get_job_bid_count', { 
+        job_id_param: id 
+      });
+      
+      return {
+        ...data,
+        bids: [{ count: bidCount || 0 }]
+      };
     } catch (error) {
       console.error('Error fetching job:', error);
       toast({
