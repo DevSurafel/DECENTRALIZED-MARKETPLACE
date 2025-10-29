@@ -43,6 +43,23 @@ export function PlatformReviewDialog({ jobId, trigger, onSuccess }: PlatformRevi
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Check if user has already reviewed the platform
+      const { data: existingReview } = await supabase
+        .from('platform_reviews')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingReview) {
+        toast({
+          title: "Already Reviewed",
+          description: "You've already reviewed the platform",
+          variant: "destructive"
+        });
+        setOpen(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('platform_reviews')
         .insert({
