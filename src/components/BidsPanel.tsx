@@ -189,10 +189,11 @@ export function BidsPanel({ jobId, onBidAccepted }: BidsPanelProps) {
                     setSelectedBid(bid);
                     setShowConfirm(true);
                   }}
-                  className="shadow-glow"
+                  className="shadow-glow text-xs sm:text-sm h-8 sm:h-10 px-3 sm:px-4"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Accept Proposal
+                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Accept Proposal</span>
+                  <span className="sm:hidden">Accept</span>
                 </Button>
               )}
             </div>
