@@ -1383,14 +1383,16 @@ const JobDetails = () => {
               )}
 
               {/* Platform review */}
-              <div className="space-y-2">
-                <Label>Review Platform</Label>
-                <PlatformReviewDialog
-                  jobId={id!}
-                  trigger={<Button variant="outline" className="w-full">Rate DeFiLance</Button>}
-                  onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
-                />
-              </div>
+              {!hasLeftPlatformReview && (
+                <div className="space-y-2">
+                  <Label>Review Platform</Label>
+                  <PlatformReviewDialog
+                    jobId={id!}
+                    trigger={<Button variant="outline" className="w-full">Rate DeFiLance</Button>}
+                    onSuccess={async () => { await fetchReviewFlags(); loadJob(); }}
+                  />
+                </div>
+              )}
             </div>
 
             <AlertDialogFooter>
