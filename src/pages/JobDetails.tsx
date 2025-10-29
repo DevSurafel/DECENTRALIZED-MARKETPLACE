@@ -80,7 +80,7 @@ const JobDetails = () => {
   const fetchReviewFlags = async () => {
     if (!id || !user?.id) return;
     try {
-      const [{ data: userReview }, { data: existingBid }] = await Promise.all([
+      const [{ data: userReview }, { data: existingBid }, { data: platformReview }] = await Promise.all([
         supabase
           .from('reviews')
           .select('id')
@@ -93,9 +93,14 @@ const JobDetails = () => {
           .eq('job_id', id)
           .eq('freelancer_id', user.id)
           .maybeSingle(),
+        supabase
+          .from('platform_reviews')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle(),
       ]);
       setHasLeftUserReview(!!userReview);
-      setHasLeftPlatformReview(false); // Platform reviews are not job-specific
+      setHasLeftPlatformReview(!!platformReview);
       setHasSubmittedBid(!!existingBid);
     } catch (e) {
       console.error('Error checking review flags', e);
@@ -820,43 +825,43 @@ const JobDetails = () => {
               <div className="flex items-start justify-between mb-3 sm:mb-4">
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h1 className="text-base sm:text-xl md:text-3xl font-bold">{job.title}</h1>
+                    <h1 className="text-sm sm:text-lg md:text-2xl font-bold">{job.title}</h1>
                     <Badge variant="secondary" className="text-[10px] md:text-xs">{job.status.replace('_', ' ')}</Badge>
                   </div>
-                  <p className="text-xs md:text-sm text-muted-foreground">Posted {getTimeAgo(job.created_at)}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">Posted {getTimeAgo(job.created_at)}</p>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 pb-4 sm:pb-6 border-b">
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-primary" />
+                  <DollarSign className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-primary" />
                   <div>
-                    <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">{isSocialMediaPurchase() ? 'Price' : 'Budget'}</p>
-                    <p className="text-xs sm:text-sm md:text-base font-semibold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</p>
+                    <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">{isSocialMediaPurchase() ? 'Price' : 'Budget'}</p>
+                    <p className="text-[11px] sm:text-xs md:text-sm font-semibold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</p>
                   </div>
                 </div>
                 {!isSocialMediaPurchase() && (
                   <div className="flex items-center gap-1.5 sm:gap-2">
-                    <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-primary" />
+                    <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-primary" />
                     <div>
-                      <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">Duration</p>
-                      <p className="text-xs sm:text-sm md:text-base font-semibold">{durationText}</p>
+                      <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Duration</p>
+                      <p className="text-[11px] sm:text-xs md:text-sm font-semibold">{durationText}</p>
                     </div>
                   </div>
                 )}
                 {job.budget_usd && (
                   <div className="flex items-center gap-1.5 sm:gap-2">
-                    <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-primary" />
+                    <DollarSign className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-primary" />
                     <div>
-                      <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">USD Equivalent</p>
-                      <p className="text-xs sm:text-sm md:text-base font-semibold">${job.budget_usd}</p>
+                      <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">USD Equivalent</p>
+                      <p className="text-[11px] sm:text-xs md:text-sm font-semibold">${job.budget_usd}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               <div className="mb-4 sm:mb-6">
-                <h2 className="text-sm sm:text-base md:text-lg font-semibold mb-2 sm:mb-3">
+                <h2 className="text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3">
                   {isSocialMediaPurchase() ? 'Purchase Details' : 'Description'}
                 </h2>
                 {isSocialMediaPurchase() && (job.status === 'under_review' || job.status === 'completed') ? (
@@ -867,22 +872,22 @@ const JobDetails = () => {
                       if (credentials.password) {
                         return <CredentialViewer credentials={credentials} />;
                       }
-                      return <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
+                      return <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
                     } catch {
-                      return <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
+                      return <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
                     }
                   })()
                 ) : (
-                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
                 )}
               </div>
 
               {!isSocialMediaPurchase() && skills.length > 0 && (
                 <div>
-                  <h2 className="text-sm sm:text-base md:text-lg font-semibold mb-2 sm:mb-3">Required Skills</h2>
+                  <h2 className="text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3">Required Skills</h2>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill: string, idx: number) => (
-                      <Badge key={idx} variant="secondary" className="text-[10px] sm:text-xs md:text-sm">
+                      <Badge key={idx} variant="secondary" className="text-[9px] sm:text-[10px] md:text-xs">
                         {skill}
                       </Badge>
                     ))}
