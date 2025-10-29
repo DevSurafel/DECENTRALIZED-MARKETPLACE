@@ -859,12 +859,15 @@ const JobDetails = () => {
                 <h2 className="text-sm sm:text-base md:text-lg font-semibold mb-2 sm:mb-3">
                   {isSocialMediaPurchase() ? 'Purchase Details' : 'Description'}
                 </h2>
-                {isSocialMediaPurchase() && job.status === 'under_review' ? (
-                  // For both buyers and sellers: Show credentials with view button for sensitive info
+                {isSocialMediaPurchase() && (job.status === 'under_review' || job.status === 'completed') ? (
+                  // Show credentials for completed and under_review status
                   (() => {
                     try {
                       const credentials = JSON.parse(job.description);
-                      return <CredentialViewer credentials={credentials} />;
+                      if (credentials.password) {
+                        return <CredentialViewer credentials={credentials} />;
+                      }
+                      return <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
                     } catch {
                       return <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
                     }
@@ -1010,13 +1013,13 @@ const JobDetails = () => {
 
             {/* Client View - Completed */}
             {getUserRole() === 'client' && job.status === 'completed' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
-              <Card className="p-4 sm:p-6 bg-primary/5 border-primary/20">
-                <div className="text-center mb-4 sm:mb-6">
-                  <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-success mx-auto mb-3 sm:mb-4" />
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">
+              <Card className="p-3 sm:p-4 md:p-6 bg-primary/5 border-primary/20">
+                <div className="text-center mb-3 sm:mb-4 md:mb-6">
+                  <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 text-success mx-auto mb-2 sm:mb-3 md:mb-4" />
+                  <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold mb-1 sm:mb-2">
                     {isSocialMediaPurchase() ? 'Purchase Complete!' : 'Project Completed!'}
                   </h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 md:mb-4">
                     {isSocialMediaPurchase()
                       ? 'Payment has been released to the seller'
                       : 'Funds have been released to the freelancer'}
@@ -1025,14 +1028,14 @@ const JobDetails = () => {
                     Please leave your reviews below
                   </p>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {!hasLeftUserReview && (
                     <RatingDialog
                       jobId={id!}
                       revieweeId={job.freelancer_id}
                       revieweeName={job.freelancer?.display_name || (isSocialMediaPurchase() ? 'Seller' : 'Freelancer')}
                       trigger={
-                        <Button className="w-full shadow-glow" size="lg">
+                        <Button className="w-full shadow-glow text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11" size="lg">
                           {isSocialMediaPurchase() ? 'Rate Seller' : 'Rate Freelancer'}
                         </Button>
                       }
@@ -1043,7 +1046,7 @@ const JobDetails = () => {
                     <PlatformReviewDialog
                       jobId={id!}
                       trigger={
-                        <Button variant="outline" className="w-full" size="lg">
+                        <Button variant="outline" className="w-full text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11" size="lg">
                           Review Platform
                         </Button>
                       }
@@ -1053,8 +1056,6 @@ const JobDetails = () => {
                 </div>
               </Card>
             )}
-
-            {/* Blockchain verification warning removed as requested */}
 
             {/* Freelancer/Seller View - Submit Work / Transfer Ownership / Submit Credentials */}
             {getUserRole() === 'freelancer' && (job.status === 'in_progress' || job.status === 'revision_requested') && (
@@ -1160,25 +1161,25 @@ const JobDetails = () => {
 
             {/* Freelancer/Seller View - Completed */}
             {getUserRole() === 'freelancer' && job.status === 'completed' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
-              <Card className="p-4 sm:p-6 glass-card shadow-card border-primary/20">
-                <div className="text-center mb-4 sm:mb-6">
-                  <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-success mx-auto mb-3 sm:mb-4" />
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">Payment Received!</h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
+              <Card className="p-3 sm:p-4 md:p-6 glass-card shadow-card border-primary/20">
+                <div className="text-center mb-3 sm:mb-4 md:mb-6">
+                  <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 text-success mx-auto mb-2 sm:mb-3 md:mb-4" />
+                  <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold mb-1 sm:mb-2">Payment Received!</h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 md:mb-4">
                     You've received {job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC
                   </p>
                   <p className="text-xs sm:text-sm text-muted-foreground">
                     Please leave your reviews below
                   </p>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {!hasLeftUserReview && (
                     <RatingDialog
                       jobId={id!}
                       revieweeId={job.client_id}
                       revieweeName={job.client?.display_name || (isSocialMediaPurchase() ? 'Buyer' : 'Client')}
                       trigger={
-                        <Button className="w-full shadow-glow" size="lg">
+                        <Button className="w-full shadow-glow text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11" size="lg">
                           {isSocialMediaPurchase() ? 'Rate Buyer' : 'Rate Client'}
                         </Button>
                       }
@@ -1189,7 +1190,7 @@ const JobDetails = () => {
                     <PlatformReviewDialog
                       jobId={id!}
                       trigger={
-                        <Button variant="outline" className="w-full" size="lg">
+                        <Button variant="outline" className="w-full text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11" size="lg">
                           Review Platform
                         </Button>
                       }
@@ -1310,6 +1311,8 @@ const JobDetails = () => {
               </div>
             </Card>
 
+        
+
             {!isSocialMediaPurchase() && (
               <Card className="p-6 glass-card shadow-card">
                 <h3 className="text-lg font-semibold mb-3">Tips for Success</h3>
@@ -1335,6 +1338,7 @@ const JobDetails = () => {
             )}
           </div>
         </div>
+
 
         {/* Review Dialogs after job completion */}
         <AlertDialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
