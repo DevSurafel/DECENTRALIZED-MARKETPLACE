@@ -192,14 +192,18 @@ const Profile = () => {
       
       setReviews(reviewsData || []);
       
-      // Fetch user's jobs (posted by this user)
+      // Fetch user's jobs (posted by this user) - only show open jobs
       const jobsData = await getJobs();
-      const profileJobs = jobsData?.filter((job: any) => job.client_id === targetUserId) || [];
+      const profileJobs = jobsData?.filter((job: any) => 
+        job.client_id === targetUserId && job.status === 'open'
+      ) || [];
       setUserJobs(profileJobs);
       
-      // Fetch user's social media listings
+      // Fetch user's social media listings - only show available listings
       const listingsData = await getListings();
-      const profileListings = listingsData?.filter((listing: any) => listing.seller_id === targetUserId) || [];
+      const profileListings = listingsData?.filter((listing: any) => 
+        listing.seller_id === targetUserId && listing.status === 'available'
+      ) || [];
       setUserListings(profileListings);
     } catch (error) {
       console.error("Error fetching profile:", error);
