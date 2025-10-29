@@ -77,17 +77,15 @@ export const useJobs = () => {
       const { data, error } = await query;
       if (error) throw error;
       
-      // Fetch bid counts for all jobs
+      // Fetch bid counts for all jobs using the database function
       if (data && data.length > 0) {
         const jobsWithCounts = await Promise.all(
           data.map(async (job) => {
-            const { count } = await supabase
-              .from('bids')
-              .select('*', { count: 'exact', head: true })
-              .eq('job_id', job.id);
+            const { data: countData } = await supabase
+              .rpc('get_job_bid_count' as any, { job_id_param: job.id });
             return {
               ...job,
-              bids: [{ count: count || 0 }]
+              bids: [{ count: countData || 0 }]
             };
           })
         );
@@ -123,11 +121,9 @@ export const useJobs = () => {
 
       if (error) throw error;
       
-      // Fetch bid count
-      const { count: bidCount } = await supabase
-        .from('bids')
-        .select('*', { count: 'exact', head: true })
-        .eq('job_id', id);
+      // Fetch bid count using database function
+      const { data: bidCount } = await supabase
+        .rpc('get_job_bid_count' as any, { job_id_param: id });
       
       return {
         ...data,
