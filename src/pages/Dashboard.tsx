@@ -45,14 +45,14 @@ const handleReviewClick = async () => {
     review_type: 'user'
   });
 
-  const platformReviewQuery = await supabase.from('reviews').select('id').match({
-    job_id: job.id,
-    reviewer_id: currentUser.id,
-    review_type: 'platform'
-  });
+  const platformReviewQuery = await supabase
+    .from('platform_reviews')
+    .select('id')
+    .eq('user_id', currentUser.id)
+    .single();
 
   const hasUserReview = (userReviewQuery.data?.length ?? 0) > 0;
-  const hasPlatformReview = (platformReviewQuery.data?.length ?? 0) > 0;
+  const hasPlatformReview = platformReviewQuery.data !== null;
 
   if (hasUserReview && hasPlatformReview) {
     toast({
