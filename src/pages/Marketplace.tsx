@@ -386,7 +386,7 @@ const Marketplace = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      className="flex-1 md:flex-initial hover:scale-105 transition-smooth border-primary/20 h-8 md:h-9 text-xs md:text-sm hidden md:inline-flex"
+                      className="flex-1 md:flex-initial hover:scale-105 transition-smooth border-primary/20 h-8 md:h-9 text-xs md:text-sm"
                       onClick={() => navigate(`/jobs/${job.id}`)}
                     >
                       View Details
