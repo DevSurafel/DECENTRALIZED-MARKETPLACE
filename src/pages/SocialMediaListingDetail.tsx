@@ -190,14 +190,14 @@ const SocialMediaListingDetail = () => {
                     {listing.platform}
                   </Badge>
                   {listing.metadata?.isVerified && (
-                    <Badge variant="default" className="gap-1 flex items-center">
+                    <Badge variant="default" className="gap-1 flex items-center whitespace-nowrap">
                       <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
-                      <span>Verified</span>
+                      <span className="inline">Verified</span>
                     </Badge>
                   )}
                 </div>
-                <h1 className="text-3xl font-bold mb-2">{listing.account_name}</h1>
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">{listing.account_name}</h1>
+                <div className="flex items-center gap-2 text-sm sm:text-base text-muted-foreground">
                   <Users className="w-4 h-4" />
                   <span>{listing.followers_count.toLocaleString()} followers</span>
                 </div>
@@ -215,8 +215,8 @@ const SocialMediaListingDetail = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Price</p>
-                    <p className="text-3xl font-bold text-primary">${listing.price_usdc.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Price</p>
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">${listing.price_usdc.toLocaleString()}</p>
                   </div>
                   <DollarSign className="w-8 h-8 text-primary" />
                 </div>
@@ -224,13 +224,13 @@ const SocialMediaListingDetail = () => {
             </Card>
 
             <div>
-              <h2 className="text-xl font-semibold mb-3">Description</h2>
-              <p className="text-muted-foreground leading-relaxed">{listing.description}</p>
+              <h2 className="text-lg sm:text-xl font-semibold mb-3">Description</h2>
+              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{listing.description}</p>
             </div>
 
             {listing.metadata && (
               <div>
-                <h2 className="text-xl font-semibold mb-3">Account Details</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-3">Account Details</h2>
                 <div className="grid grid-cols-2 gap-4">
                   {listing.metadata.niche && (
                     <Card className="glass-card shadow-card">
