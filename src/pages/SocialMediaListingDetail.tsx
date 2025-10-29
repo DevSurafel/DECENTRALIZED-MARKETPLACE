@@ -190,9 +190,9 @@ const SocialMediaListingDetail = () => {
                     {listing.platform}
                   </Badge>
                   {listing.metadata?.isVerified && (
-                    <Badge variant="default" className="gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      Verified
+                    <Badge variant="default" className="gap-1 flex items-center">
+                      <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
+                      <span>Verified</span>
                     </Badge>
                   )}
                 </div>
