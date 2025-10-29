@@ -105,7 +105,7 @@ serve(async (req) => {
       // Find user by ID
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
-        .select("id, telegram_chat_id, display_name")
+        .select("id, telegram_chat_id, display_name, telegram_username")
         .eq("id", payload)
         .single();
 
@@ -158,10 +158,16 @@ serve(async (req) => {
 
       console.log(`🔗 Linking account ${profile.id} to chat ${chatId}`);
 
-      // Link account
+      // Extract telegram username from the message
+      const telegramUsername = chat.username || null;
+
+      // Link account and store telegram username
       const { error: updErr } = await supabase
         .from("profiles")
-        .update({ telegram_chat_id: chatId.toString() })
+        .update({ 
+          telegram_chat_id: chatId.toString(),
+          telegram_username: telegramUsername
+        })
         .eq("id", profile.id);
 
       if (updErr) {
@@ -317,11 +323,12 @@ serve(async (req) => {
 
       console.log(`🔍 Looking for recipient with username: ${recipientUsername}`);
 
+      // Try to find recipient by telegram_username or display_name
       const { data: recipient, error: rErr } = await supabase
         .from("profiles")
-        .select("id, display_name, telegram_chat_id")
-        .eq("telegram_username", recipientUsername)
-        .single();
+        .select("id, display_name, telegram_chat_id, telegram_username")
+        .or(`telegram_username.eq.${recipientUsername},display_name.ilike.${recipientUsername}`)
+        .maybeSingle();
 
       if (rErr || !recipient) {
         console.error("❌ Recipient not found:", rErr);
