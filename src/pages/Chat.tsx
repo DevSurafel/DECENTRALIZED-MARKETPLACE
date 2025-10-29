@@ -309,8 +309,8 @@ const Chat = () => {
                       <div
                         className={`max-w-[80%] lg:max-w-[75%] px-3 py-2 lg:px-5 lg:py-3 rounded-2xl lg:rounded-3xl shadow-md transition-all hover:shadow-lg ${
                           isOwn
-                            ? "bg-gradient-to-br from-primary via-primary to-accent text-primary-foreground rounded-br-md"
-                            : "bg-muted text-foreground rounded-bl-md"
+                          ? "bg-[#0b93f6] text-white rounded-br-md"
+                          : "bg-muted text-foreground rounded-bl-md"
                         }`}
                       >
                         <p className="text-sm lg:text-[15px] leading-relaxed break-words">{msg.content}</p>
