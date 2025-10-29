@@ -118,13 +118,15 @@ serve(async (req) => {
           
           if (parsedLog && parsedLog.name === 'JobFunded') {
             actualJobId = parsedLog.args.jobId;
-            console.log(`✅ FOUND JobFunded event with jobId: ${actualJobId.toString()}`);
-            console.log(`Event details:`, {
-              jobId: actualJobId.toString(),
-              client: parsedLog.args.client,
-              freelancer: parsedLog.args.freelancer,
-              amount: parsedLog.args.amount.toString()
-            });
+            if (actualJobId) {
+              console.log(`✅ FOUND JobFunded event with jobId: ${actualJobId.toString()}`);
+              console.log(`Event details:`, {
+                jobId: actualJobId.toString(),
+                client: parsedLog.args.client,
+                freelancer: parsedLog.args.freelancer,
+                amount: parsedLog.args.amount.toString()
+              });
+            }
             break;
           }
         } catch (parseError) {
