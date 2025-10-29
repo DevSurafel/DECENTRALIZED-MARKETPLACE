@@ -142,9 +142,8 @@ export function RecentActivity({ userId }: { userId?: string }) {
         return timeB - timeA;
       });
 
-      // Show at least 3 activities if available, up to 10
-      const displayCount = Math.max(Math.min(activities.length, 10), 3);
-      setActivities(activities.slice(0, displayCount));
+      // Show only the 5 most recent activities
+      setActivities(activities.slice(0, 5));
     } catch (error) {
       console.error('Error fetching recent activity:', error);
     } finally {
