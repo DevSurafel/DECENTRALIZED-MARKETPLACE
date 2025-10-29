@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useEscrow } from "@/hooks/useEscrow";
+
 const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -765,6 +766,8 @@ const JobDetails = () => {
       </div>
     );
   }
+
+
 
   // Calculate time ago for posted date
   const getTimeAgo = (dateString: string) => {
