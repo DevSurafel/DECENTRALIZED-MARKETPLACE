@@ -49,14 +49,14 @@ const handleReviewClick = async () => {
     .from('platform_reviews')
     .select('id')
     .eq('user_id', currentUser.id)
-    .maybeSingle();
+    .single();
 
   const hasUserReview = (userReviewQuery.data?.length ?? 0) > 0;
   const hasPlatformReview = platformReviewQuery.data !== null;
 
   if (hasUserReview && hasPlatformReview) {
     toast({
-      title: isClient ? "Purchase Completed!" : "Payment Received!",
+      title: isClient ? "Project Completed" : "Payment Received",
       description: "You've already left reviews for this job. Thank you!"
     });
   } else {
