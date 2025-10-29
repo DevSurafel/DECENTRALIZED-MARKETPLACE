@@ -45,6 +45,25 @@ export function RatingDialog({ jobId, revieweeId, revieweeName, trigger, onSucce
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Check if user has already reviewed this person for this job
+      const { data: existingReview } = await supabase
+        .from('reviews')
+        .select('id')
+        .eq('job_id', jobId)
+        .eq('reviewer_id', user.id)
+        .eq('reviewee_id', revieweeId)
+        .single();
+
+      if (existingReview) {
+        toast({
+          title: "Already Reviewed",
+          description: "You've already reviewed this person for this job",
+          variant: "destructive"
+        });
+        setOpen(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('reviews')
         .insert({
