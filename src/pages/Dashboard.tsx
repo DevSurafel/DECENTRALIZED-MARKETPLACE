@@ -85,7 +85,6 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const jobs = await getUserJobs();
-      const bids = await getUserBids();
 
       const active = jobs.filter((j: any) =>
         j.status === 'assigned' ||
@@ -94,10 +93,28 @@ const Dashboard = () => {
         j.status === 'revision_requested'
       );
       const completed = jobs.filter((j: any) => j.status === 'completed');
-      const pending = bids.filter((b: any) => b.status === 'pending');
+
+      // Fetch pending bids on user's projects (where user is client)
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      let pendingBidsCount = 0;
+
+      if (currentUser) {
+        // Get user's jobs where they are the client
+        const clientJobs = jobs.filter((j: any) => j.client_id === currentUser.id);
+        
+        // For each client job, count pending bids
+        for (const job of clientJobs) {
+          const { count } = await supabase
+            .from('bids')
+            .select('*', { count: 'exact', head: true })
+            .eq('job_id', job.id)
+            .eq('status', 'pending');
+          
+          pendingBidsCount += count || 0;
+        }
+      }
 
       // Fetch user's total earnings from profile
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
       let totalEarnings = 0;
 
       if (currentUser) {
@@ -114,7 +131,7 @@ const Dashboard = () => {
       setStats({
         activeJobs: active.length,
         totalEarnings: totalEarnings,
-        pendingBids: pending.length,
+        pendingBids: pendingBidsCount,
         completedJobs: completed.length
       });
     } catch (error) {
