@@ -276,8 +276,6 @@ npm i -g vercel
 vercel --prod
 ```
 
-### Backend Deployment
-Backend (Lovable Cloud) deploys automatically on push to main branch.
 
 ### Smart Contract Deployment
 See [Smart Contract Deployment Guide](#-smart-contract-deployment)
@@ -301,24 +299,13 @@ We welcome contributions! Please follow these steps:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🌐 Links
 
-- **Live Demo**: [https://defilance.lovable.app](https://defilance.lovable.app)
-- **Documentation**: [https://docs.defilance.io](https://docs.defilance.io)
-- **Smart Contract**: [View on PolygonScan](https://amoy.polygonscan.com/address/0x0CC3Fb461bC523d51403d1DB97CB09b49510ceB9)
-- **Twitter**: [@DeFiLance](https://twitter.com/defilance)
-- **Discord**: [Join Community](https://discord.gg/defilance)
+- **Live Demo**: [https://dfm-tau.vercel.app](https://dfm-tau.vercel.app)
 
-## 👥 Team
 
-- **Project Lead**: Your Name
-- **Blockchain Developer**: Developer Name
-- **Frontend Developer**: Developer Name
-- **UI/UX Designer**: Designer Name
 
 ## 🙏 Acknowledgments
 
@@ -327,12 +314,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Lovable](https://lovable.dev/) for rapid fullstack development
 - [shadcn/ui](https://ui.shadcn.com/) for beautiful component library
 
-## 📧 Contact
-
-For questions or support, reach out to:
-- Email: support@defilance.io
-- Telegram: [@DeFiLanceSupport](https://t.me/defilancesupport)
-- GitHub Issues: [Create Issue](https://github.com/yourusername/defilance/issues)
 
 ---
 
