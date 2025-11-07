@@ -120,46 +120,33 @@ Our research identified several gaps in existing solutions:
 
 ---
 
-## 3. TOOLS & TECHNOLOGY, PROPOSED APPROACH / SOLUTION / METHODOLOGY
+## 3. TOOLS & TECHNOLOGY
 
-### 3.1 Technology Stack
+### 3.1 Core Technology Stack
 
-#### Frontend Technologies
-- **React 18.3.1**: Modern UI development with hooks
-- **TypeScript**: Type-safe development
-- **Vite**: Fast build tool and development server
-- **Tailwind CSS**: Utility-first CSS framework
-- **shadcn/ui**: High-quality React component library
-- **React Router DOM**: Client-side routing
-- **React Query (@tanstack/react-query)**: Server state management
-- **Lucide React**: Icon library
+#### Frontend Development
+- **React with TypeScript**: Modern, type-safe UI development framework
+- **Vite**: Next-generation build tool for fast development
+- **Tailwind CSS**: Utility-first styling framework for responsive design
 
-#### Blockchain Technologies
-- **Solidity 0.8.20**: Smart contract development
-- **Hardhat**: Ethereum development environment
-- **OpenZeppelin Contracts**: Secure, audited smart contract libraries
-- **Ethers.js**: Ethereum wallet integration
-- **WalletConnect**: Multi-wallet support
-- **Polygon (Amoy Testnet)**: Layer 2 scaling solution
+#### Blockchain Infrastructure
+- **Solidity 0.8.20**: Smart contract development language
+- **Hardhat**: Ethereum development environment for testing and deployment
+- **OpenZeppelin**: Industry-standard secure smart contract libraries
+- **Polygon Network**: Layer 2 scaling solution for low-cost, fast transactions
+- **Ethers.js & WalletConnect**: Web3 wallet integration
 
-#### Backend Technologies
-- **Lovable Cloud (Supabase)**: Backend-as-a-Service
-- **PostgreSQL**: Relational database
-- **Supabase Edge Functions**: Serverless functions (Deno runtime)
-- **Row Level Security (RLS)**: Database-level security
-- **Real-time Subscriptions**: WebSocket-based updates
+#### Backend Infrastructure
+- **PostgreSQL**: Robust relational database for structured data
+- **Lovable Cloud**: Serverless backend platform with authentication and real-time capabilities
+- **Edge Functions**: Serverless compute for backend logic
+- **IPFS**: Decentralized storage for work submissions and evidence
 
-#### External Integrations
-- **IPFS**: Decentralized file storage for work submissions
-- **Telegram Bot API**: Notification and messaging system
-- **MongoDB**: Document storage for certain data types
+#### Communication & Integration
+- **Telegram Bot API**: Real-time notifications and messaging
+- **WebSocket**: Real-time bidirectional communication
 
-#### Development Tools
-- **Git**: Version control
-- **ESLint**: Code linting
-- **Lovable IDE**: Development environment
-
-### 3.2 System Architecture
+### 3.2 System Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -204,84 +191,39 @@ Our research identified several gaps in existing solutions:
 └──────────────────────────────────────────────────────┘
 ```
 
-### 3.3 Proposed Methodology
+---
 
-#### Phase 1: Smart Contract Development
-1. **Escrow Contract Design**
-   - Job lifecycle management
-   - Payment locking and release mechanisms
-   - Revision workflow
-   - Dispute resolution logic
-   - Stake and deposit requirements
+## 4. PROPOSED APPROACH / SOLUTION / METHODOLOGY
 
-2. **Security Measures**
-   - ReentrancyGuard implementation
-   - Access control modifiers
-   - Emergency pause functionality
-   - Audit-ready code structure
+### 4.1 Development Methodology
 
-3. **Testing & Deployment**
-   - Comprehensive unit tests
-   - Integration testing
-   - Testnet deployment (Polygon Amoy)
-   - Contract verification
+Our development approach follows an iterative, modular methodology that prioritizes security, scalability, and user experience. The project is structured into five interconnected phases, each building upon the previous to create a comprehensive decentralized marketplace ecosystem.
 
-#### Phase 2: Database Design
-1. **Core Tables**
-   - Users/Profiles
-   - Jobs
-   - Bids
-   - Messages
-   - Reviews
-   - Social media listings
-   - Transactions
+**Phase 1: Smart Contract Foundation**
 
-2. **Security Implementation**
-   - Row Level Security (RLS) policies
-   - User authentication
-   - API key management
-   - Rate limiting
+We begin with the blockchain layer as it forms the trust foundation of the entire platform. The smart contract development starts with designing the escrow system that manages the complete job lifecycle—from initial funding through work submission, revision requests, and final payment release. The contract architecture incorporates multiple security layers including reentrancy guards to prevent exploit attacks, role-based access control ensuring only authorized parties can execute specific functions, and time-lock mechanisms that protect both clients and freelancers. We implement a stake-based accountability system where freelancers deposit collateral, which gets slashed in case of dispute resolution against them, creating economic incentives for quality work. The dispute resolution logic is built with evidence submission capabilities, allowing both parties to upload proof via IPFS before an arbitrator makes a decision. Throughout this phase, we write comprehensive unit tests covering all edge cases and conduct security audits before deploying to Polygon Amoy testnet, where gas fees remain negligible while maintaining Ethereum-level security.
 
-#### Phase 3: Frontend Development
-1. **Core Pages**
-   - Landing page
-   - Marketplace
-   - Dashboard
-   - Job details
-   - Profile management
-   - Social media marketplace
-   - Chat interface
+**Phase 2: Database Architecture and Security**
 
-2. **Wallet Integration**
-   - MetaMask connection
-   - WalletConnect support
-   - Transaction signing
-   - Balance checking
+With the blockchain foundation established, we design the off-chain database layer that stores user profiles, job metadata, messages, and social media listings. We utilize PostgreSQL for its robustness and ACID compliance, essential for handling concurrent transactions in a marketplace environment. The database schema is normalized to eliminate redundancy while maintaining referential integrity through foreign key relationships. Security is paramount—we implement Row Level Security (RLS) policies at the database level, ensuring users can only access data they're authorized to see. For example, job details are visible only to the client who posted them and freelancers who have submitted bids. Messages in the chat system use RLS to guarantee end-to-end privacy between conversing parties. Authentication is handled through secure token-based systems with automatic session management, while API keys are encrypted and rate limiting prevents abuse.
 
-#### Phase 4: Backend Services
-1. **Edge Functions**
-   - IPFS upload service
-   - Telegram notifications
-   - Payment processing
-   - Data aggregation
+**Phase 3: User Interface Development**
 
-2. **Real-time Features**
-   - Chat messaging
-   - Notification system
-   - Live updates
+The frontend development phase focuses on creating an intuitive, responsive interface that abstracts blockchain complexity from users. We build the application using React's component-based architecture, allowing for code reusability and maintainability. The marketplace page implements advanced filtering and search capabilities, enabling users to find relevant opportunities quickly. Each job detail page integrates directly with the smart contract, displaying real-time status updates as transactions confirm on the blockchain. The wallet integration is designed to be seamless—users can connect via MetaMask or WalletConnect with a single click, and all transaction signing happens through familiar wallet interfaces they already trust. We implement optimistic UI updates, where actions appear instant to users while blockchain confirmations happen in the background, with appropriate loading states and error handling. The design follows modern UI/UX principles with clear visual hierarchy, consistent styling through Tailwind CSS, and accessibility features ensuring the platform is usable by everyone.
 
-#### Phase 5: External Integrations
-1. **IPFS Integration**
-   - File upload
-   - Content addressing
-   - Retrieval system
+**Phase 4: Backend Services and Serverless Functions**
 
-2. **Telegram Bot**
-   - Webhook setup
-   - Notification delivery
-   - Bidirectional messaging
+Backend services are implemented as serverless edge functions that handle operations requiring server-side execution or external API calls. The IPFS upload function manages file storage for work submissions and dispute evidence, chunking large files and returning content-addressed hashes that are immutably stored on-chain. Payment processing functions interact with smart contracts, triggering releases when conditions are met and updating database records to maintain consistency between blockchain and off-chain state. The notification system monitors database changes and blockchain events, instantly alerting users via Telegram when they receive bids, messages, or payment releases. These functions are stateless and auto-scaling, handling traffic spikes during peak usage without manual intervention. Real-time features leverage WebSocket connections, establishing bidirectional communication channels that push updates to connected clients the moment data changes, creating a responsive, app-like experience.
 
-### 3.4 Smart Contract Architecture
+**Phase 5: External Integration and Communication**
+
+The final phase integrates external services that enhance platform functionality. IPFS integration provides decentralized file storage, ensuring work submissions and evidence remain accessible even if centralized servers fail. We implement content addressing where files are referenced by their cryptographic hash, making tampering impossible. The Telegram bot integration creates a seamless notification pipeline—users receive instant alerts for platform events without needing to keep the web app open. The bot supports bidirectional communication, allowing users to respond to notifications directly from Telegram. We establish webhook endpoints that receive real-time updates from external services, process them through our edge functions, and update relevant database records. This integration layer makes the platform extensible, allowing future additions like Discord notifications, email alerts, or mobile push notifications without restructuring core architecture.
+
+### 4.2 Quality Assurance Strategy
+
+Throughout development, we maintain rigorous testing protocols. Smart contracts undergo unit testing for individual functions, integration testing for multi-function workflows, and security audits using automated tools and manual review. Frontend components are tested for rendering correctness and user interaction flows. Backend functions are validated with mock data and live testnet transactions. We employ continuous integration pipelines that run test suites on every code commit, catching issues early. Security remains the top priority—we follow OWASP guidelines for web application security, implement input validation at every layer, and conduct penetration testing before production deployment.
+
+### 4.3 Smart Contract Architecture
 
 #### DeFiLanceEscrow Contract
 **Core Functions:**
@@ -303,9 +245,9 @@ Our research identified several gaps in existing solutions:
 
 ---
 
-## 4. IMPLEMENTATION
+## 5. IMPLEMENTATION
 
-### 4.1 Smart Contract Implementation
+### 5.1 Smart Contract Implementation
 
 #### Escrow Contract (Solidity)
 ```solidity
@@ -352,7 +294,7 @@ contract DeFiLanceEscrow is Ownable, ReentrancyGuard {
 - Verified: Yes
 - Platform Fee: 2.5% (configurable)
 
-### 4.2 Database Schema Implementation
+### 5.2 Database Schema Implementation
 
 #### Core Tables
 
@@ -402,7 +344,7 @@ CREATE TABLE social_media_listings (
 );
 ```
 
-### 4.3 Frontend Implementation
+### 5.3 Frontend Implementation
 
 #### Key Components
 
@@ -450,7 +392,7 @@ export const useEscrow = () => {
 - Filter and search
 - Job analytics
 
-### 4.4 Backend Services Implementation
+### 5.4 Backend Services Implementation
 
 #### Edge Functions
 
@@ -497,7 +439,7 @@ Deno.serve(async (req) => {
 });
 ```
 
-### 4.5 Security Implementation
+### 5.5 Security Implementation
 
 #### Row Level Security (RLS) Policies
 ```sql
@@ -527,7 +469,7 @@ USING (
 - Stake requirements for accountability
 - Evidence submission for disputes
 
-### 4.6 Integration Implementation
+### 5.6 Integration Implementation
 
 #### Wallet Integration
 ```typescript
@@ -570,7 +512,7 @@ const sendNotification = async (userId: string, message: string) => {
 };
 ```
 
-### 4.7 Testing & Deployment
+### 5.7 Testing & Deployment
 
 #### Testing Strategy
 1. **Unit Tests**: Smart contract functions
@@ -586,7 +528,7 @@ const sendNotification = async (userId: string, message: string) => {
 4. **Edge Functions**: Auto-deployed via Lovable Cloud
 5. **Monitoring**: Real-time error tracking and analytics
 
-### 4.8 Current Implementation Status
+### 5.8 Current Implementation Status
 
 ✅ **Completed Features:**
 - Smart contract development and deployment
@@ -614,7 +556,7 @@ const sendNotification = async (userId: string, message: string) => {
 
 ---
 
-## 5. CONCLUSION
+## 6. CONCLUSION
 
 ### Project Summary
 DeFiLance successfully demonstrates how blockchain technology can revolutionize the freelance marketplace by providing:
