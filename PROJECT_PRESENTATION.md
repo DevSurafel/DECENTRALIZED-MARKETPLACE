@@ -195,35 +195,52 @@ Our research identified several gaps in existing solutions:
 
 ## 4. PROPOSED APPROACH / SOLUTION / METHODOLOGY
 
-### 4.1 Development Methodology
+### System Workflow & Architecture
 
-Our development approach follows an iterative, modular methodology that prioritizes security, scalability, and user experience. The project is structured into five interconnected phases, each building upon the previous to create a comprehensive decentralized marketplace ecosystem.
+Our platform operates on a hybrid architecture combining blockchain security with traditional web performance:
 
-**Phase 1: Smart Contract Foundation**
+**1. Job Creation & Funding Flow**
+- Client posts job requirements on the platform
+- Smart contract escrow created on Polygon blockchain
+- Client deposits funds (USDC/DAI) + platform fee (2.5%)
+- Funds locked securely until job completion or dispute resolution
+- Job listed in marketplace with real-time status tracking
 
-We begin with the blockchain layer as it forms the trust foundation of the entire platform. The smart contract development starts with designing the escrow system that manages the complete job lifecycle—from initial funding through work submission, revision requests, and final payment release. The contract architecture incorporates multiple security layers including reentrancy guards to prevent exploit attacks, role-based access control ensuring only authorized parties can execute specific functions, and time-lock mechanisms that protect both clients and freelancers. We implement a stake-based accountability system where freelancers deposit collateral, which gets slashed in case of dispute resolution against them, creating economic incentives for quality work. The dispute resolution logic is built with evidence submission capabilities, allowing both parties to upload proof via IPFS before an arbitrator makes a decision. Throughout this phase, we write comprehensive unit tests covering all edge cases and conduct security audits before deploying to Polygon Amoy testnet, where gas fees remain negligible while maintaining Ethereum-level security.
+**2. Bidding & Selection Process**
+- Freelancers browse available jobs with filtering options
+- Submit competitive bids with proposed timeline and rate
+- Optional stake deposit for high-value jobs (fraud prevention)
+- Client reviews freelancer profiles, ratings, and proposals
+- Client selects winning bid → Freelancer assigned to escrow contract
 
-**Phase 2: Database Architecture and Security**
+**3. Work Execution & Delivery**
+- Real-time chat enables client-freelancer communication
+- Telegram notifications keep both parties updated
+- Freelancer submits completed work via IPFS (decentralized storage)
+- Work hash recorded on blockchain for immutability
+- Client has deadline to review submission
 
-With the blockchain foundation established, we design the off-chain database layer that stores user profiles, job metadata, messages, and social media listings. We utilize PostgreSQL for its robustness and ACID compliance, essential for handling concurrent transactions in a marketplace environment. The database schema is normalized to eliminate redundancy while maintaining referential integrity through foreign key relationships. Security is paramount—we implement Row Level Security (RLS) policies at the database level, ensuring users can only access data they're authorized to see. For example, job details are visible only to the client who posted them and freelancers who have submitted bids. Messages in the chat system use RLS to guarantee end-to-end privacy between conversing parties. Authentication is handled through secure token-based systems with automatic session management, while API keys are encrypted and rate limiting prevents abuse.
+**4. Review & Payment Release**
+- **If Approved**: Smart contract releases payment to freelancer automatically
+- **If Revision Needed**: Client requests changes → Freelancer submits updated work
+- **If Disputed**: Both parties submit evidence → Arbitrator reviews and decides
+- Platform fee transferred to admin wallet
+- On-chain rating/review recorded for reputation system
 
-**Phase 3: User Interface Development**
+**5. Security Mechanisms**
+- Smart contract reentrancy guards prevent double-spending attacks
+- Row Level Security (RLS) on database ensures data privacy
+- Time-lock deadlines protect both parties from indefinite holds
+- Stake slashing penalizes malicious actors
+- Multi-signature arbitration for high-value disputes
 
-The frontend development phase focuses on creating an intuitive, responsive interface that abstracts blockchain complexity from users. We build the application using React's component-based architecture, allowing for code reusability and maintainability. The marketplace page implements advanced filtering and search capabilities, enabling users to find relevant opportunities quickly. Each job detail page integrates directly with the smart contract, displaying real-time status updates as transactions confirm on the blockchain. The wallet integration is designed to be seamless—users can connect via MetaMask or WalletConnect with a single click, and all transaction signing happens through familiar wallet interfaces they already trust. We implement optimistic UI updates, where actions appear instant to users while blockchain confirmations happen in the background, with appropriate loading states and error handling. The design follows modern UI/UX principles with clear visual hierarchy, consistent styling through Tailwind CSS, and accessibility features ensuring the platform is usable by everyone.
+**6. Additional Features**
+- Social media account marketplace with secure credential transfer
+- Automated Telegram notifications for all platform events
+- Revision tracking system with unlimited iteration support
+- Platform-wide rating system for trust building
 
-**Phase 4: Backend Services and Serverless Functions**
-
-Backend services are implemented as serverless edge functions that handle operations requiring server-side execution or external API calls. The IPFS upload function manages file storage for work submissions and dispute evidence, chunking large files and returning content-addressed hashes that are immutably stored on-chain. Payment processing functions interact with smart contracts, triggering releases when conditions are met and updating database records to maintain consistency between blockchain and off-chain state. The notification system monitors database changes and blockchain events, instantly alerting users via Telegram when they receive bids, messages, or payment releases. These functions are stateless and auto-scaling, handling traffic spikes during peak usage without manual intervention. Real-time features leverage WebSocket connections, establishing bidirectional communication channels that push updates to connected clients the moment data changes, creating a responsive, app-like experience.
-
-**Phase 5: External Integration and Communication**
-
-The final phase integrates external services that enhance platform functionality. IPFS integration provides decentralized file storage, ensuring work submissions and evidence remain accessible even if centralized servers fail. We implement content addressing where files are referenced by their cryptographic hash, making tampering impossible. The Telegram bot integration creates a seamless notification pipeline—users receive instant alerts for platform events without needing to keep the web app open. The bot supports bidirectional communication, allowing users to respond to notifications directly from Telegram. We establish webhook endpoints that receive real-time updates from external services, process them through our edge functions, and update relevant database records. This integration layer makes the platform extensible, allowing future additions like Discord notifications, email alerts, or mobile push notifications without restructuring core architecture.
-
-### 4.2 Quality Assurance Strategy
-
-Throughout development, we maintain rigorous testing protocols. Smart contracts undergo unit testing for individual functions, integration testing for multi-function workflows, and security audits using automated tools and manual review. Frontend components are tested for rendering correctness and user interaction flows. Backend functions are validated with mock data and live testnet transactions. We employ continuous integration pipelines that run test suites on every code commit, catching issues early. Security remains the top priority—we follow OWASP guidelines for web application security, implement input validation at every layer, and conduct penetration testing before production deployment.
-
-### 4.3 Smart Contract Architecture
+### 4.2 Smart Contract Architecture
 
 #### DeFiLanceEscrow Contract
 **Core Functions:**
