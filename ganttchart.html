@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weekly Progress Distribution - Gantt Chart</title>
+    <script src="https://cdn.plot.ly/plotly-2.24.2.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9fafb;
+            padding: 40px;
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 30px;
+        }
+
+        #gantt {
+            width: 100%;
+            max-width: 1100px;
+            margin: auto;
+            height: 600px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Weekly Progress Distribution (Oct 2025 - Jan 2026)</h2>
+    <div id="gantt"></div>
+
+    <script>
+        const tasks = [
+            { Task: "Planning & Design (10%)", Start: "2025-10-01", Finish: "2025-10-14" },
+            { Task: "Frontend Setup (20%)", Start: "2025-10-15", Finish: "2025-10-28" },
+            { Task: "Core Features (30%)", Start: "2025-10-29", Finish: "2025-11-11" },
+            { Task: "Blockchain Integration (40%)", Start: "2025-11-12", Finish: "2025-11-25" },
+            { Task: "Smart Contracts (50%)", Start: "2025-11-26", Finish: "2025-12-09" },
+            { Task: "Marketplace Features (65%)", Start: "2025-12-10", Finish: "2025-12-23" },
+            { Task: "Integration & Testing (80%)", Start: "2025-12-24", Finish: "2026-01-06" },
+            { Task: "Deployment & Polish (100%)", Start: "2026-01-07", Finish: "2026-01-20" }
+        ];
+
+        const data = [{
+            type: 'bar',
+            x: tasks.map(t => new Date(t.Finish) - new Date(t.Start)),
+            y: tasks.map(t => t.Task),
+            orientation: 'h',
+            base: tasks.map(t => new Date(t.Start)),
+            text: tasks.map(t => `${t.Start} → ${t.Finish}`),
+            hoverinfo: 'text',
+            marker: {
+                color: [
+                    '#4f46e5', '#3b82f6', '#06b6d4', '#10b981',
+                    '#84cc16', '#facc15', '#f97316', '#ef4444'
+                ],
+                line: { width: 1, color: '#333' }
+            }
+        }];
+
+        const layout = {
+            title: 'Project Timeline (Oct 2025 - Jan 2026)',
+            barmode: 'stack',
+            xaxis: {
+                type: 'date',
+                title: 'Weeks (Timeline)',
+                range: ['2025-10-01', '2026-01-31']
+            },
+            yaxis: {
+                title: 'Tasks',
+                automargin: true
+            },
+            plot_bgcolor: '#fff',
+            paper_bgcolor: '#fff'
+        };
+
+        Plotly.newPlot('gantt', data, layout);
+    </script>
+</body>
+
+</html>
