@@ -90,7 +90,7 @@ serve(async (req) => {
     const tgResult = await sendTelegramMessage(
       chatId,
       notificationText,
-      sender_name || "user",
+      sender_name ? sender_name.split(" ")[0] : "user",
       url,
       button_text
     );

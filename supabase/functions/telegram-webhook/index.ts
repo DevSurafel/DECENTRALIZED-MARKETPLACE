@@ -3,8 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_URL = Deno.env.get("QYJ_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("QYJ_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,7 +33,7 @@ serve(async (req) => {
   }
 
   // Helper: Send message to Telegram
-  const reply = async (chatId: number, text: string) => {
+  const reply = async (chatId: number, text: string, senderUsername?: string) => {
     if (!TELEGRAM_BOT_TOKEN) {
       console.error("❌ TELEGRAM_BOT_TOKEN missing");
       return { ok: false, error: "Bot token not configured" };
@@ -42,15 +42,29 @@ serve(async (req) => {
     
     console.log(`📤 Sending message to chat ${chatId}:`, text.substring(0, 100));
     
+    const messageBody: any = {
+      chat_id: chatId,
+      text,
+      parse_mode: "Markdown",
+    };
+
+    // Add reply button if sender username is provided
+    if (senderUsername) {
+      messageBody.reply_markup = {
+        inline_keyboard: [[
+          {
+            text: "Reply",
+            switch_inline_query_current_chat: `@${senderUsername} `,
+          },
+        ]],
+      };
+    }
+    
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: "Markdown",
-        }),
+        body: JSON.stringify(messageBody),
       });
       
       const json = await res.json();
@@ -202,14 +216,19 @@ serve(async (req) => {
     // 2. Regular message — Reply in conversation
     // ===========================================
     if (update.message?.text && !update.message.text.startsWith("/")) {
-      const { chat, text, message_id, entities } = update.message;
+      const { chat, text, message_id } = update.message;
       const chatId = chat.id;
-      const fullText = text.trim();
+      const rawText = (text || '').trim();
+      console.log(`💬 Incoming raw message from chat ${chatId}: ${rawText.substring(0, 100)}`);
 
-      console.log(`💬 Regular message from chat ${chatId}: ${fullText.substring(0, 50)}`);
+      // Remove all leading @mentions (including bot and username)
+      // Format: "@BotName @Username Message" -> extract only "Message"
+      let content = rawText.replace(/^(?:@\S+\s*)+/, '').trim();
+      
+      console.log(`📝 Parsed content (after removing mentions): ${content.substring(0, 50)}`);
 
-      if (!fullText) {
-        console.log("⚠️ Empty message received");
+      if (!content) {
+        console.log("⚠️ Empty message after parsing");
         const result = await reply(chatId, "Please type a message.");
         
         if (!result.ok) {
@@ -222,65 +241,12 @@ serve(async (req) => {
         });
       }
 
-      // Check if message contains bot mention and user mention
-      const mentions = entities?.filter((e: any) => e.type === 'mention') || [];
-      
-      if (mentions.length < 2) {
-        console.log("⚠️ Message must mention bot and recipient (e.g., @BotName @Username message)");
-        const result = await reply(
-          chatId,
-          "To send a message, use: @BotName @Username your message"
-        );
-        
-        if (!result.ok) {
-          console.error("❌ Failed to send format instruction:", result);
-        }
-        
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Extract mentions and clean content
-      let content = fullText;
-      const mentionedUsernames: string[] = [];
-      
-      // Sort mentions by offset in reverse to remove from end to start
-      const sortedMentions = [...mentions].sort((a: any, b: any) => b.offset - a.offset);
-      
-      for (const mention of sortedMentions) {
-        const username = fullText.substring(mention.offset, mention.offset + mention.length);
-        mentionedUsernames.push(username.replace('@', ''));
-        // Remove mention from content
-        content = content.substring(0, mention.offset) + content.substring(mention.offset + mention.length);
-      }
-      
-      content = content.trim();
-
-      if (!content) {
-        console.log("⚠️ No message content after mentions");
-        const result = await reply(chatId, "Please include a message after the mentions.");
-        
-        if (!result.ok) {
-          console.error("❌ Failed to send empty-content error:", result);
-        }
-        
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      console.log(`📝 Cleaned content: ${content}`);
-      console.log(`👥 Mentioned usernames: ${mentionedUsernames.join(', ')}`);
-
       console.log(`🔍 Looking up sender by chat_id: ${chatId}`);
 
       // Find sender by telegram_chat_id
       const { data: sender, error: sErr } = await supabase
         .from("profiles")
-        .select("id, display_name, telegram_username")
+        .select("id, display_name, telegram_username, last_notified_conversation_id")
         .eq("telegram_chat_id", chatId.toString())
         .single();
 
@@ -304,85 +270,53 @@ serve(async (req) => {
 
       console.log(`✅ Found sender: ${sender.display_name} (${sender.id})`);
 
-      // Find recipient by telegram username from mentions (skip bot mention)
-      const recipientUsername = mentionedUsernames.find(u => !u.toLowerCase().includes('bot'));
-      
-      if (!recipientUsername) {
-        console.log("⚠️ No recipient username found");
-        const result = await reply(chatId, "Please mention a user (e.g., @BotName @Username message)");
-        
-        if (!result.ok) {
-          console.error("❌ Failed to send no-recipient message:", result);
-        }
-        
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      console.log(`🔍 Looking for recipient with username: ${recipientUsername}`);
-
-      // Try to find recipient by telegram_username or display_name
-      const { data: recipient, error: rErr } = await supabase
-        .from("profiles")
-        .select("id, display_name, telegram_chat_id, telegram_username")
-        .or(`telegram_username.eq.${recipientUsername},display_name.ilike.${recipientUsername}`)
-        .maybeSingle();
-
-      if (rErr || !recipient) {
-        console.error("❌ Recipient not found:", rErr);
-        const result = await reply(chatId, `User @${recipientUsername} not found or not linked.`);
-        
-        if (!result.ok) {
-          console.error("❌ Failed to send recipient-not-found message:", result);
-        }
-        
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      console.log(`✅ Found recipient: ${recipient.display_name} (${recipient.id})`);
-
-      // Find or create conversation between sender and recipient
-      const { data: existingConv } = await supabase
-        .from("conversations")
-        .select("id")
-        .or(`and(participant_1_id.eq.${sender.id},participant_2_id.eq.${recipient.id}),and(participant_1_id.eq.${recipient.id},participant_2_id.eq.${sender.id})`)
-        .maybeSingle();
-
-      let convId = existingConv?.id;
+      // Use last notified conversation as the reply target
+      let convId = sender.last_notified_conversation_id;
 
       if (!convId) {
-        console.log("📝 Creating new conversation");
-        const { data: newConv, error: convErr } = await supabase
-          .from("conversations")
-          .insert({
-            participant_1_id: sender.id,
-            participant_2_id: recipient.id,
-          })
-          .select("id")
-          .single();
-
-        if (convErr) {
-          console.error("❌ Failed to create conversation:", convErr);
-          const result = await reply(chatId, "Failed to create conversation. Please try again.");
-          
-          if (!result.ok) {
-            console.error("❌ Failed to send error message:", result);
-          }
-          
-          return new Response(JSON.stringify({ ok: false, error: convErr.message }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+        console.log("⚠️ No recent conversation found");
+        const result = await reply(
+          chatId,
+          "No recent conversation found. Please start a conversation from the web app first, or use: @Username your message"
+        );
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send no-conversation message:", result);
         }
-
-        convId = newConv.id;
-        console.log(`✅ Created conversation: ${convId}`);
+        
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
+
+      console.log(`💬 Replying to conversation ${convId}`);
+
+      // Verify sender is part of the conversation
+      const { data: conv } = await supabase
+        .from("conversations")
+        .select("participant_1_id, participant_2_id")
+        .eq("id", convId)
+        .single();
+
+      const isParticipant = conv && (conv.participant_1_id === sender.id || conv.participant_2_id === sender.id);
+
+      if (!conv || !isParticipant) {
+        console.error("❌ Sender not part of conversation");
+        const result = await reply(chatId, "You are not part of this conversation.");
+        
+        if (!result.ok) {
+          console.error("❌ Failed to send error message:", result);
+        }
+        
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get the other participant
+      const recipientId = conv.participant_1_id === sender.id ? conv.participant_2_id : conv.participant_1_id;
 
       console.log(`💾 Inserting message into conversation ${convId}`);
 
@@ -428,16 +362,38 @@ serve(async (req) => {
         console.error("❌ Failed to send confirmation:", result);
       }
 
+      // Update sender's last_notified_conversation_id for easy follow-up replies
+      await supabase
+        .from("profiles")
+        .update({ last_notified_conversation_id: convId })
+        .eq("id", sender.id);
+
       console.log("📤 Notifying recipient...");
 
-      // Notify recipient via Telegram if they have chat_id
-      if (recipient.telegram_chat_id) {
-        const notifyText = `${sender.display_name || "Someone"} sent:\n\n${content}`;
-        const sent = await reply(parseInt(recipient.telegram_chat_id), notifyText);
+      // Get recipient info and notify
+      const { data: recipient } = await supabase
+        .from("profiles")
+        .select("telegram_chat_id, display_name")
+        .eq("id", recipientId)
+        .single();
+
+      if (recipient?.telegram_chat_id) {
+        const notifyText = `New message from *${sender.display_name || "Someone"}*:\n\n${content}`;
+        const sent = await reply(
+          parseInt(recipient.telegram_chat_id), 
+          notifyText, 
+          (sender.display_name ? sender.display_name.split(" ")[0] : "user")
+        );
         if (!sent?.ok) {
           console.error("❌ Failed to notify recipient:", sent);
         } else {
           console.log("✅ Recipient notified successfully");
+          
+          // Update recipient's last_notified_conversation_id
+          await supabase
+            .from("profiles")
+            .update({ last_notified_conversation_id: convId })
+            .eq("id", recipientId);
         }
       } else {
         console.warn("⚠️ Recipient has no linked Telegram, skipping notification");

@@ -9,6 +9,28 @@ export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  
+  // Ensure a minimal profile exists for the signed-in user
+  const ensureProfile = async (userId: string, email?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+      const notFound = error && (error as any).code === 'PGRST116';
+      if (notFound || !data) {
+        const displayName = email?.split('@')[0] ?? 'User';
+        await supabase.from('profiles').insert({
+          id: userId,
+          wallet_address: '',
+          display_name: displayName,
+        } as any);
+      }
+    } catch (e) {
+      console.log('ensureProfile error:', e);
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener
@@ -17,6 +39,13 @@ export const useAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Ensure user profile exists (defer to avoid deadlocks)
+        if (session?.user) {
+          setTimeout(() => {
+            ensureProfile(session.user!.id, session.user!.email);
+          }, 0);
+        }
 
         // Defer any wallet/profile checks to avoid deadlocks in auth callback
         if (event === 'SIGNED_IN' && typeof window !== 'undefined' && (window as any).ethereum && session?.user) {
@@ -61,6 +90,9 @@ export const useAuth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        ensureProfile(session.user.id, session.user.email);
+      }
     });
 
     return () => subscription.unsubscribe();
