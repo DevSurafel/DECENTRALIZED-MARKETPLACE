@@ -14,6 +14,7 @@ interface ValidationResult {
  * @param platform - The platform type (instagram, youtube, tiktok, etc.)
  * @returns ValidationResult with isValid flag, optional errorMessage and username
  */
+
 export const validateSocialMediaURL = (url: string, platform: SocialMediaPlatform): ValidationResult => {
   // Check if URL is empty
   if (!url || url.trim() === '') {
