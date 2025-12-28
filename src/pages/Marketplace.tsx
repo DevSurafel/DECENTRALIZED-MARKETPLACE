@@ -106,6 +106,7 @@ const Marketplace = () => {
         );
       }
     }
+
     
     // Filter by search query
     if (searchQuery) {
