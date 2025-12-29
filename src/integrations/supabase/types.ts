@@ -275,8 +275,10 @@ export type Database = {
         Row: {
           accepted_bid_id: string | null
           allowed_revisions: number | null
+          attachment_urls: string[] | null
           budget_eth: number | null
           budget_usdc: number
+          category: string | null
           client_id: string
           completed_at: string | null
           contract_address: string | null
@@ -285,24 +287,35 @@ export type Database = {
           deadline: string | null
           description: string
           duration_weeks: number | null
+          experience_level: string | null
           freelancer_id: string | null
+          freelancer_wallet_address: string | null
+          freelancers_needed: number | null
           git_commit_hash: string | null
           id: string
           ipfs_hash: string | null
           listing_id: string | null
+          location_type: string | null
+          payment_type: string | null
+          project_type: string | null
+          questions_for_freelancer: string[] | null
           repository_url: string | null
           review_deadline: string | null
           skills_required: string[] | null
           started_at: string | null
           status: Database["public"]["Enums"]["job_status"] | null
+          timezone_preference: string | null
           title: string
           updated_at: string | null
+          visibility: string | null
         }
         Insert: {
           accepted_bid_id?: string | null
           allowed_revisions?: number | null
+          attachment_urls?: string[] | null
           budget_eth?: number | null
           budget_usdc: number
+          category?: string | null
           client_id: string
           completed_at?: string | null
           contract_address?: string | null
@@ -311,24 +324,35 @@ export type Database = {
           deadline?: string | null
           description: string
           duration_weeks?: number | null
+          experience_level?: string | null
           freelancer_id?: string | null
+          freelancer_wallet_address?: string | null
+          freelancers_needed?: number | null
           git_commit_hash?: string | null
           id?: string
           ipfs_hash?: string | null
           listing_id?: string | null
+          location_type?: string | null
+          payment_type?: string | null
+          project_type?: string | null
+          questions_for_freelancer?: string[] | null
           repository_url?: string | null
           review_deadline?: string | null
           skills_required?: string[] | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
+          timezone_preference?: string | null
           title: string
           updated_at?: string | null
+          visibility?: string | null
         }
         Update: {
           accepted_bid_id?: string | null
           allowed_revisions?: number | null
+          attachment_urls?: string[] | null
           budget_eth?: number | null
           budget_usdc?: number
+          category?: string | null
           client_id?: string
           completed_at?: string | null
           contract_address?: string | null
@@ -337,18 +361,27 @@ export type Database = {
           deadline?: string | null
           description?: string
           duration_weeks?: number | null
+          experience_level?: string | null
           freelancer_id?: string | null
+          freelancer_wallet_address?: string | null
+          freelancers_needed?: number | null
           git_commit_hash?: string | null
           id?: string
           ipfs_hash?: string | null
           listing_id?: string | null
+          location_type?: string | null
+          payment_type?: string | null
+          project_type?: string | null
+          questions_for_freelancer?: string[] | null
           repository_url?: string | null
           review_deadline?: string | null
           skills_required?: string[] | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
+          timezone_preference?: string | null
           title?: string
           updated_at?: string | null
+          visibility?: string | null
         }
         Relationships: [
           {
@@ -415,6 +448,59 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_transactions: {
+        Row: {
+          created_at: string | null
+          freelancer_amount: number
+          freelancer_tx_hash: string
+          freelancer_wallet: string
+          id: string
+          job_id: string | null
+          platform_fee: number
+          platform_tx_hash: string
+          platform_wallet: string
+          processed_at: string
+          status: string
+          total_amount: number
+        }
+        Insert: {
+          created_at?: string | null
+          freelancer_amount: number
+          freelancer_tx_hash: string
+          freelancer_wallet: string
+          id?: string
+          job_id?: string | null
+          platform_fee: number
+          platform_tx_hash: string
+          platform_wallet: string
+          processed_at?: string
+          status?: string
+          total_amount: number
+        }
+        Update: {
+          created_at?: string | null
+          freelancer_amount?: number
+          freelancer_tx_hash?: string
+          freelancer_wallet?: string
+          id?: string
+          job_id?: string | null
+          platform_fee?: number
+          platform_tx_hash?: string
+          platform_wallet?: string
+          processed_at?: string
+          status?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -695,10 +781,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      assign_admin_role: {
-        Args: { user_email: string }
-        Returns: undefined
-      }
+      assign_admin_role: { Args: { user_email: string }; Returns: undefined }
+      get_job_bid_count: { Args: { job_id_param: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

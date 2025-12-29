@@ -882,8 +882,72 @@ const JobDetails = () => {
                 )}
               </div>
 
+              {/* Project Details Grid */}
+              {!isSocialMediaPurchase() && (
+                <div className="mb-4 sm:mb-6">
+                  <h2 className="text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3">Project Details</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+                    {job.category && (
+                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Category</p>
+                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.category.replace(/_/g, ' ')}</p>
+                      </div>
+                    )}
+                    {job.experience_level && (
+                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Experience Level</p>
+                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.experience_level}</p>
+                      </div>
+                    )}
+                    {job.project_type && (
+                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Project Type</p>
+                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.project_type.replace(/_/g, ' ')}</p>
+                      </div>
+                    )}
+                    {job.payment_type && (
+                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Payment Type</p>
+                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.payment_type}</p>
+                      </div>
+                    )}
+                    {job.location_type && (
+                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Location</p>
+                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.location_type}</p>
+                      </div>
+                    )}
+                    {job.timezone_preference && (
+                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Timezone</p>
+                        <p className="text-[11px] sm:text-xs md:text-sm font-medium">{job.timezone_preference}</p>
+                      </div>
+                    )}
+                    {job.freelancers_needed && job.freelancers_needed > 1 && (
+                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Freelancers Needed</p>
+                        <p className="text-[11px] sm:text-xs md:text-sm font-medium">{job.freelancers_needed}</p>
+                      </div>
+                    )}
+                    {job.visibility && (
+                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Visibility</p>
+                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.visibility}</p>
+                      </div>
+                    )}
+                    {job.deadline && (
+                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
+                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Deadline</p>
+                        <p className="text-[11px] sm:text-xs md:text-sm font-medium">{new Date(job.deadline).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Required Skills */}
               {!isSocialMediaPurchase() && skills.length > 0 && (
-                <div>
+                <div className="mb-4 sm:mb-6">
                   <h2 className="text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3">Required Skills</h2>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill: string, idx: number) => (
@@ -892,6 +956,21 @@ const JobDetails = () => {
                       </Badge>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Screening Questions */}
+              {!isSocialMediaPurchase() && job.questions_for_freelancer && job.questions_for_freelancer.length > 0 && (
+                <div>
+                  <h2 className="text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3">Screening Questions</h2>
+                  <ul className="space-y-2">
+                    {job.questions_for_freelancer.map((question: string, idx: number) => (
+                      <li key={idx} className="flex gap-2 text-[10px] sm:text-xs md:text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">{idx + 1}.</span>
+                        {question}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </Card>

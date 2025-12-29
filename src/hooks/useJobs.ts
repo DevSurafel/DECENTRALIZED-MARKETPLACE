@@ -11,6 +11,15 @@ export const useJobs = () => {
     budget_usdc: number;
     skills_required: string[];
     duration_weeks?: number;
+    category?: string;
+    experience_level?: string;
+    project_type?: string;
+    payment_type?: string;
+    location_type?: string;
+    timezone_preference?: string;
+    freelancers_needed?: number;
+    visibility?: string;
+    questions_for_freelancer?: string[];
   }) => {
     setLoading(true);
     try {
@@ -30,12 +39,21 @@ export const useJobs = () => {
           title: jobData.title,
           description: jobData.description,
           budget_usdc: jobData.budget_usdc,
-          budget_eth: jobData.budget_usdc / 2000, // Convert for backward compatibility
+          budget_eth: jobData.budget_usdc / 2000,
           skills_required: jobData.skills_required,
           duration_weeks: jobData.duration_weeks,
           client_id: user.id,
-          status: 'open'
-        }])
+          status: 'open',
+          category: jobData.category,
+          experience_level: jobData.experience_level,
+          project_type: jobData.project_type,
+          payment_type: jobData.payment_type,
+          location_type: jobData.location_type,
+          timezone_preference: jobData.timezone_preference,
+          freelancers_needed: jobData.freelancers_needed,
+          visibility: jobData.visibility,
+          questions_for_freelancer: jobData.questions_for_freelancer,
+        } as any])
         .select()
         .single();
 
