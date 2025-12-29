@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import Navbar from "@/components/Navbar";
+import PortfolioManager, { PortfolioItem } from "@/components/PortfolioManager";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useParams } from "react-router-dom";
@@ -29,16 +30,11 @@ import {
   Star,
   Briefcase,
   Award,
-  ExternalLink,
   Edit,
   Loader2,
-  Plus,
   Camera,
-  Upload,
   MessageSquare,
   DollarSign,
-  Clock,
-  Users,
   Facebook,
   Send,
   Youtube,
@@ -46,10 +42,13 @@ import {
   Twitter,
   Instagram,
   CheckCircle2,
+  ExternalLink,
+  Plus,
+  Users,
 } from "lucide-react";
 
 
-interface Profile {
+interface ProfileData {
   id: string;
   display_name: string | null;
   bio: string | null;
@@ -65,39 +64,13 @@ interface Profile {
   telegram_chat_id: string | null;
 }
 
-// Sample portfolio items for demo
-const portfolioItems = [
-  {
-    id: 1,
-    title: "DeFi Yield Aggregator",
-    description: "Built a comprehensive yield farming dashboard with Web3 integration",
-    image: "🌾",
-    tags: ["React", "Solidity", "DeFi"],
-  },
-  {
-    id: 2,
-    title: "NFT Marketplace",
-    description: "Developed smart contracts and frontend for NFT minting and trading",
-    image: "🎨",
-    tags: ["NFT", "IPFS", "Web3"],
-  },
-  {
-    id: 3,
-    title: "DAO Governance Platform",
-    description: "Created voting mechanisms and proposal system for decentralized governance",
-    image: "🏛️",
-    tags: ["DAO", "Governance", "Smart Contracts"],
-  },
-];
-
 const Profile = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { id: profileId } = useParams<{ id: string }>();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [portfolioDialog, setPortfolioDialog] = useState(false);
   const [editProfileDialog, setEditProfileDialog] = useState(false);
   const [userJobs, setUserJobs] = useState<any[]>([]);
   const [userListings, setUserListings] = useState<SocialMediaListing[]>([]);
@@ -105,13 +78,6 @@ const Profile = () => {
   const { createConversation } = useMessages();
   const { getJobs } = useJobs();
   const { getListings } = useSocialMedia();
-  const [newPortfolio, setNewPortfolio] = useState({
-    title: "",
-    description: "",
-    image: "",
-    tags: "",
-    url: ""
-  });
   const [editForm, setEditForm] = useState({
     display_name: "",
     bio: "",
@@ -215,35 +181,6 @@ const Profile = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const addPortfolioItem = async () => {
-    if (!profile || !newPortfolio.title) return;
-    
-    const portfolioItems = profile.portfolio_items || [];
-    const tags = newPortfolio.tags.split(',').map(t => t.trim()).filter(t => t);
-    
-    const newItem = {
-      title: newPortfolio.title,
-      description: newPortfolio.description,
-      image: newPortfolio.image || "🎨",
-      tags,
-      url: newPortfolio.url
-    };
-    
-    const { error } = await supabase
-      .from("profiles")
-      .update({ portfolio_items: [...portfolioItems, newItem] })
-      .eq("id", user?.id);
-    
-    if (error) {
-      toast({ title: "Error", description: "Failed to add portfolio item", variant: "destructive" });
-    } else {
-      toast({ title: "Success", description: "Portfolio item added" });
-      setProfile({ ...profile, portfolio_items: [...portfolioItems, newItem] });
-      setPortfolioDialog(false);
-      setNewPortfolio({ title: "", description: "", image: "", tags: "", url: "" });
     }
   };
 
@@ -732,110 +669,12 @@ const Profile = () => {
           </Card>
 
           {/* Portfolio */}
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Portfolio</h2>
-              {isOwnProfile && (
-                <Dialog open={portfolioDialog} onOpenChange={setPortfolioDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="gap-2">
-                      <Plus className="w-4 h-4" />
-                      Add Portfolio Item
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add Portfolio Item</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Title</Label>
-                        <Input 
-                          value={newPortfolio.title}
-                          onChange={(e) => setNewPortfolio({...newPortfolio, title: e.target.value})}
-                          placeholder="Project name"
-                        />
-                      </div>
-                      <div>
-                        <Label>Description</Label>
-                        <Textarea 
-                          value={newPortfolio.description}
-                          onChange={(e) => setNewPortfolio({...newPortfolio, description: e.target.value})}
-                          placeholder="Brief description"
-                        />
-                      </div>
-                      <div>
-                        <Label>Emoji Icon</Label>
-                        <Input 
-                          value={newPortfolio.image}
-                          onChange={(e) => setNewPortfolio({...newPortfolio, image: e.target.value})}
-                          placeholder="🎨 (emoji)"
-                        />
-                      </div>
-                      <div>
-                        <Label>Tags (comma-separated)</Label>
-                        <Input 
-                          value={newPortfolio.tags}
-                          onChange={(e) => setNewPortfolio({...newPortfolio, tags: e.target.value})}
-                          placeholder="React, Web3, DeFi"
-                        />
-                      </div>
-                      <div>
-                        <Label>Project URL</Label>
-                        <Input 
-                          value={newPortfolio.url}
-                          onChange={(e) => setNewPortfolio({...newPortfolio, url: e.target.value})}
-                          placeholder="https://..."
-                        />
-                      </div>
-                      <Button onClick={addPortfolioItem} className="w-full">Add Item</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-            {profile.portfolio_items && profile.portfolio_items.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-6">
-                {profile.portfolio_items.map((item: any, index: number) => (
-                  <Card key={index} className="overflow-hidden glass-card shadow-card hover:shadow-glow transition-smooth">
-                    <div className="h-24 md:h-48 gradient-hero flex items-center justify-center text-3xl md:text-6xl">
-                      {item.image || "🎨"}
-                    </div>
-                    <div className="p-3 md:p-6">
-                      <h3 className="text-sm md:text-xl font-bold mb-1 md:mb-2 line-clamp-2">{item.title}</h3>
-                      <p className="text-[10px] md:text-sm text-muted-foreground mb-2 md:mb-4 line-clamp-2">{item.description}</p>
-                      <div className="flex flex-wrap gap-1 md:gap-2 mb-2 md:mb-4">
-                        {item.tags?.slice(0, 2).map((tag: string) => (
-                          <Badge key={tag} variant="outline" className="text-[8px] md:text-xs px-1 py-0">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                      {item.url && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="w-full gap-1 text-[10px] md:text-sm h-7 md:h-9"
-                          onClick={() => window.open(item.url, '_blank')}
-                        >
-                          View
-                          <ExternalLink className="w-2 h-2 md:w-4 md:h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card className="p-8 glass-card shadow-card text-center">
-                <p className="text-muted-foreground">
-                  {isOwnProfile 
-                    ? "No portfolio items yet. Add your work to showcase your skills!" 
-                    : "No portfolio items yet"}
-                </p>
-              </Card>
-            )}
-          </div>
+          <PortfolioManager
+            portfolioItems={(profile.portfolio_items || []) as PortfolioItem[]}
+            userId={profile.id}
+            isOwnProfile={isOwnProfile}
+            onUpdate={fetchProfile}
+          />
 
           {/* Posted Jobs Section */}
           {userJobs.length > 0 && (
