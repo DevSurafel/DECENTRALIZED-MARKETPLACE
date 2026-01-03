@@ -19,7 +19,7 @@ const SCRAPER_API_URL = "https://youtube-scraper-api-5nft.onrender.com/api/scrap
 
 export const SocialMediaListingDialog = ({ onSuccess }: SocialMediaListingDialogProps) => {
   const [open, setOpen] = useState(false);
-  const [platform, setPlatform] = useState<SocialMediaPlatform>('instagram');
+  const [platform, setPlatform] = useState<SocialMediaPlatform>('facebook');
   const [accountName, setAccountName] = useState("");
   const [followersCount, setFollowersCount] = useState("");
   const [description, setDescription] = useState("");
