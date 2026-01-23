@@ -15,7 +15,7 @@ import { useSocialMedia, SocialMediaPlatform, SocialMediaListing } from "@/hooks
 import { useAuth } from "@/hooks/useAuth";
 import { useMessages } from "@/hooks/useMessages";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/anyClient";
 import {
   Pagination,
   PaginationContent,
@@ -262,9 +262,8 @@ const SocialMediaMarketplace = () => {
 
       <Navbar />
       
-      <div className="pt-24 pb-12 px-3 md:px-4">
-        <div className="max-w-full md:container mx-auto md:max-w-7xl">
-          <div className="mb-10 animate-fade-in">
+      <main className="container mx-auto px-4 py-8 pt-24 relative z-10">
+        <div className="mb-10 animate-fade-in">
             <div className="flex items-center justify-between mb-4">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-primary/20">
                 <Shield className="w-4 h-4 text-primary" />
@@ -604,8 +603,7 @@ const SocialMediaMarketplace = () => {
               </PaginationContent>
             </Pagination>
           )}
-        </div>
-      </div>
+      </main>
 
       {/* Purchase Dialog */}
       {selectedListing && (

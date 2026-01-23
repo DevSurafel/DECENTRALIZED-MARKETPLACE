@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useBids } from "@/hooks/useBids";
 import { useJobs } from "@/hooks/useJobs";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/anyClient";
 import { toast } from "@/hooks/use-toast";
 import { DollarSign, Clock, Star, CheckCircle, User } from "lucide-react";
 import {

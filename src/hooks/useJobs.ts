@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/anyClient';
 import { toast } from '@/hooks/use-toast';
 
 export const useJobs = () => {
@@ -13,13 +13,13 @@ export const useJobs = () => {
     duration_weeks?: number;
     category?: string;
     experience_level?: string;
-    project_type?: string;
     payment_type?: string;
+    project_type?: string;
     location_type?: string;
-    timezone_preference?: string;
+    timezone_preference?: string | null;
     freelancers_needed?: number;
-    visibility?: string;
     questions_for_freelancer?: string[];
+    visibility?: string;
   }) => {
     setLoading(true);
     try {
@@ -42,18 +42,18 @@ export const useJobs = () => {
           budget_eth: jobData.budget_usdc / 2000,
           skills_required: jobData.skills_required,
           duration_weeks: jobData.duration_weeks,
-          client_id: user.id,
-          status: 'open',
           category: jobData.category,
           experience_level: jobData.experience_level,
-          project_type: jobData.project_type,
           payment_type: jobData.payment_type,
+          project_type: jobData.project_type,
           location_type: jobData.location_type,
           timezone_preference: jobData.timezone_preference,
-          freelancers_needed: jobData.freelancers_needed,
-          visibility: jobData.visibility,
-          questions_for_freelancer: jobData.questions_for_freelancer,
-        } as any])
+          freelancers_needed: jobData.freelancers_needed || 1,
+          questions_for_freelancer: jobData.questions_for_freelancer || [],
+          visibility: jobData.visibility || 'public',
+          client_id: user.id,
+          status: 'open'
+        }])
         .select()
         .single();
 

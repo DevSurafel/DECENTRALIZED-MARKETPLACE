@@ -65,7 +65,6 @@ const Navbar = () => {
 
     checkUnreadMessages();
     
-    // Subscribe to new messages
     const channel = supabase
       .channel('unread-messages')
       .on(
@@ -87,12 +86,10 @@ const Navbar = () => {
 
   const connectWallet = async () => {
     if (!window.ethereum) {
-      // Silently return without showing notification
       return;
     }
 
     try {
-      // Force MetaMask account selection
       await window.ethereum.request({
         method: 'wallet_requestPermissions',
         params: [{ eth_accounts: {} }],
@@ -102,7 +99,6 @@ const Navbar = () => {
       if (accounts.length === 0) return;
 
       const selected = accounts[0];
-      // Silently handle wrong wallet without showing notification
       if (walletAddress && walletAddress.toLowerCase() !== selected.toLowerCase()) {
         setConnectedWallet('');
         return;
@@ -112,7 +108,6 @@ const Navbar = () => {
       if (user?.id) {
         localStorage.setItem(`wallet:connected:${user.id}`, selected);
         
-        // Save wallet address to database if not already set
         if (!walletAddress) {
           const { error: updateError } = await supabase
             .from('profiles')
@@ -147,7 +142,6 @@ const Navbar = () => {
     toast.success('Wallet disconnected');
   };
 
-  // Manage wallet connection per authenticated user
   useEffect(() => {
     if (!window.ethereum || !user?.id) {
       setConnectedWallet('');
@@ -167,18 +161,15 @@ const Navbar = () => {
         return;
       }
 
-      // Silently handle wrong wallet without showing notification
       if (walletAddress && walletAddress.toLowerCase() !== current) {
         setConnectedWallet('');
         localStorage.removeItem(`wallet:connected:${user.id}`);
         return;
       }
 
-      // Auto-connect if matches profile or no profile wallet set
       setConnectedWallet(current);
       localStorage.setItem(`wallet:connected:${user.id}`, current);
       
-      // Save wallet address to database if not already set
       if (!walletAddress) {
         const { error: updateError } = await supabase
           .from('profiles')
@@ -191,7 +182,6 @@ const Navbar = () => {
       }
     };
 
-    // Initial sync: auto-connect if current MetaMask account matches profile
     window.ethereum
       .request({ method: 'eth_accounts' })
       .then((accounts: string[]) => {
@@ -203,7 +193,6 @@ const Navbar = () => {
           return;
         }
 
-        // Auto-connect if matches profile wallet or no profile wallet set
         if (!walletAddress || walletAddress.toLowerCase() === current) {
           setConnectedWallet(current);
           localStorage.setItem(`wallet:connected:${user.id}`, current);
@@ -215,7 +204,6 @@ const Navbar = () => {
         if (isMounted) setConnectedWallet('');
       });
 
-    // Listen for account switches in MetaMask
     if (window.ethereum.on) {
       window.ethereum.on('accountsChanged', handleAccountsChanged);
     }
@@ -229,49 +217,49 @@ const Navbar = () => {
   }, [user?.id, walletAddress]);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-lg border-b border-white/10">
-      <div className="container mx-auto px-4 py-4">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-b border-border">
+      <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-glow">
-              <span className="text-xl font-bold">D</span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+              <span className="text-lg font-bold text-primary-foreground">D</span>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">DeFiLance</span>
+            <span className="text-xl font-bold text-foreground">DeFiLance</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
-            <Link to="/marketplace" className="transition-smooth hover:text-primary">
+          <div className="hidden md:flex items-center gap-1">
+            <Link to="/marketplace" className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               Marketplace
             </Link>
-            <Link to="/dashboard" className="transition-smooth hover:text-primary">
+            <Link to="/dashboard" className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               Dashboard
             </Link>
-            <Link to="/profile" className="transition-smooth hover:text-primary">
+            <Link to="/profile" className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               Profile
             </Link>
-            <Link to="/chat" className="transition-smooth hover:text-primary relative">
+            <Link to="/chat" className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative">
               Chat
               {hasUnreadMessages && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-success rounded-full animate-pulse" />
               )}
             </Link>
-            <Link to="/reviews" className="transition-smooth hover:text-primary">
+            <Link to="/reviews" className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               Reviews
             </Link>
-            <Link to="/escrow" className="transition-smooth hover:text-primary">
+            <Link to="/escrow" className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               Escrow
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             {user ? (
               <>
                 {connectedWallet ? (
                   <>
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted border border-border">
                       <Wallet className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-mono font-medium">
+                      <span className="text-sm font-mono font-medium text-foreground">
                         {truncateAddress(connectedWallet)}
                       </span>
                     </div>
@@ -279,7 +267,7 @@ const Navbar = () => {
                       onClick={disconnectWallet}
                       variant="outline"
                       size="sm"
-                      className="gap-2"
+                      className="font-medium"
                     >
                       Connected
                     </Button>
@@ -289,7 +277,7 @@ const Navbar = () => {
                     onClick={connectWallet}
                     variant="default"
                     size="sm"
-                    className="gap-2"
+                    className="gap-2 font-medium"
                   >
                     <Wallet className="w-4 h-4" />
                     Connect
@@ -297,15 +285,19 @@ const Navbar = () => {
                 )}
                 <Button 
                   onClick={signOut}
-                  variant="outline"
-                  className="gap-2"
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-muted-foreground hover:text-destructive"
                 >
                   <LogOut className="w-4 h-4" />
                   Logout
                 </Button>
               </>
             ) : (
-              <Button onClick={() => navigate("/auth")} className="gap-2">
+              <Button 
+                onClick={() => navigate("/auth")} 
+                className="gap-2 font-medium"
+              >
                 <Wallet className="w-4 h-4" />
                 Login / Sign Up
               </Button>
@@ -315,81 +307,83 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2"
+            className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors"
           >
-            {isMenuOpen ? <X /> : <Menu />}
+            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 space-y-4">
+          <div className="md:hidden mt-4 pb-4 space-y-1 border-t border-border pt-4">
             <Link 
               to="/marketplace" 
-              className="block py-2 transition-smooth hover:text-primary"
+              className="block py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               Marketplace
             </Link>
             <Link 
               to="/dashboard" 
-              className="block py-2 transition-smooth hover:text-primary"
+              className="block py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               Dashboard
             </Link>
             <Link 
               to="/profile" 
-              className="block py-2 transition-smooth hover:text-primary"
+              className="block py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               Profile
             </Link>
             <Link 
               to="/chat" 
-              className="block py-2 transition-smooth hover:text-primary relative"
+              className="block py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative"
               onClick={() => setIsMenuOpen(false)}
             >
               Chat
               {hasUnreadMessages && (
-                <span className="absolute top-2 left-12 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="absolute top-3 left-12 w-2 h-2 bg-success rounded-full animate-pulse" />
               )}
             </Link>
             <Link 
               to="/reviews" 
-              className="block py-2 transition-smooth hover:text-primary"
+              className="block py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               Reviews
             </Link>
             <Link 
               to="/escrow" 
-              className="block py-2 transition-smooth hover:text-primary"
+              className="block py-2.5 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               Escrow
             </Link>
-            {user ? (
-              <Button 
-                onClick={signOut}
-                variant="outline"
-                className="w-full gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </Button>
-            ) : (
-              <Button 
-                onClick={() => {
-                  navigate("/auth");
-                  setIsMenuOpen(false);
-                }}
-                className="w-full gap-2"
-              >
-                <Wallet className="w-4 h-4" />
-                Login / Sign Up
-              </Button>
-            )}
+            <div className="pt-3 space-y-2">
+              {user ? (
+                <Button 
+                  onClick={signOut}
+                  variant="outline"
+                  className="w-full gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => {
+                    navigate("/auth");
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full gap-2"
+                >
+                  <Wallet className="w-4 h-4" />
+                  Login / Sign Up
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -134,12 +134,28 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-base md:text-lg;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
+  }
+
+  /* Increase text visibility */
+  p, span, li, a, label {
+    @apply text-base md:text-lg;
+  }
+
+  /* Keep small text classes available for specific overrides */
+  .text-xs {
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+  }
+
+  .text-sm {
+    font-size: 1rem !important;
+    line-height: 1.5rem !important;
   }
 }
 

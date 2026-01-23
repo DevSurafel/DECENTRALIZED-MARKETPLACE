@@ -22,7 +22,7 @@ import { RatingDialog } from "@/components/RatingDialog";
 import { PlatformReviewDialog } from "@/components/PlatformReviewDialog";
 import { WalletConnectFunding } from "@/components/WalletConnectFunding";
 import { CredentialViewer } from "@/components/CredentialViewer";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/anyClient";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +39,14 @@ import {
   Send,
   ArrowLeft,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  MapPin,
+  Globe,
+  Users,
+  Zap,
+  FolderOpen,
+  Eye,
+  HelpCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useEscrow } from "@/hooks/useEscrow";
@@ -749,30 +756,49 @@ const JobDetails = () => {
     return null;
   };
 
+  // Helper functions for labels
+  const getExperienceLevelLabel = (level: string) => {
+    switch (level) {
+      case 'entry': return 'Entry Level';
+      case 'intermediate': return 'Intermediate';
+      case 'expert': return 'Expert';
+      default: return level || 'Intermediate';
+    }
+  };
+
+  const getPaymentTypeLabel = (type: string) => {
+    switch (type) {
+      case 'fixed': return 'Fixed Price';
+      case 'hourly': return 'Hourly Rate';
+      case 'milestone': return 'Milestone Based';
+      default: return type || 'Fixed Price';
+    }
+  };
+
+  const getProjectTypeLabel = (type: string) => {
+    switch (type) {
+      case 'one_time': return 'One-time Project';
+      case 'ongoing': return 'Ongoing Project';
+      case 'contract': return 'Contract Work';
+      default: return type || 'One-time Project';
+    }
+  };
+
   if (loading || !job) {
     return (
-      <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
-        {/* Enhanced animated background */}
-        <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        </div>
-
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-
+      <div className="min-h-screen bg-background">
         <Navbar />
         <main className="container mx-auto px-4 py-8 pt-24">
-          <Card className="p-8 text-center glass-card shadow-card">
-            <p className="text-muted-foreground">Loading...</p>
+          <Card className="p-12 text-center bg-card border-border">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-muted-foreground">Loading job details...</p>
+            </div>
           </Card>
         </main>
       </div>
     );
   }
-
-
 
   // Calculate time ago for posted date
   const getTimeAgo = (dateString: string) => {
@@ -794,16 +820,7 @@ const JobDetails = () => {
   const durationText = job.duration_weeks ? `${job.duration_weeks} weeks` : 'Flexible';
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
-      {/* Enhanced animated background */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-20 left-10 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-      </div>
-
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+    <div className="min-h-screen bg-background">
 
       <Navbar />
       
@@ -821,137 +838,136 @@ const JobDetails = () => {
           {/* Job Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Job/Purchase Details Card - Show to everyone */}
-            <Card className="p-3 sm:p-4 md:p-6 glass-card shadow-card hover:shadow-glow transition-smooth">
-              <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <Card className="p-4 md:p-6 bg-card border-border hover:shadow-lg transition-all duration-200">
+              <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h1 className="text-sm sm:text-lg md:text-2xl font-bold">{job.title}</h1>
-                    <Badge variant="secondary" className="text-[10px] md:text-xs">{job.status.replace('_', ' ')}</Badge>
+                    <h1 className="text-lg md:text-2xl font-bold text-foreground">{job.title}</h1>
+                    <Badge variant="secondary" className="text-xs capitalize">{job.status.replace('_', ' ')}</Badge>
                   </div>
-                  <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">Posted {getTimeAgo(job.created_at)}</p>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                    <span>Posted {getTimeAgo(job.created_at)}</span>
+                    {job.category && (
+                      <span className="flex items-center gap-1">
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        {job.category}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6 pb-4 sm:pb-6 border-b">
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <DollarSign className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-primary" />
+              {/* Job Meta Info Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 pb-6 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-lg bg-success/10 flex items-center justify-center">
+                    <DollarSign className="h-4 w-4 text-success" />
+                  </div>
                   <div>
-                    <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">{isSocialMediaPurchase() ? 'Price' : 'Budget'}</p>
-                    <p className="text-[11px] sm:text-xs md:text-sm font-semibold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</p>
+                    <p className="text-xs text-muted-foreground">{isSocialMediaPurchase() ? 'Price' : 'Budget'}</p>
+                    <p className="text-sm font-semibold text-success">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</p>
                   </div>
                 </div>
                 {!isSocialMediaPurchase() && (
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-primary" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-lg bg-info/10 flex items-center justify-center">
+                      <Clock className="h-4 w-4 text-info" />
+                    </div>
                     <div>
-                      <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Duration</p>
-                      <p className="text-[11px] sm:text-xs md:text-sm font-semibold">{durationText}</p>
+                      <p className="text-xs text-muted-foreground">Duration</p>
+                      <p className="text-sm font-semibold">{durationText}</p>
                     </div>
                   </div>
                 )}
-                {job.budget_usd && (
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <DollarSign className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-primary" />
+                {job.payment_type && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <Wallet className="h-4 w-4 text-warning" />
+                    </div>
                     <div>
-                      <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">USD Equivalent</p>
-                      <p className="text-[11px] sm:text-xs md:text-sm font-semibold">${job.budget_usd}</p>
+                      <p className="text-xs text-muted-foreground">Payment</p>
+                      <p className="text-sm font-semibold">{getPaymentTypeLabel(job.payment_type)}</p>
+                    </div>
+                  </div>
+                )}
+                {job.experience_level && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center">
+                      <Zap className="h-4 w-4 text-secondary" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Experience</p>
+                      <p className="text-sm font-semibold">{getExperienceLevelLabel(job.experience_level)}</p>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="mb-4 sm:mb-6">
-                <h2 className="text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3">
-                  {isSocialMediaPurchase() ? 'Purchase Details' : 'Description'}
+              {/* Additional Info Row */}
+              {!isSocialMediaPurchase() && (job.location_type || job.project_type || job.freelancers_needed > 1 || job.timezone_preference) && (
+                <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b border-border">
+                  {job.location_type && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm capitalize">{job.location_type}</span>
+                    </div>
+                  )}
+                  {job.project_type && (
+                    <div className="flex items-center gap-2">
+                      <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{getProjectTypeLabel(job.project_type)}</span>
+                    </div>
+                  )}
+                  {job.freelancers_needed > 1 && (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{job.freelancers_needed} freelancers needed</span>
+                    </div>
+                  )}
+                  {job.timezone_preference && job.timezone_preference !== 'Any Timezone' && (
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{job.timezone_preference}</span>
+                    </div>
+                  )}
+                  {job.visibility && job.visibility !== 'public' && (
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm capitalize">{job.visibility.replace('_', ' ')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Description */}
+              <div className="mb-6">
+                <h2 className="text-sm md:text-base font-semibold mb-3 text-foreground">
+                  {isSocialMediaPurchase() ? 'Purchase Details' : 'Project Description'}
                 </h2>
                 {isSocialMediaPurchase() && (job.status === 'under_review' || job.status === 'completed') ? (
-                  // Show credentials for completed and under_review status
                   (() => {
                     try {
                       const credentials = JSON.parse(job.description);
                       if (credentials.password) {
                         return <CredentialViewer credentials={credentials} />;
                       }
-                      return <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
+                      return <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
                     } catch {
-                      return <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
+                      return <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>;
                     }
                   })()
                 ) : (
-                  <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{job.description}</p>
                 )}
               </div>
 
-              {/* Project Details Grid */}
-              {!isSocialMediaPurchase() && (
-                <div className="mb-4 sm:mb-6">
-                  <h2 className="text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3">Project Details</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                    {job.category && (
-                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Category</p>
-                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.category.replace(/_/g, ' ')}</p>
-                      </div>
-                    )}
-                    {job.experience_level && (
-                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Experience Level</p>
-                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.experience_level}</p>
-                      </div>
-                    )}
-                    {job.project_type && (
-                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Project Type</p>
-                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.project_type.replace(/_/g, ' ')}</p>
-                      </div>
-                    )}
-                    {job.payment_type && (
-                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Payment Type</p>
-                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.payment_type}</p>
-                      </div>
-                    )}
-                    {job.location_type && (
-                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Location</p>
-                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.location_type}</p>
-                      </div>
-                    )}
-                    {job.timezone_preference && (
-                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Timezone</p>
-                        <p className="text-[11px] sm:text-xs md:text-sm font-medium">{job.timezone_preference}</p>
-                      </div>
-                    )}
-                    {job.freelancers_needed && job.freelancers_needed > 1 && (
-                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Freelancers Needed</p>
-                        <p className="text-[11px] sm:text-xs md:text-sm font-medium">{job.freelancers_needed}</p>
-                      </div>
-                    )}
-                    {job.visibility && (
-                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Visibility</p>
-                        <p className="text-[11px] sm:text-xs md:text-sm font-medium capitalize">{job.visibility}</p>
-                      </div>
-                    )}
-                    {job.deadline && (
-                      <div className="p-2 sm:p-3 bg-muted/50 rounded-lg">
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Deadline</p>
-                        <p className="text-[11px] sm:text-xs md:text-sm font-medium">{new Date(job.deadline).toLocaleDateString()}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Required Skills */}
               {!isSocialMediaPurchase() && skills.length > 0 && (
-                <div className="mb-4 sm:mb-6">
-                  <h2 className="text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3">Required Skills</h2>
+                <div className="mb-6">
+                  <h2 className="text-sm md:text-base font-semibold mb-3 text-foreground">Required Skills</h2>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill: string, idx: number) => (
-                      <Badge key={idx} variant="secondary" className="text-[9px] sm:text-[10px] md:text-xs">
+                      <Badge key={idx} variant="secondary" className="px-3 py-1 text-xs font-medium bg-muted text-muted-foreground">
                         {skill}
                       </Badge>
                     ))}
@@ -962,15 +978,18 @@ const JobDetails = () => {
               {/* Screening Questions */}
               {!isSocialMediaPurchase() && job.questions_for_freelancer && job.questions_for_freelancer.length > 0 && (
                 <div>
-                  <h2 className="text-xs sm:text-sm md:text-base font-semibold mb-2 sm:mb-3">Screening Questions</h2>
-                  <ul className="space-y-2">
+                  <h2 className="text-sm md:text-base font-semibold mb-3 text-foreground flex items-center gap-2">
+                    <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    Screening Questions
+                  </h2>
+                  <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border">
                     {job.questions_for_freelancer.map((question: string, idx: number) => (
-                      <li key={idx} className="flex gap-2 text-[10px] sm:text-xs md:text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground">{idx + 1}.</span>
-                        {question}
-                      </li>
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className="text-sm font-medium text-muted-foreground">{idx + 1}.</span>
+                        <span className="text-sm text-foreground">{question}</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
             </Card>
@@ -982,17 +1001,17 @@ const JobDetails = () => {
 
             {/* Client View - Fund Escrow */}
             {getUserRole() === 'client' && job.status === 'assigned' && (
-              <Card className="p-4 sm:p-6 glass-card shadow-card">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4">Fund Escrow</h2>
-                <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
+              <Card className="p-4 md:p-6 bg-card border-border">
+                <h2 className="text-lg md:text-xl font-bold mb-4 text-foreground">Fund Escrow</h2>
+                <p className="text-sm text-muted-foreground mb-6">
                   {isSocialMediaPurchase() 
                     ? "You've initiated the purchase. Fund the escrow to begin the account transfer process."
                     : "You've accepted a proposal. Now fund the escrow to allow the freelancer to start working."}
                 </p>
-                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-muted/50 rounded-lg">
+                <div className="mb-6 p-4 bg-muted/30 rounded-lg border border-border">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs sm:text-sm font-medium">Escrow Amount</span>
-                    <span className="text-base sm:text-lg font-bold">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</span>
+                    <span className="text-sm font-medium">Escrow Amount</span>
+                    <span className="text-lg font-bold text-success">{job.budget_usdc || (job.budget_eth * 2000).toFixed(2)} USDC</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {isSocialMediaPurchase()
@@ -1002,10 +1021,10 @@ const JobDetails = () => {
                 </div>
                 <Button 
                   onClick={() => setShowWalletConnectQR(true)} 
-                  className="w-full shadow-glow text-sm sm:text-base" 
+                  className="w-full" 
                   size="lg"
                 >
-                  <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
+                  <Wallet className="h-4 w-4 mr-2" />
                   Scan QR to Fund Escrow
                 </Button>
               </Card>
@@ -1051,43 +1070,43 @@ const JobDetails = () => {
 
             {/* Client/Buyer View - Awaiting Escrow Verification (Telegram only) */}
             {getUserRole() === 'client' && job.status === 'awaiting_escrow_verification' && (
-              <Card className="p-3 sm:p-4 md:p-6 bg-primary/5 border-primary/20">
-                <div className="flex items-start gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-primary animate-spin" />
+              <Card className="p-4 md:p-6 bg-info/5 border-info/20">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="h-12 w-12 rounded-full bg-info/10 flex items-center justify-center flex-shrink-0">
+                    <Clock className="h-6 w-6 text-info animate-spin" />
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2">Automated Transfer in Progress</h2>
-                    <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">
+                    <h2 className="text-lg md:text-xl font-bold mb-2 text-foreground">Automated Transfer in Progress</h2>
+                    <p className="text-sm text-muted-foreground">
                       Seller has confirmed the transfer to escrow. Our system is automatically processing the ownership transfer to you and releasing payment to the seller.
                     </p>
                   </div>
                 </div>
-                <div className="bg-muted/50 rounded-lg p-2 sm:p-3 md:p-4 space-y-1.5 sm:space-y-2 md:space-y-3">
-                  <h3 className="font-semibold text-[10px] sm:text-xs md:text-sm flex items-center gap-2">
+                <div className="bg-muted/30 rounded-lg p-4 space-y-3 border border-border">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
                     <span>⚡</span>
                     Automated Process Status
                   </h3>
-                  <ul className="text-[10px] sm:text-xs text-muted-foreground space-y-1.5 sm:space-y-2">
-                    <li className="flex items-start gap-1.5 sm:gap-2">
-                      <CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-success mt-0.5" />
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-success mt-0.5" />
                       <span>Seller transferred ownership to escrow admin</span>
                     </li>
-                    <li className="flex items-start gap-1.5 sm:gap-2">
-                      <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-primary mt-0.5 animate-spin" />
+                    <li className="flex items-start gap-2">
+                      <Clock className="h-4 w-4 text-info mt-0.5 animate-spin" />
                       <span>Escrow verifying and transferring ownership to you</span>
                     </li>
-                    <li className="flex items-start gap-1.5 sm:gap-2">
-                      <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-primary mt-0.5 animate-spin" />
+                    <li className="flex items-start gap-2">
+                      <Clock className="h-4 w-4 text-info mt-0.5 animate-spin" />
                       <span>Smart contract auto-releasing payment to seller</span>
                     </li>
-                    <li className="flex items-start gap-1.5 sm:gap-2">
-                      <AlertCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 text-muted-foreground mt-0.5" />
+                    <li className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <span>You'll be notified once complete (usually within minutes)</span>
                     </li>
                   </ul>
-                  <div className="mt-2 sm:mt-3 md:mt-4 p-1.5 sm:p-2 md:p-3 bg-blue-500/10 border border-blue-500/20 rounded">
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  <div className="mt-4 p-3 bg-info/10 border border-info/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
                       <strong className="text-foreground">No action needed:</strong> This entire process is fully automated. The ownership will be transferred to your Telegram account and payment will be released to the seller automatically.
                     </p>
                   </div>
@@ -1097,29 +1116,29 @@ const JobDetails = () => {
 
             {/* Client View - Completed */}
             {getUserRole() === 'client' && job.status === 'completed' && (!hasLeftUserReview || !hasLeftPlatformReview) && (
-              <Card className="p-3 sm:p-4 md:p-6 bg-primary/5 border-primary/20">
-                <div className="text-center mb-3 sm:mb-4 md:mb-6">
-                  <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 text-success mx-auto mb-2 sm:mb-3 md:mb-4" />
-                  <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold mb-1 sm:mb-2">
+              <Card className="p-4 md:p-6 bg-success/5 border-success/20">
+                <div className="text-center mb-6">
+                  <CheckCircle className="h-14 w-14 md:h-16 md:w-16 text-success mx-auto mb-4" />
+                  <h2 className="text-lg md:text-xl font-bold mb-2 text-foreground">
                     {isSocialMediaPurchase() ? 'Purchase Complete!' : 'Project Completed!'}
                   </h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 md:mb-4">
+                  <p className="text-sm text-muted-foreground mb-4">
                     {isSocialMediaPurchase()
                       ? 'Payment has been released to the seller'
                       : 'Funds have been released to the freelancer'}
                   </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Please leave your reviews below
                   </p>
                 </div>
-                <div className="space-y-2 sm:space-y-3">
+                <div className="space-y-3">
                   {!hasLeftUserReview && (
                     <RatingDialog
                       jobId={id!}
                       revieweeId={job.freelancer_id}
                       revieweeName={job.freelancer?.display_name || (isSocialMediaPurchase() ? 'Seller' : 'Freelancer')}
                       trigger={
-                        <Button className="w-full shadow-glow text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11" size="lg">
+                        <Button className="w-full" size="lg">
                           {isSocialMediaPurchase() ? 'Rate Seller' : 'Rate Freelancer'}
                         </Button>
                       }
@@ -1130,7 +1149,7 @@ const JobDetails = () => {
                     <PlatformReviewDialog
                       jobId={id!}
                       trigger={
-                        <Button variant="outline" className="w-full text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11" size="lg">
+                        <Button variant="outline" className="w-full" size="lg">
                           Review Platform
                         </Button>
                       }

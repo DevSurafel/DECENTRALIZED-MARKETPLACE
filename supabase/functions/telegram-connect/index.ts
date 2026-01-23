@@ -12,9 +12,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-const SUPABASE_URL = Deno.env.get("QYJ_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("QYJ_SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!;
-const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN")!;
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN")!;
 
   if (!TELEGRAM_BOT_TOKEN) {
     return new Response(JSON.stringify({ error: "Bot token missing" }), {

@@ -8,7 +8,7 @@ import { Heart, Users, DollarSign, ExternalLink, Facebook, Send, Youtube, Twitte
 import { useSocialMedia, SocialMediaListing } from '@/hooks/useSocialMedia';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/anyClient';
 
 const platformIcons = {
   facebook: Facebook,
@@ -63,7 +63,7 @@ export default function SocialMediaFavorites() {
       return;
     }
 
-    const favIds = new Set(favData?.map(f => f.listing_id) || []);
+    const favIds = new Set<string>((favData || []).map((f: any) => String(f.listing_id)));
     setFavoriteIds(favIds);
 
     if (favIds.size === 0) {

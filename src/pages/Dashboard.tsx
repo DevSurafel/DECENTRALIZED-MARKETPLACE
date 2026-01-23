@@ -10,7 +10,7 @@ import { useJobs } from "@/hooks/useJobs";
 import { useBids } from "@/hooks/useBids";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/anyClient";
 
 const handleReviewClick = async () => {
   const authResponse = await supabase.auth.getUser();

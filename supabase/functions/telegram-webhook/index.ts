@@ -2,6 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN")!;
+// Use external DFM Supabase if available, otherwise fall back to Lovable Cloud
+const SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -11,24 +16,6 @@ serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders, status: 200 });
-  }
-
-  // Get environment variables with fallbacks
-  const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  console.log("🔧 Environment check:");
-  console.log("  - TELEGRAM_BOT_TOKEN:", TELEGRAM_BOT_TOKEN ? "✅ Set" : "❌ Missing");
-  console.log("  - SUPABASE_URL:", SUPABASE_URL ? `✅ ${SUPABASE_URL}` : "❌ Missing");
-  console.log("  - SUPABASE_SERVICE_ROLE_KEY:", SUPABASE_SERVICE_ROLE_KEY ? "✅ Set" : "❌ Missing");
-
-  if (!TELEGRAM_BOT_TOKEN || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("❌ Missing required environment variables");
-    return new Response(JSON.stringify({ ok: false, error: "Missing environment variables" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   }
 
   // Use service role key directly — NO auth header needed
@@ -307,22 +294,16 @@ serve(async (req) => {
       console.log(`💬 Replying to conversation ${convId}`);
 
       // Verify sender is part of the conversation
-      const { data: conv, error: convErr } = await supabase
+      const { data: conv } = await supabase
         .from("conversations")
         .select("participant_1_id, participant_2_id")
         .eq("id", convId)
         .single();
 
-      console.log(`🔍 Conversation lookup result:`, JSON.stringify({ conv, convErr }));
-      console.log(`📊 Sender ID: ${sender.id}`);
-      console.log(`📊 Participant 1: ${conv?.participant_1_id}`);
-      console.log(`📊 Participant 2: ${conv?.participant_2_id}`);
-
       const isParticipant = conv && (conv.participant_1_id === sender.id || conv.participant_2_id === sender.id);
-      console.log(`📊 Is participant: ${isParticipant}`);
 
       if (!conv || !isParticipant) {
-        console.error(`❌ Sender not part of conversation. Conv found: ${!!conv}, isParticipant: ${isParticipant}`);
+        console.error("❌ Sender not part of conversation");
         const result = await reply(chatId, "You are not part of this conversation.");
         
         if (!result.ok) {

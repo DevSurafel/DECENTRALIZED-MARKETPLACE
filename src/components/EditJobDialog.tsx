@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useJobs } from "@/hooks/useJobs";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/anyClient";
 import { Briefcase, DollarSign, Clock, Plus, X, Edit3, Sparkles } from "lucide-react";
 
 interface EditJobDialogProps {

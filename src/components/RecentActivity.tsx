@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/anyClient";
 import { CheckCircle, MessageSquare, DollarSign, Briefcase, Star, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 

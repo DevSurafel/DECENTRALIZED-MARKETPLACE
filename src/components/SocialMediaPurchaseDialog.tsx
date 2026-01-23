@@ -9,7 +9,7 @@ import { SocialMediaListing, SocialMediaPlatform } from "@/hooks/useSocialMedia"
 import { useEscrow } from "@/hooks/useEscrow";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/anyClient";
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle, CheckCircle2, Info } from "lucide-react";
 
