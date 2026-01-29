@@ -63,6 +63,7 @@ const Marketplace = () => {
     loadJobs();
   }, []);
 
+  
   useEffect(() => {
     filterJobs();
   }, [searchQuery, selectedCategory, jobs]);
